@@ -8,7 +8,6 @@ interface CurrentUser {
   institution_id: string;
   assigned_case_count: number;
 }
-
 interface DemoPersona {
   persona_id: string;
   display_name: string;
@@ -16,7 +15,6 @@ interface DemoPersona {
   assigned_case_count: number;
   institution_id: string;
 }
-
 interface NavbarProps {
   title: string;
   subtitle?: string;
@@ -69,27 +67,30 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="fh-topbar">
-      <div className="fh-topbar-main">
-        <div className="fh-breadcrumb">
-          <span>FairHold</span><span className="fh-breadcrumb-divider">/</span><span>{section}</span>
+    <header className="fh-header" style={{ minHeight: 74, height: 'auto', paddingTop: 12, paddingBottom: 12 }}>
+      <div className="min-w-0">
+        <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+          FairHold <span className="mx-1 text-slate-300">/</span> {section}
         </div>
-        <h1 className="fh-topbar-title">{title}</h1>
-        {subtitle && <p className="fh-topbar-subtitle">{subtitle}</p>}
+        <h1 className="mt-1 text-base font-semibold tracking-tight text-slate-900">{title}</h1>
+        {subtitle && <p className="mt-1 max-w-2xl text-[11px] leading-4 text-slate-500">{subtitle}</p>}
       </div>
 
-      <div className="fh-topbar-actions">
-        <div className="fh-env-chip"><span className="status-dot status-dot--warning" /><span>Local demo · synthetic data</span></div>
-        <div className="fh-user-menu" ref={menuRef}>
+      <div className="fh-header-actions">
+        <div className="hidden sm:flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10px] font-medium text-amber-800">
+          <span className="status-dot status-dot--warning" />
+          LOCAL DEMO · SYNTHETIC DATA
+        </div>
+        <div className="relative" ref={menuRef}>
           <button
-            className="fh-profile-trigger"
+            className="fh-profile-pill"
             type="button"
             aria-haspopup="menu"
             aria-expanded={open}
             onClick={() => setOpen((value) => !value)}
           >
             <span className="fh-profile-avatar">{initialsFrom(currentUser.display_name)}</span>
-            <span className="fh-profile-details">
+            <span className="fh-profile-info">
               <span className="fh-profile-name">{currentUser.display_name}</span>
               <span className="fh-profile-role">{currentUser.role.replace(/_/g, ' ')}</span>
             </span>
@@ -97,12 +98,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {open && (
-            <div className="fh-user-dropdown" role="menu">
-              <div className="fh-user-dropdown-heading">
-                <ShieldCheck size={14} />
-                <span>Local demonstration identities</span>
+            <div className="fh-persona-dropdown" role="menu">
+              <div className="fh-persona-header">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-800">
+                  <ShieldCheck size={14} />
+                  Demo identities
+                </div>
+                <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                  Simulated roles for testing case permissions. This is not institutional authentication.
+                </p>
               </div>
-              <p className="fh-user-dropdown-note">Role switching is simulated and is not production authentication.</p>
               {personas.map((persona) => (
                 <button
                   type="button"
@@ -110,20 +115,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                   key={persona.persona_id}
                   disabled={switching || persona.persona_id === currentUser.user_id}
                   onClick={() => void choosePersona(persona.persona_id)}
-                  className={"fh-user-option" + (persona.persona_id === currentUser.user_id ? " is-current" : "")}
+                  className={"fh-persona-item" + (persona.persona_id === currentUser.user_id ? " is-selected" : "")}
                 >
-                  <span className="fh-profile-avatar fh-profile-avatar--small">{initialsFrom(persona.display_name)}</span>
-                  <span className="fh-user-option-copy">
-                    <span className="fh-profile-name">{persona.display_name}</span>
-                    <span className="fh-profile-role">{persona.role} · {persona.assigned_case_count} assigned cases</span>
+                  <span className="fh-persona-item-avatar">{initialsFrom(persona.display_name)}</span>
+                  <span className="min-w-0 flex-1 text-left">
+                    <span className="block text-xs font-semibold text-slate-800">{persona.display_name}</span>
+                    <span className="block text-[10px] text-slate-500">{persona.role} · {persona.assigned_case_count} assigned cases</span>
                   </span>
-                  {persona.persona_id === currentUser.user_id && <span className="fh-current-label">Current</span>}
+                  {persona.persona_id === currentUser.user_id && <span className="fh-persona-badge">Current</span>}
                 </button>
               ))}
-              <div className="fh-user-dropdown-footer">
-                <span className="fh-profile-role">{currentUser.institution_id}</span>
-                <button type="button" className="fh-signout-button" onClick={() => { setOpen(false); onSignOut(); }}>
-                  <LogOut size={13} /> End session
+              <div className="flex items-center justify-between border-t border-slate-100 px-3 py-2">
+                <span className="max-w-[155px] truncate text-[9px] text-slate-400">{currentUser.institution_id}</span>
+                <button type="button" className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-600 hover:text-rose-700" onClick={() => { setOpen(false); onSignOut(); }}>
+                  <LogOut size={12} /> End session
                 </button>
               </div>
             </div>
