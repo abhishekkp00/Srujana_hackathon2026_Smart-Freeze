@@ -2,19 +2,22 @@ import axios from 'axios';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+export const DEMO_TOKEN_KEY = 'smart_freeze_token';
+
 export const apiClient = axios.create({
   baseURL: BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 });
 
-// Attach authenticated session token or active development demonstration persona
+// Never choose an identity implicitly. A token is attached only after an explicit
+// local-demo session is created or a real identity flow supplies one.
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('smart_freeze_token') || 'dev_token_admin';
-  if (token && token !== 'unauthenticated') {
+  const token = window.localStorage.getItem(DEMO_TOKEN_KEY);
+  if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  } else if (config.headers.Authorization) {
+    delete config.headers.Authorization;
   }
   return config;
 });
@@ -22,16 +25,17 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    let message = 'An unexpected error occurred';
+    const detail = error.response?.data?.detail;
     if (error.response?.status === 401) {
-      message = 'Authentication Required (HTTP 401): Please select an authorized persona.';
+      error.message = detail || 'Authentication required. Start an explicitly labelled local demo session.';
     } else if (error.response?.status === 403) {
-      message = `Access Denied (HTTP 403): ${error.response.data?.detail || 'Unauthorized for this case or operation.'}`;
-    } else if (error.response?.data?.detail) {
-      message = error.response.data.detail;
-    } else if (error.message) {
-      message = error.message;
+      error.message = detail || 'Access denied for this case or operation.';
+    } else if (detail) {
+      error.message = detail;
+    } else if (!error.response) {
+      error.message = 'Cannot reach the API. Check that FastAPI is running and VITE_API_BASE_URL is correct.';
     }
-    return Promise.reject(new Error(message));
+    // Preserve response/status fields for callers that need to distinguish HTTP states.
+    return Promise.reject(error);
   }
 );
