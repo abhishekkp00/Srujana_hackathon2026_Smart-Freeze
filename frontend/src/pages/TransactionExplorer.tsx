@@ -41,7 +41,7 @@ export const TransactionExplorer: React.FC = () => {
   const [graphData, setGraphData] = useState<GraphData | null>(null);
 
   // Filter states
-  const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE-2026-001');
+  const [selectedCaseId, setSelectedCaseId] = useState<string>('');
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
@@ -65,29 +65,46 @@ export const TransactionExplorer: React.FC = () => {
   // Loading states
   const [loading, setLoading] = useState(true);
 
-  // Initial load
+  // Load only cases visible to the active identity. Account inventory is case-scoped.
   useEffect(() => {
-    const fetchMetadata = async () => {
+    const fetchCases = async () => {
       try {
-        const [cList, aList] = await Promise.all([getCases(), getAccounts()]);
+        const cList = await getCases();
         setCases(cList);
-        setAccounts(aList);
+        setSelectedCaseId((current) => current && cList.some((item) => item.case_id === current) ? current : (cList[0]?.case_id ?? ''));
       } catch (err) {
-        console.error('Failed to load filter metadata:', err);
+        console.error('Failed to load authorized cases:', err);
+        setCases([]);
+        setSelectedCaseId('');
       }
     };
-    fetchMetadata();
-
-    const handleAuthChange = () => {
-      fetchMetadata();
-    };
+    fetchCases();
+    const handleAuthChange = () => { fetchCases(); };
     window.addEventListener('auth-changed', handleAuthChange);
     return () => window.removeEventListener('auth-changed', handleAuthChange);
   }, []);
 
+  useEffect(() => {
+    if (!selectedCaseId) {
+      setAccounts([]);
+      return;
+    }
+    getAccounts(selectedCaseId).then(setAccounts).catch((err) => {
+      setAccounts([]);
+      console.error('Failed to load accounts for selected case:', err);
+    });
+  }, [selectedCaseId]);
+
   // Fetch transactions and graph data when filters change
   useEffect(() => {
     const fetchData = async () => {
+      if (!selectedCaseId) {
+        setTransactions([]);
+        setTotalTransactions(0);
+        setGraphData(null);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
         const [txData, gData] = await Promise.all([
@@ -123,7 +140,7 @@ export const TransactionExplorer: React.FC = () => {
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
-        const data = await getAccountBalanceHistory(selectedAccountId);
+        const data = await getAccountBalanceHistory(selectedAccountId, selectedCaseId);
         setBalanceHistory(data);
       } catch (err) {
         console.error('Failed to load balance history:', err);
