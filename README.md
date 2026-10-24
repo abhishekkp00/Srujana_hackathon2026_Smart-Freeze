@@ -17,7 +17,7 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
 
 ---
 
-## 2. Current Implementation Scope (Step 1)
+## 2. Current Implementation Scope
 
 **Step 1: Project Foundation and Synthetic Data** (Complete)
 - Python 3.12 project foundation with isolated core modules (`engine/`, `pipeline/`, `evaluation/`).
@@ -25,10 +25,20 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
 - Strict schema validation adhering to integer-paise representation and explicit external counterparty conventions.
 - Controlled synthetic ground truth (`data/synthetic/ground_truth.json`) stored strictly separate from operational ledger data.
 - Full automated test suite in `tests/test_synthetic_data.py` with 100% pass rate.
-- Minimal placeholder dashboard (`app.py`).
+
+**Step 2: Dataset Profiling, Validation and Adapters** (Complete)
+- Canonical internal schemas and field definitions (`pipeline/schemas.py`).
+- Structural and semantic validation engine (`pipeline/validation.py`) distinguishing fatal errors from quality warnings.
+- Dataset profiling module (`pipeline/profiling.py`) producing deterministic metrics, dimensions, amounts, and distributions.
+- Dataset-specific normalization adapters (`pipeline/adapters/`):
+  - `SyntheticAdapter`: Operational accounts, transactions, and cases with strict ground truth isolation.
+  - `EllipticAdapter`: Cryptocurrency transaction graph preserving Bitcoin UTXO edges and labels without fabricating bank accounts.
+  - `SynthAMLAdapter`: SynthAML alerts adapter detecting missing companion transaction journals (`synthetic_transactions.csv`).
+  - `AMLNetAdapter`: Independent multi-channel banking AML dataset adapter preserving Australian payment rails and typologies.
+- Profiling CLI (`scripts/profile_datasets.py`) for human-readable and JSON reporting.
+- Comprehensive test suites in `tests/test_validation.py`, `tests/test_profiling.py`, and `tests/test_adapters.py`.
 
 *Upcoming Phases:*
-- **Step 2:** Ingestion pipeline and balance conservation / ledger reconstruction.
 - **Step 3:** Transaction graph representation and independent tracing algorithms (FIFO, Proportional, LIBR).
 - **Step 4:** Consensus Lien and Investigation Priority Scoring.
 - **Step 5:** Interactive Streamlit Dashboard and Audit Reporting.
@@ -44,7 +54,7 @@ fairhold/
 ├── requirements.txt                    # Minimal production and testing dependencies
 ├── app.py                              # Streamlit dashboard entrypoint (Step 1 placeholder)
 ├── data/
-│   ├── raw/                            # Immutable external datasets (e.g., AML, Elliptic)
+│   ├── raw/                            # Immutable external datasets (e.g., AMLNet, Elliptic, SynthAML)
 │   ├── processed/                      # Normalized operational data
 │   └── synthetic/                      # Generated deterministic benchmark dataset
 │       ├── accounts.csv                # Operational account ledger
@@ -53,14 +63,26 @@ fairhold/
 │       └── ground_truth.json           # Evaluation-only hidden ground truth (isolated)
 ├── engine/                             # Core algorithms package (ledger, tracing, lien, scoring)
 │   └── __init__.py
-├── pipeline/                           # Data ingestion, schema validation, and normalization
-│   └── __init__.py
+├── pipeline/                           # Data ingestion, schema validation, profiling, and adapters
+│   ├── __init__.py
+│   ├── schemas.py                      # Canonical schemas and field specifications
+│   ├── validation.py                   # Structural and semantic data validation
+│   ├── profiling.py                    # Deterministic profiling and statistical metrics
+│   └── adapters/                       # Dataset-specific adapters
+│       ├── __init__.py
+│       ├── synthetic_adapter.py        # Operational FairHold synthetic ledger adapter
+│       ├── elliptic_adapter.py         # Elliptic Bitcoin cryptocurrency graph adapter
+│       └── synthaml_adapter.py         # SynthAML and AMLNet dataset adapters
 ├── evaluation/                         # Evaluation metrics and benchmark comparison modules
 │   └── __init__.py
 ├── scripts/
-│   └── generate_synthetic_data.py      # Deterministic synthetic data generation script
+│   ├── generate_synthetic_data.py      # Deterministic synthetic data generation script
+│   └── profile_datasets.py             # CLI tool for dataset profiling and validation
 └── tests/
-    └── test_synthetic_data.py          # Pytest validation test suite
+    ├── test_synthetic_data.py          # Step 1 synthetic data validation tests
+    ├── test_validation.py              # Step 2 structural and semantic validation tests
+    ├── test_profiling.py               # Step 2 profiling metrics and format tests
+    └── test_adapters.py                # Step 2 dataset adapters and isolation tests
 ```
 
 ---
@@ -80,6 +102,19 @@ pip install -r requirements.txt
 Generate the deterministic dataset using the standard random seed:
 ```bash
 python3 scripts/generate_synthetic_data.py --seed 42 --output-dir data/synthetic
+```
+
+### Profiling Datasets
+Run the dataset profiling and validation tool:
+```bash
+# Profile the synthetic dataset
+python3 scripts/profile_datasets.py --dataset synthetic
+
+# Profile all available datasets (synthetic, Elliptic, SynthAML alerts, AMLNet)
+python3 scripts/profile_datasets.py --dataset all
+
+# Output profile report in JSON format
+python3 scripts/profile_datasets.py --dataset synthetic --json
 ```
 
 ### Running Tests
@@ -155,8 +190,29 @@ The generator uses a seedable Pseudo-Random Number Generator (`random.Random(see
 
 ---
 
-## 7. Known Limitations
+## 7. Supported Dataset Adapters & Optional Datasets
+
+| Dataset | Location | Status | Notes / Limitations |
+| :--- | :--- | :--- | :--- |
+| **FairHold Synthetic** | `data/synthetic/` | Supported | Internal operational ledger in integer paise (`accounts.csv`, `transactions.csv`, `cases.csv`). Ground truth strictly isolated. |
+| **Elliptic Bitcoin** | `data/raw/elliptic_bitcoin_dataset/` | Supported | Cryptocurrency transaction graph (`elliptic_txs_classes.csv`, `elliptic_txs_edgelist.csv`, `elliptic_txs_features.csv`). Labels: illicit (1), licit (2), unknown. Preserves directed UTXO flows; does NOT represent bank accounts or INR balances. |
+| **SynthAML Alerts** | `data/raw/synthetic_alerts.csv` | Partially Supported (Orphan) | Contains 20,000 alerts with Outcome (`Report`, `Dismiss`). Companion `synthetic_transactions.csv` is missing from `data/raw/`. Retained as orphan alerts; companion is not fabricated. |
+| **AMLNet** | `data/raw/AMLNet_August 2025.csv` | Supported (Separate) | Australian multi-channel banking transaction dataset (1.09M rows) with 17 features including typologies (`structuring`, `layering`, `integration`). Treated as independent dataset; NOT conflated with SynthAML. |
+
+### Supplying Optional Public Datasets
+- **Elliptic**: Place `elliptic_txs_classes.csv`, `elliptic_txs_edgelist.csv`, and optionally `elliptic_txs_features.csv` in `data/raw/elliptic_bitcoin_dataset/`.
+- **SynthAML**: Place `synthetic_alerts.csv` and `synthetic_transactions.csv` in `data/raw/`.
+- **AMLNet**: Place `AMLNet_August 2025.csv` in `data/raw/`.
+
+Raw datasets remain immutable under `data/raw/` and are never committed if exceeding repository limits.
+
+---
+
+## 8. Known Limitations
 
 - **Synthetic Domain**: These records are generated for algorithmic testing and decision-support validation; they do not represent real proprietary banking data.
 - **Simplified Counterparties**: Real inter-bank settlements involve clearing houses, payment aggregators, and chargeback lifecycles which are abstracted via `EXT_` counterparties in this synthetic ledger.
-- **Step 1 Boundary**: Tracing algorithms, graph traversal, and UI visualization will be introduced in subsequent steps.
+- **SynthAML Companion Absence**: `synthetic_transactions.csv` is missing in `data/raw/`, so `synthetic_alerts.csv` cannot be joined to transaction logs.
+- **Cryptocurrency Graph Domain**: Elliptic represents Bitcoin transactions and cannot be directly subjected to fiat bank account lien rules.
+- **Step 2 Boundary**: Fund-tracing algorithms (FIFO, Proportional, LIBR) and graph visualization will be implemented in Step 3.
+
