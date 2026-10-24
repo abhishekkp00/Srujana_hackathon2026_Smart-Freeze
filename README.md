@@ -1,6 +1,6 @@
-# Smart-Freeze
+# FairHold
 
-Smart-Freeze is a transparent fraud-investigation and fund-tracing decision-support MVP designed to assist authorized financial investigators in analyzing suspected fraudulent fund transfers, reconstructing transaction ledgers, tracing commingled money flows, and comparing lien estimates without automated prejudgment or black-box closures.
+FairHold is an evidence-first financial investigation and fund-tracing decision-support prototype designed to assist authorized financial investigators in analyzing suspected fraudulent fund transfers, reconstructing transaction ledgers, tracing commingled money flows, and comparing lien estimates without automated prejudgment or black-box closures.
 
 ---
 
@@ -24,7 +24,7 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
 - Deterministic synthetic financial ledger generator (`scripts/generate_synthetic_data.py`).
 - Strict schema validation adhering to integer-paise representation and explicit external counterparty conventions.
 - Controlled synthetic ground truth (`data/synthetic/ground_truth.json`) stored strictly separate from operational ledger data.
-- Full automated test suite in `tests/test_synthetic_data.py` with 100% pass rate.
+- Automated tests are defined in `tests/test_synthetic_data.py`; run the suite locally to verify the current checkout.
 
 **Step 2: Dataset Profiling, Validation and Adapters** (Complete)
 - Canonical internal schemas and field definitions (`pipeline/schemas.py`).
@@ -97,12 +97,12 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
   - Chronological account balance timelines rendered via Recharts.
   - Five core investigation views (Overview, Transaction Explorer, Consensus Lien, Investigation Review, Data Quality).
 
-**Step 10: Machine Learning Fraud Classifier on European Credit Card Benchmark** (Complete)
-- Genuine transaction-fraud classification model trained on the ULB / Worldline European Credit Card dataset (284,807 transactions, 492 fraud cases, 0.173% class imbalance).
-- Random Forest primary candidate achieving **87.50% Precision**, **75.68% Recall**, **0.8116 F1-score**, and **0.8079 PR-AUC** on held-out test data (42,722 transactions).
-- Operating threshold ($\tau = 0.63$) selected strictly on validation data to optimize minority F1-score.
-- Dedicated interactive ML Analysis dashboard with live feature inspector and real test demo vectors.
-- Automated test suite in `tests/test_ml.py` (15 tests).
+**Step 10: ML fraud-classification pipeline**
+- Training code in `ml/train.py` trains Logistic Regression and Random Forest using the European Credit Card Fraud Detection dataset.
+- The source dataset and serialized model are not committed. A local training run is required before prediction is available.
+- Held-out metrics, split sizes, chosen threshold and artifact digest are generated into `models/model_metadata.json`; the ML UI reads the generated metadata instead of assuming fixed metrics.
+- The model service refuses to load when the expected artifact or metadata is missing, the feature schema differs, or the artifact digest does not match.
+- The model is a historical credit-card classifier, not a validated Indian bank AML model, and it does not alter fund-tracing calculations.
 
 **Step 12: TraceProof Multi-Rail Evidence Reconstruction** (Complete)
 - Core capability reconstructing verifiable transaction trails across three independent institutions:
@@ -291,16 +291,28 @@ Execute the full automated test suite:
 pytest -v
 ```
 
-### Running the App (Placeholder)
+### Running the App
+
+The web application uses FastAPI for the backend and React + Vite for the frontend. There is no Streamlit dashboard.
+
+Backend (from the repository root):
+
 ```bash
-streamlit run app.py
+source .venv/bin/activate
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
----
+Frontend (in a second terminal):
 
-## 5. Synthetic Data Schemas
+```bash
+cd frontend
+npm ci
+npm run dev
+```
 
-All operational financial amounts are stored as **positive integer paise** (1 INR = 100 paise; e.g., ₹1,000.00 = `100000` paise). Binary floating-point currency representation is strictly prohibited.
+Open the URL printed by Vite, usually `http://localhost:5173`. FastAPI's API documentation is at `http://127.0.0.1:8000/docs`.
+
+Local demo identities are mock authentication for an isolated demo only. Production OIDC/SSO and live bank connectivity are not implemented.
 
 ### `accounts.csv`
 | Column | Type | Description |
@@ -391,7 +403,7 @@ Operating threshold selected on validation data ($\tau = 0.63$) to optimize F1 s
 
 | Model | Operating Threshold | Precision | Recall | F1-Score | PR-AUC | ROC-AUC | Accuracy (Suppl.) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Random Forest (Primary)** | **0.63** | **87.50%** | **75.68%** | **0.8116** | **0.8079** | **0.9706** | **99.94%** |
+| **Random Forest (Primary)** | Read `selected_threshold` from the local `models/model_metadata.json` created by the latest training run. | Metrics are calculated from that run's held-out test split; do not treat old report values as runtime truth. |
 | Logistic Regression (Baseline) | 0.95 | 42.76% | 83.78% | 0.5662 | 0.7923 | 0.9677 | 99.88% |
 
 - **Held-Out Confusion Matrix (Random Forest on 42,722 test samples)**:
@@ -449,7 +461,7 @@ cd frontend
 npm install
 npm run dev
 ```
-The application will be available at `http://localhost:5173`. Vite is pre-configured to proxy `/api/*` requests to the FastAPI backend at `http://localhost:8000`.
+The application will be available at `http://localhost:5173`. Vite is configured to proxy `/api/*` requests to the FastAPI backend at `http://localhost:8000`.
 
 To create a production build:
 ```bash
