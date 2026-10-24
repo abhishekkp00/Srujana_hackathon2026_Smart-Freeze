@@ -31,7 +31,7 @@ ENV/
 .coverage
 htmlcov/
 
-# Streamlit
+# Local web-app state
 .streamlit/
 
 # Operating System & IDE
@@ -47,11 +47,11 @@ data/raw/*
 data/processed/*
 !data/processed/.gitkeep
 
-# Trained Model Artifacts
+# Trained model artifacts, generated demo vectors, training metadata, and local benchmark outputs
 models/*.joblib
 models/*.pkl
+models/*.json
 !models/.gitkeep
-!models/*.json
 
 # Secrets, Environment Files & Keys
 .env
