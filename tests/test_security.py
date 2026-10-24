@@ -180,8 +180,12 @@ def test_vertical_privilege_escalation_denied(
 
     adm_sec = admin_client.get("/api/admin/security-status")
     assert adm_sec.status_code == 200
-    assert adm_sec.json()["status"] == "SECURED"
-    assert adm_sec.json()["bola_enforcement_active"] is True
+    security_status = adm_sec.json()
+    assert security_status["status"] == "LOCAL_DEMO_ONLY"
+    assert security_status["production_auth_ready"] is False
+    assert security_status["demo_auth_enabled"] is True
+    assert "NOT_INDEPENDENTLY_VERIFIED" in security_status["case_scope_authorization_status"]
+    assert security_status["rate_limiting_active"] is True
 
 
 # ==============================================================================
