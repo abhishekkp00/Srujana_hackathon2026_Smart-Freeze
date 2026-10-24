@@ -21,13 +21,13 @@ class PredictResponse(BaseModel):
     """Model prediction outcome and risk analysis."""
     predicted_class: int = Field(..., description="0 for Non-Fraud, 1 for Fraud")
     predicted_label: str = Field(..., description="'FRAUD' or 'NON_FRAUD'")
-    model_score: float = Field(..., description="Estimated risk score in [0.0, 1.0]")
+    model_score: float = Field(..., description="Uncalibrated positive-class score in [0.0, 1.0]; not a calibrated fraud probability")
     threshold_used: float = Field(..., description="Validation-selected decision threshold")
     model_version: str = Field(..., description="Version of the loaded model artifact")
     algorithm: str = Field(..., description="Algorithm used (e.g. 'RandomForestClassifier')")
     score_type: str = Field(
-        default="uncalibrated_fraud_probability_estimate",
-        description="Definition of what the model_score represents"
+        default="uncalibrated_positive_class_score",
+        description="Definition of what model_score represents; it is not calibrated unless separate calibration is implemented and evaluated"
     )
     explanation: str = Field(
         ...,
