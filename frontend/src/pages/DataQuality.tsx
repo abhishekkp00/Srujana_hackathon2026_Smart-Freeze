@@ -32,7 +32,7 @@ export const DataQuality: React.FC = () => {
   }, []);
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Top Banner */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
         <div className="flex items-center space-x-2 text-teal-600 font-semibold text-xs tracking-wider uppercase mb-1">
