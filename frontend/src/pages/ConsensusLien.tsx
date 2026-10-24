@@ -13,7 +13,7 @@ import { Badge } from '../components/common/Badge';
 
 export const ConsensusLien: React.FC = () => {
   const [cases, setCases] = useState<CaseSummary[]>([]);
-  const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE-2026-001');
+  const [selectedCaseId, setSelectedCaseId] = useState<string>('');
   const [lienData, setLienData] = useState<ConsensusLienData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +24,9 @@ export const ConsensusLien: React.FC = () => {
       try {
         const cList = await getCases();
         setCases(cList);
+        setSelectedCaseId((current) => current && cList.some((item) => item.case_id === current)
+          ? current
+          : (cList[0]?.case_id ?? ''));
       } catch (err) {
         console.error('Failed to load cases:', err);
       }
@@ -39,7 +42,12 @@ export const ConsensusLien: React.FC = () => {
 
   // Load Consensus Lien data for selected case
   useEffect(() => {
-    if (!selectedCaseId) return;
+    if (!selectedCaseId) {
+      setLienData(null);
+      setLoading(false);
+      setError(cases.length === 0 ? 'No cases are available to this identity.' : null);
+      return;
+    }
     const fetchLien = async () => {
       setLoading(true);
       setError(null);
@@ -54,7 +62,7 @@ export const ConsensusLien: React.FC = () => {
       }
     };
     fetchLien();
-  }, [selectedCaseId]);
+  }, [selectedCaseId, cases.length]);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
