@@ -22,7 +22,8 @@ from security.audit import SecurityAuditLogger
 from security.models import AuditSeverity, AuthContext, Role, User
 
 # Active environment: "development", "test", or "production"
-ENV_MODE = os.getenv("SMART_FREEZE_ENV", "development").lower()
+ENV_MODE = os.getenv("SMART_FREEZE_ENV", "development").strip().lower()
+DEMO_AUTH_ENABLED = ENV_MODE in {"development", "test"} and os.getenv("ENABLE_DEMO_AUTH", "true").strip().lower() in {"1", "true", "yes"}
 
 # Mock demonstration personas for local development and testing
 DEMO_PERSONAS: Dict[str, User] = {
@@ -80,26 +81,18 @@ class AuthenticationProvider(ABC):
 class OIDCAuthenticationProvider(AuthenticationProvider):
     """Production enterprise OIDC / OAuth 2.0 provider.
     
-    In production, validates JWT signatures against the identity provider's JWKS
-    endpoint, verifies audience and issuer claims, and maps institutional groups to roles.
+    Placeholder only. JWT signature, issuer, audience, expiry and role claims are not
+    implemented, so this provider intentionally accepts no token until completed and tested.
     """
 
     def __init__(self, jwks_url: Optional[str] = None, client_id: Optional[str] = None):
         self.jwks_url = jwks_url or os.getenv("OIDC_JWKS_URL")
         self.client_id = client_id or os.getenv("OIDC_CLIENT_ID")
-        if not self.jwks_url or not self.client_id:
-            # Fails closed if production identity configuration is missing
-            self.is_configured = False
-        else:
-            self.is_configured = True
+        self.is_configured = bool(self.jwks_url and self.client_id)
+        self.is_implemented = False
 
     def authenticate(self, token: str) -> Optional[AuthContext]:
-        if not self.is_configured:
-            raise RuntimeError(
-                "Production OIDC identity provider is not configured. "
-                "Set OIDC_JWKS_URL and OIDC_CLIENT_ID environment variables."
-            )
-        # Placeholder for full JWT cryptographic verification against JWKS in production
+        # Fail closed even when endpoint configuration exists: JWT verification is not implemented.
         return None
 
 
@@ -107,21 +100,21 @@ class DevTokenAuthProvider(AuthenticationProvider):
     """Isolated local development and testing identity provider."""
 
     def authenticate(self, token: str) -> Optional[AuthContext]:
-        if token in DEMO_PERSONAS:
+        if DEMO_AUTH_ENABLED and token in DEMO_PERSONAS:
             user = DEMO_PERSONAS[token]
             now_iso = datetime.now(timezone.utc).isoformat()
             return AuthContext(
                 user=user,
                 token_type="dev_bearer",
                 issued_at=now_iso,
-                expires_at="2026-12-31T23:59:59+00:00",
+                expires_at="DEMO_SESSION",
             )
         return None
 
 
 def get_auth_provider() -> AuthenticationProvider:
     """Return configured authentication provider based on environment."""
-    if ENV_MODE == "production":
+    if not DEMO_AUTH_ENABLED:
         return OIDCAuthenticationProvider()
     return DevTokenAuthProvider()
 
@@ -141,6 +134,12 @@ def get_current_user(
     audit = SecurityAuditLogger.get_instance()
     client_ip = request.client.host if request.client else "unknown"
     path = request.url.path
+
+    if not DEMO_AUTH_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No fully implemented identity provider is configured. Enable the local demo identity mode only for isolated development, or integrate and verify institutional OIDC before deployment.",
+        )
 
     if not authorization:
         audit.log_event(
