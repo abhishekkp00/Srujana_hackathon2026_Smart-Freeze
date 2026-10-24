@@ -117,12 +117,12 @@ def generate_all_data(
     # Legitimate merchant & retail customers
     add_acc("ACC_MERCHANT_01", "merchant", 20_000_000)
     for i in range(1, 11):
-        add_acc(f"ACC_CUST_{i:02d}", "savings", rng.randint(300_000, 2_000_000))
+        add_acc(f"ACC_CUST_{i:02d}", "savings", rng.randint(1_000_000, 3_000_000))
 
-    # General personal background accounts
-    add_acc("ACC_PERSONAL_01", "savings", 800_000)
-    add_acc("ACC_PERSONAL_02", "savings", 1_200_000)
-    add_acc("ACC_PERSONAL_03", "current", 2_500_000)
+    # General personal background accounts (scaled to support background transactions)
+    add_acc("ACC_PERSONAL_01", "savings", 3_000_000)
+    add_acc("ACC_PERSONAL_02", "savings", 3_000_000)
+    add_acc("ACC_PERSONAL_03", "current", 3_000_000)
 
     # ---------------------------------------------------------
     # 2. Cases Setup (3 Distinct Fraud Cases)

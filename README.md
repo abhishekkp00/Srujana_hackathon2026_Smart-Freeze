@@ -38,8 +38,16 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
 - Profiling CLI (`scripts/profile_datasets.py`) for human-readable and JSON reporting.
 - Comprehensive test suites in `tests/test_validation.py`, `tests/test_profiling.py`, and `tests/test_adapters.py`.
 
+**Step 3: Ledger Reconstruction and Transaction Graph** (Complete)
+- Domain data models for accounts, balance events, and graph summaries (`engine/models.py`).
+- Account-level running balance tracking and conservation engine (`engine/balances.py`).
+- Directed multigraph construction with NetworkX preserving multiple inter-account edges and transaction provenance (`engine/transaction_graph.py`).
+- End-to-end ledger reconstruction coordinator (`engine/ledger.py`) verifying global value conservation ($Opening + Deposits - Withdrawals = Final$).
+- Reconstructed audit-ready balance history and graph summaries (`data/processed/`).
+- CLI tool (`scripts/reconstruct_ledger.py`) for reproducible reconstruction.
+- Comprehensive test suites in `tests/test_balances.py`, `tests/test_transaction_graph.py`, and `tests/test_ledger.py`.
+
 *Upcoming Phases:*
-- **Step 3:** Transaction graph representation and independent tracing algorithms (FIFO, Proportional, LIBR).
 - **Step 4:** Consensus Lien and Investigation Priority Scoring.
 - **Step 5:** Interactive Streamlit Dashboard and Audit Reporting.
 
@@ -56,13 +64,20 @@ fairhold/
 ├── data/
 │   ├── raw/                            # Immutable external datasets (e.g., AMLNet, Elliptic, SynthAML)
 │   ├── processed/                      # Normalized operational data
+│   │   ├── balance_history.csv         # Reconstructed account balance event histories
+│   │   ├── ledger_validation_report.json # Conservation and data validation audit
+│   │   └── transaction_graph_summary.json # Topological graph statistics
 │   └── synthetic/                      # Generated deterministic benchmark dataset
 │       ├── accounts.csv                # Operational account ledger
 │       ├── transactions.csv            # Operational chronological transaction journal
 │       ├── cases.csv                   # Reported fraud cases
 │       └── ground_truth.json           # Evaluation-only hidden ground truth (isolated)
-├── engine/                             # Core algorithms package (ledger, tracing, lien, scoring)
-│   └── __init__.py
+├── engine/                             # Core algorithms package (ledger, balances, graph)
+│   ├── __init__.py
+│   ├── models.py                       # Ledger domain models and event representations
+│   ├── balances.py                     # Account running balance tracking and conservation
+│   ├── transaction_graph.py            # NetworkX MultiDiGraph constructor and summary
+│   └── ledger.py                       # End-to-end ledger reconstruction coordinator
 ├── pipeline/                           # Data ingestion, schema validation, profiling, and adapters
 │   ├── __init__.py
 │   ├── schemas.py                      # Canonical schemas and field specifications
@@ -77,12 +92,16 @@ fairhold/
 │   └── __init__.py
 ├── scripts/
 │   ├── generate_synthetic_data.py      # Deterministic synthetic data generation script
-│   └── profile_datasets.py             # CLI tool for dataset profiling and validation
+│   ├── profile_datasets.py             # CLI tool for dataset profiling and validation
+│   └── reconstruct_ledger.py           # CLI tool for ledger reconstruction and graph generation
 └── tests/
     ├── test_synthetic_data.py          # Step 1 synthetic data validation tests
     ├── test_validation.py              # Step 2 structural and semantic validation tests
     ├── test_profiling.py               # Step 2 profiling metrics and format tests
-    └── test_adapters.py                # Step 2 dataset adapters and isolation tests
+    ├── test_adapters.py                # Step 2 dataset adapters and isolation tests
+    ├── test_balances.py                # Step 3 running balance tracking tests
+    ├── test_transaction_graph.py       # Step 3 directed transaction graph tests
+    └── test_ledger.py                  # Step 3 ledger reconstruction & conservation tests
 ```
 
 ---
@@ -116,6 +135,16 @@ python3 scripts/profile_datasets.py --dataset all
 # Output profile report in JSON format
 python3 scripts/profile_datasets.py --dataset synthetic --json
 ```
+
+### Ledger Reconstruction & Transaction Graph
+Reconstruct chronological account balance histories and generate the transaction graph:
+```bash
+python3 scripts/reconstruct_ledger.py
+```
+This generates audit-ready artifacts in `data/processed/`:
+- `data/processed/balance_history.csv`
+- `data/processed/ledger_validation_report.json`
+- `data/processed/transaction_graph_summary.json`
 
 ### Running Tests
 Execute the full automated test suite:
@@ -213,6 +242,5 @@ Raw datasets remain immutable under `data/raw/` and are never committed if excee
 - **Synthetic Domain**: These records are generated for algorithmic testing and decision-support validation; they do not represent real proprietary banking data.
 - **Simplified Counterparties**: Real inter-bank settlements involve clearing houses, payment aggregators, and chargeback lifecycles which are abstracted via `EXT_` counterparties in this synthetic ledger.
 - **SynthAML Companion Absence**: `synthetic_transactions.csv` is missing in `data/raw/`, so `synthetic_alerts.csv` cannot be joined to transaction logs.
-- **Cryptocurrency Graph Domain**: Elliptic represents Bitcoin transactions and cannot be directly subjected to fiat bank account lien rules.
-- **Step 2 Boundary**: Fund-tracing algorithms (FIFO, Proportional, LIBR) and graph visualization will be implemented in Step 3.
+- **Step 3 Boundary**: Multi-method fund tracing algorithms (FIFO, Proportional, LIBR) and Consensus Lien bounds will be implemented in Step 4. Reconstructed balances reflect recorded transactions and do not constitute legal conclusions or proof of guilt.
 
