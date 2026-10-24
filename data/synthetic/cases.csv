@@ -1,0 +1,4 @@
+case_id,reported_date,reported_amount_paise,status
+CASE-2026-001,2026-01-16T10:00:00Z,10000000,under_investigation
+CASE-2026-002,2026-01-18T14:30:00Z,15000000,under_investigation
+CASE-2026-003,2026-01-20T09:15:00Z,20000000,under_investigation
