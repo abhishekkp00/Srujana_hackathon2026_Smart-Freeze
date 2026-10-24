@@ -46,6 +46,18 @@ from engine.transaction_graph import TransactionGraphEngine
 
 
 
+from engine.behavioural_features import (
+    BehaviouralFeatureExtractor,
+    CaseFeatures,
+)
+from engine.investigation_score import (
+    GOVERNANCE_DISCLAIMER,
+    CasePriorityScore,
+    ComponentScore,
+    InvestigationScoringEngine,
+    ScoringConfig,
+)
+
 __all__ = [
     "AccountState",
     "BalanceEvent",
@@ -78,6 +90,13 @@ __all__ = [
     "ConsensusLienResult",
     "ConsensusLienEngine",
     "ConsensusExplanationBuilder",
+    "BehaviouralFeatureExtractor",
+    "CaseFeatures",
+    "ScoringConfig",
+    "ComponentScore",
+    "CasePriorityScore",
+    "InvestigationScoringEngine",
+    "GOVERNANCE_DISCLAIMER",
 ]
 
 

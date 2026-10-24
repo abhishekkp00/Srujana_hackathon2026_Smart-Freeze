@@ -77,8 +77,15 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
 - Strict operational isolation: operational tracing engines (`proportional.py`, `fifo.py`, `libr.py`, `consensus_lien.py`) never read ground truth.
 - Automated test suites in `tests/test_consensus_lien.py` (10 tests) and `tests/test_tracing_evaluation.py` (6 tests).
 
+**Step 8: Explainable Investigation Priority Scoring** (Complete)
+- Behavioural feature extractor (`engine/behavioural_features.py`) measuring rapid onward fund pass-through, amount deviation relative to baseline, intermediary drain rates, graph depth, structuring/fan-out, cash withdrawal disruptions, and incomplete account history flags without reading hidden ground truth.
+- Explainable priority scoring engine (`engine/investigation_score.py`) implementing the configurable prototype formula $S = 0.40B + 0.40T + 0.20H$ with evidence coverage tracking and dynamic re-normalization for missing components.
+- Deterministic case ranking (`rank_cases`) with documented 4-level tie-breaking hierarchy (Score $\downarrow$, Coverage $\downarrow$, Reported Amount $\downarrow$, Case ID $\uparrow$).
+- CLI tool (`scripts/run_investigation_scoring.py`) for ranking cases, generating structured narrative explanations, and exporting triage audits (`data/processed/investigation_scores.json`).
+- Automated test suites in `tests/test_behavioural_features.py` (5 tests) and `tests/test_investigation_score.py` (9 tests).
+
 *Upcoming Phases:*
-- **Step 8:** Investigation Priority Scoring, Evidence Auditing, and Streamlit Dashboard.
+- **Step 9:** Streamlit Interactive Fraud Investigation and Fund-Tracing Dashboard.
 
 ---
 
@@ -113,7 +120,9 @@ smart-freeze/
 │   ├── fifo.py                         # Deterministic FIFO fund-tracing engine
 │   ├── libr.py                         # Deterministic Lowest Intermediate Balance Rule (LIBR) engine
 │   ├── consensus_lien.py               # Consensus Lien comparison engine (min/max bounds, disagreement)
-│   └── consensus_explanations.py       # Narrative and accounting divergence explanation builder
+│   ├── consensus_explanations.py       # Narrative and accounting divergence explanation builder
+│   ├── behavioural_features.py         # Multi-hop trail and behavioural feature extractor
+│   └── investigation_score.py          # Explainable Investigation Priority Scoring engine
 ├── pipeline/                           # Data ingestion, schema validation, profiling, and adapters
 │   ├── __init__.py
 │   ├── schemas.py                      # Canonical schemas and field specifications
@@ -134,7 +143,8 @@ smart-freeze/
 │   ├── reconstruct_ledger.py           # CLI tool for ledger reconstruction and graph generation
 │   ├── run_proportional_trace.py       # CLI tool for executing proportional fund tracing
 │   ├── run_fifo_trace.py               # CLI tool for executing FIFO fund tracing
-│   └── run_libr_trace.py               # CLI tool for executing LIBR fund tracing
+│   ├── run_libr_trace.py               # CLI tool for executing LIBR fund tracing
+│   └── run_investigation_scoring.py    # CLI tool for priority scoring and case triage
 └── tests/
     ├── test_synthetic_data.py          # Step 1 synthetic data validation tests
     ├── test_validation.py              # Step 2 structural validation tests
@@ -147,7 +157,9 @@ smart-freeze/
     ├── test_fifo.py                    # Step 5 FIFO fund-tracing tests
     ├── test_libr.py                    # Step 6 LIBR fund-tracing tests
     ├── test_consensus_lien.py          # Step 7 Consensus Lien tests
-    └── test_tracing_evaluation.py      # Step 7 Ground-truth evaluation tests
+    ├── test_tracing_evaluation.py      # Step 7 Ground-truth evaluation tests
+    ├── test_behavioural_features.py    # Step 8 Behavioural feature extraction tests
+    └── test_investigation_score.py     # Step 8 Investigation Priority Scoring tests
 
 ```
 
@@ -217,6 +229,19 @@ python3 scripts/run_libr_trace.py --tx-id TXN_0009 --case-id CASE-2026-001 --ver
 Run the evaluation runner to benchmark all tracing algorithms and Consensus Lien against hidden ground truth:
 ```bash
 python3 evaluation/run_tracing_evaluation.py --output data/processed/tracing_evaluation_report.json
+```
+
+### Explainable Investigation Priority Scoring CLI
+Score and rank cases for authorized human triage, generating structured explanations:
+```bash
+# Rank all cases in the synthetic ledger
+python3 scripts/run_investigation_scoring.py
+
+# Score a specific case with detailed evidence provenance
+python3 scripts/run_investigation_scoring.py --case-id CASE-2026-001 --verbose
+
+# Export triage rankings to JSON
+python3 scripts/run_investigation_scoring.py --output data/processed/investigation_scores.json
 ```
 
 ### Running Tests
