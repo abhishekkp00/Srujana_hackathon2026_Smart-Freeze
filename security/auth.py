@@ -1,13 +1,13 @@
-"""Authentication and Authorization Provider for Smart-Freeze.
+"""Authentication and Authorization Provider for FairHold.
 
 Defines the enterprise OIDC / OAuth 2.0 interface and an isolated development
 identity provider with preconfigured demonstration personas.
 
-Enforces Deny-By-Default:
-- Validates Bearer token format and signature.
-- Verifies user role privileges (Vertical access control).
-- Verifies case assignment (Horizontal access control / BOLA defense).
-- Fails closed in production environments if unconfigured.
+Enforces role and case checks for the local prototype.
+- Validates Bearer header format and resolves explicitly issued local demo sessions.
+- Fixed demo tokens are accepted only inside the automated test environment.
+- Production OIDC/JWT verification is intentionally unimplemented and protected APIs fail closed.
+- Case-level authorization is enforced on reviewed endpoints but requires broader security regression testing.
 """
 
 from __future__ import annotations
