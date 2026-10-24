@@ -1,8 +1,14 @@
 """ML pipeline and API tests that adapt to optional local data/model artifacts."""
 
+import hashlib
+import json
 from pathlib import Path
 
+import joblib
+import pandas as pd
 import pytest
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import Pipeline
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -67,6 +73,51 @@ def test_dataset_validation_rejects_invalid_classes(tmp_path: Path):
     with pytest.raises(DatasetValidationError, match="Unexpected target classes"):
         load_and_validate_dataset(str(bad_csv))
 
+
+def test_ml_service_reloads_artifacts_created_after_startup(tmp_path: Path):
+    """A running API process must discover a newly trained local artifact on the next status request."""
+    artifact_path = tmp_path / "fraud_detector_v1.joblib"
+    metadata_path = tmp_path / "model_metadata.json"
+    demo_path = tmp_path / "demo_samples.json"
+
+    service = MLService(artifact_path=artifact_path, metadata_path=metadata_path, demo_path=demo_path)
+    assert service.get_status()["status"] == "UNAVAILABLE"
+
+    # Small deterministic fixture proves service lifecycle behaviour; it is not reported as training data.
+    rows = [
+        {feature: 0.0 for feature in FEATURE_NAMES},
+        {feature: float(index + 1) for index, feature in enumerate(FEATURE_NAMES)},
+    ]
+    x = pd.DataFrame(rows, columns=FEATURE_NAMES)
+    y = [0, 1]
+    pipeline = Pipeline([
+        ("preprocessor", "passthrough"),
+        ("classifier", RandomForestClassifier(n_estimators=2, random_state=7)),
+    ])
+    pipeline.fit(x, y)
+    joblib.dump(pipeline, artifact_path)
+
+    digest = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+    metadata_path.write_text(json.dumps({
+        "features": FEATURE_NAMES,
+        "artifact_sha256": digest,
+        "model_version": "test-fixture-only",
+        "model_algorithm": "RandomForestClassifier",
+        "selected_threshold": 0.5,
+        "dataset_source": "unit-test fixture only",
+        "dataset_rows": 2,
+        "train_size": 2,
+        "val_size": 0,
+        "test_size": 0,
+        "primary_model_metrics": {},
+    }), encoding="utf-8")
+    demo_path.write_text("[]", encoding="utf-8")
+
+    loaded_status = service.get_status()
+    assert loaded_status["status"] == "LOADED"
+    assert loaded_status["model_version"] == "test-fixture-only"
+    assert loaded_status["artifact_sha256_verified"] is True
+    assert loaded_status["dataset_source"] == "unit-test fixture only"
 
 def test_model_artifact_loading_and_status(ml_service: MLService):
     require_model(ml_service)
