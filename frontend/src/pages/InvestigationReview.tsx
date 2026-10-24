@@ -17,7 +17,7 @@ import { StatCard } from '../components/common/StatCard';
 
 export const InvestigationReview: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialCase = searchParams.get('case') || 'CASE-2026-001';
+  const initialCase = searchParams.get('case') || '';
 
   const [allScores, setAllScores] = useState<PriorityScoreData[]>([]);
   const [selectedCaseId, setSelectedCaseId] = useState<string>(initialCase);
@@ -32,11 +32,17 @@ export const InvestigationReview: React.FC = () => {
         const scores = await getInvestigationPriorityScores();
         setAllScores(scores);
 
-        const current = scores.find((s) => s.case_id === selectedCaseId) || scores[0];
-        if (current) {
-          setActiveScore(current);
-          setSelectedCaseId(current.case_id);
+        const requestedCase = searchParams.get('case');
+        const current = scores.find((s) => s.case_id === requestedCase)
+          || scores.find((s) => s.case_id === selectedCaseId)
+          || scores[0]
+          || null;
+        setActiveScore(current);
+        setSelectedCaseId(current?.case_id ?? '');
+        if (current?.case_id && current.case_id !== requestedCase) {
+          setSearchParams({ case: current.case_id }, { replace: true });
         }
+
       } catch (err) {
         console.error('Failed to load investigation priority data:', err);
       } finally {
