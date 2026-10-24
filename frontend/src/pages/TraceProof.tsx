@@ -136,7 +136,7 @@ export const TraceProof: React.FC = () => {
   const selectedScenario = scenarios.find((s) => s.scenario_id === selectedScenarioId);
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Top Banner: Core Objective & Architecture */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
