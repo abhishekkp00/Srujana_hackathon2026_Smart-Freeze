@@ -60,6 +60,7 @@ from security.auth import (
     DEMO_PERSONAS,
     DEMO_AUTH_ENABLED,
     ENV_MODE,
+    issue_demo_token,
 )
 from security.audit import SecurityAuditLogger
 from security.rate_limiter import rate_limit
@@ -462,21 +463,23 @@ class DemoSessionRequest(BaseModel):
 
 @app.post("/api/auth/demo-session")
 def create_demo_session(req: DemoSessionRequest) -> Dict[str, Any]:
-    """Issue a fixed mock token only for the isolated local demonstration mode."""
+    """Issue a random, short-lived bearer token only for isolated local demonstration mode."""
     if not DEMO_AUTH_ENABLED:
         raise HTTPException(status_code=404, detail="Local demonstration identities are disabled.")
-    for token, user in DEMO_PERSONAS.items():
+    for user in DEMO_PERSONAS.values():
         if user.user_id == req.persona_id:
+            token, expires_at = issue_demo_token(user)
             return {
                 "mode": "LOCAL_DEMO_ONLY",
                 "token": token,
+                "expires_at": expires_at.isoformat(),
                 "user": {
                     "user_id": user.user_id,
                     "display_name": user.display_name,
                     "role": user.role.value,
                     "institution_id": user.institution_id,
                 },
-                "warning": "This is a mock identity for the local demo, not production authentication.",
+                "warning": "This is a short-lived mock identity for local testing, not production authentication.",
             }
     raise HTTPException(status_code=404, detail="Unknown demonstration persona.")
 
