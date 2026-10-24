@@ -291,3 +291,81 @@ class FIFOTraceResult:
                     "history_complete": not is_inc,
                 })
         return pd.DataFrame(rows)
+
+
+# ==============================================================================
+# LIBR Models
+# ==============================================================================
+
+@dataclass
+class LIBRAttributionEvent:
+    """Record of balance and attribution changes under LIBR convention."""
+    transaction_id: str
+    timestamp: str
+    account_id: str
+    counterparty_account: str
+    transaction_type: str
+    total_amount_paise: int
+    balance_before_paise: int
+    balance_after_paise: int
+    attributed_before_paise: int
+    attributed_after_paise: int
+    lowest_intermediate_balance_paise: int
+    attribution_reduction_paise: int
+    propagated_amount_paise: int
+    explanation_text: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class LIBRTraceResult:
+    """Structured output of a Lowest Intermediate Balance Rule (LIBR) fund-tracing run."""
+    source_transaction_id: str
+    source_case_id: str
+    initial_suspected_amount_paise: int
+    retained_suspected_paise: Dict[str, int]
+    withdrawn_suspected_paise: Dict[str, int]
+    lowest_intermediate_balances: Dict[str, int]
+    transfer_hops: List[TracingHop] = field(default_factory=list)
+    events: List[LIBRAttributionEvent] = field(default_factory=list)
+    incomplete_history_accounts: List[str] = field(default_factory=list)
+    assumptions_and_limitations: List[str] = field(default_factory=list)
+
+    def total_retained_suspected(self) -> int:
+        return sum(self.retained_suspected_paise.values())
+
+    def total_withdrawn_suspected(self) -> int:
+        return sum(self.withdrawn_suspected_paise.values())
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "source_transaction_id": self.source_transaction_id,
+            "source_case_id": self.source_case_id,
+            "initial_suspected_amount_paise": self.initial_suspected_amount_paise,
+            "total_retained_suspected_paise": self.total_retained_suspected(),
+            "total_withdrawn_suspected_paise": self.total_withdrawn_suspected(),
+            "retained_suspected_paise": self.retained_suspected_paise,
+            "withdrawn_suspected_paise": self.withdrawn_suspected_paise,
+            "lowest_intermediate_balances": self.lowest_intermediate_balances,
+            "transfer_hops": [h.to_dict() for h in self.transfer_hops],
+            "events": [e.to_dict() for e in self.events],
+            "incomplete_history_accounts": self.incomplete_history_accounts,
+            "assumptions_and_limitations": self.assumptions_and_limitations,
+        }
+
+    def summary_dataframe(self) -> pd.DataFrame:
+        """Tabular summary of suspected fund retention per account under LIBR."""
+        rows = []
+        for acc_id, amt in sorted(self.retained_suspected_paise.items(), key=lambda x: x[1], reverse=True):
+            if amt > 0:
+                is_inc = acc_id in self.incomplete_history_accounts
+                rows.append({
+                    "account_id": acc_id,
+                    "retained_suspected_paise": amt,
+                    "retained_suspected_inr": round(amt / 100.0, 2),
+                    "history_complete": not is_inc,
+                })
+        return pd.DataFrame(rows)
+

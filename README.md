@@ -61,8 +61,15 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
 - CLI tool (`scripts/run_fifo_trace.py`) for running FIFO tracing against designated source transactions.
 - Automated test suite in `tests/test_fifo.py` with 14 unit tests covering direct transfers, multi-hop propagation, partial lot consumption, commingling, withdrawals, and synthetic Case 1 validation.
 
+**Step 6: Lowest Intermediate Balance Rule (LIBR) Fund-Tracing Engine** (Complete)
+- Deterministic Lowest Intermediate Balance Rule (LIBR) fund-tracing engine (`engine/libr.py`) enforcing equitable fiduciary dissipation rules and the no-replenishment doctrine.
+- Balance ceiling tracking (`LIBRAttributionEvent`, `LIBRTraceResult` in `engine/tracing_models.py`).
+- Integer-paise arithmetic, clean-funds-first withdrawal dissipation, and multi-hop attribution propagation.
+- CLI tool (`scripts/run_libr_trace.py`) for running LIBR tracing against designated source transactions.
+- Automated test suite in `tests/test_libr.py` with 14 unit tests covering direct inflows, partial withdrawals, no-replenishment, multi-hop propagation, overdraft protection, and synthetic Case 1 validation.
+
 *Upcoming Phases:*
-- **Step 6:** Lowest Intermediate Balance Rule (LIBR), Consensus Lien comparison, Investigation Scoring, and Streamlit Dashboard.
+- **Step 7:** Consensus Lien comparison (Proportional vs. FIFO vs. LIBR bounds), Investigation Priority Scoring, and Streamlit Dashboard.
 
 ---
 
@@ -94,7 +101,8 @@ smart-freeze/
 │   ├── tracing_models.py               # Source pool models, FIFO lots, and structured trace results
 │   ├── tracing_explanations.py         # Step-by-step mathematical allocation explanation builder
 │   ├── proportional.py                 # Deterministic proportional fund-tracing engine
-│   └── fifo.py                         # Deterministic FIFO fund-tracing engine
+│   ├── fifo.py                         # Deterministic FIFO fund-tracing engine
+│   └── libr.py                         # Deterministic Lowest Intermediate Balance Rule (LIBR) engine
 ├── pipeline/                           # Data ingestion, schema validation, profiling, and adapters
 │   ├── __init__.py
 │   ├── schemas.py                      # Canonical schemas and field specifications
@@ -112,7 +120,8 @@ smart-freeze/
 │   ├── profile_datasets.py             # CLI tool for dataset profiling and validation
 │   ├── reconstruct_ledger.py           # CLI tool for ledger reconstruction and graph generation
 │   ├── run_proportional_trace.py       # CLI tool for executing proportional fund tracing
-│   └── run_fifo_trace.py               # CLI tool for executing FIFO fund tracing
+│   ├── run_fifo_trace.py               # CLI tool for executing FIFO fund tracing
+│   └── run_libr_trace.py               # CLI tool for executing LIBR fund tracing
 └── tests/
     ├── test_synthetic_data.py          # Step 1 synthetic data validation tests
     ├── test_validation.py              # Step 2 structural validation tests
@@ -122,7 +131,9 @@ smart-freeze/
     ├── test_transaction_graph.py       # Step 3 transaction graph tests
     ├── test_ledger.py                  # Step 3 ledger reconstruction tests
     ├── test_proportional.py            # Step 4 proportional tracing tests
-    └── test_fifo.py                    # Step 5 FIFO fund-tracing tests
+    ├── test_fifo.py                    # Step 5 FIFO fund-tracing tests
+    └── test_libr.py                    # Step 6 LIBR fund-tracing tests
+
 ```
 
 
