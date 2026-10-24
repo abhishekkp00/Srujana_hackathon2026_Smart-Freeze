@@ -58,6 +58,7 @@ from security.auth import (
     require_role,
     check_case_access,
     DEMO_PERSONAS,
+    DEMO_AUTH_ENABLED,
     ENV_MODE,
 )
 from security.audit import SecurityAuditLogger
@@ -421,33 +422,77 @@ class DataQualityResponse(BaseModel):
 
 @app.get("/api/auth/status")
 def get_auth_status() -> Dict[str, Any]:
-    """Return identity provider mode, PKI status, and defense posture."""
+    """Report the configured identity mode without implying production OIDC is ready."""
     return {
-        "status": "OPERATIONAL",
         "env_mode": ENV_MODE,
-        "auth_provider": "DevTokenAuthProvider" if ENV_MODE != "production" else "OIDCAuthenticationProvider",
-        "available_personas": list(DEMO_PERSONAS.keys()) if ENV_MODE != "production" else [],
-        "pki_signature_algorithm": "Ed25519",
-        "integrity_hash": "SHA-256",
-        "governance_mode": "Strict Deny-By-Default with BOLA and RBAC enforcement",
+        "demo_auth_enabled": DEMO_AUTH_ENABLED,
+        "production_auth_ready": False,
+        "auth_provider": "local-demo" if DEMO_AUTH_ENABLED else "unconfigured",
+        "message": (
+            "Local demonstration identities are enabled; they are not real bank identities."
+            if DEMO_AUTH_ENABLED else
+            "No fully implemented identity provider is configured. Protected APIs fail closed."
+        ),
     }
 
 
 @app.get("/api/auth/personas")
 def get_auth_personas() -> Dict[str, Any]:
-    """Return available mock personas for local demonstration and testing."""
-    if ENV_MODE == "production":
-        raise HTTPException(status_code=403, detail="Mock personas are disabled in production mode.")
+    """Return safe local demo persona metadata only; never return bearer tokens."""
+    if not DEMO_AUTH_ENABLED:
+        raise HTTPException(status_code=404, detail="Local demonstration identities are disabled.")
     return {
-        token: {
-            "token": token,
-            "user_id": user.user_id,
-            "display_name": user.display_name,
-            "role": user.role.value,
-            "assigned_cases": user.assigned_cases,
-            "institution_id": user.institution_id,
-        }
-        for token, user in DEMO_PERSONAS.items()
+        "mode": "LOCAL_DEMO_ONLY",
+        "personas": [
+            {
+                "persona_id": user.user_id,
+                "display_name": user.display_name,
+                "role": user.role.value,
+                "assigned_case_count": len(user.assigned_cases),
+                "institution_id": user.institution_id,
+            }
+            for user in DEMO_PERSONAS.values()
+        ],
+    }
+
+
+class DemoSessionRequest(BaseModel):
+    persona_id: str = Field(..., min_length=1, max_length=100)
+
+
+@app.post("/api/auth/demo-session")
+def create_demo_session(req: DemoSessionRequest) -> Dict[str, Any]:
+    """Issue a fixed mock token only for the isolated local demonstration mode."""
+    if not DEMO_AUTH_ENABLED:
+        raise HTTPException(status_code=404, detail="Local demonstration identities are disabled.")
+    for token, user in DEMO_PERSONAS.items():
+        if user.user_id == req.persona_id:
+            return {
+                "mode": "LOCAL_DEMO_ONLY",
+                "token": token,
+                "user": {
+                    "user_id": user.user_id,
+                    "display_name": user.display_name,
+                    "role": user.role.value,
+                    "institution_id": user.institution_id,
+                },
+                "warning": "This is a mock identity for the local demo, not production authentication.",
+            }
+    raise HTTPException(status_code=404, detail="Unknown demonstration persona.")
+
+
+@app.get("/api/auth/session")
+def get_auth_session(auth: AuthContext = Depends(get_current_user)) -> Dict[str, Any]:
+    """Return the current authenticated identity without returning credentials."""
+    return {
+        "mode": auth.token_type,
+        "user": {
+            "user_id": auth.user.user_id,
+            "display_name": auth.user.display_name,
+            "role": auth.user.role.value,
+            "institution_id": auth.user.institution_id,
+            "assigned_case_count": len(auth.user.assigned_cases),
+        },
     }
 
 
