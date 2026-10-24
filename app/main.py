@@ -1485,13 +1485,18 @@ def verify_envelope(
     request: Request,
     auth: AuthContext = Depends(get_current_user),
 ) -> EnvelopeVerificationResult:
-    """Verify an envelope only when its originating trace belongs to an accessible case."""
+    """Verify an attestation; enforce case authorization when its trace is stored locally.
+
+    Standalone verification accepts a self-contained envelope that is not in this process's
+    trace cache. It returns only cryptographic verification information about the submitted
+    envelope, not stored transaction records. If a local trace exists, case scope is enforced.
+    """
     coordinator = TraceCoordinator.get_instance()
     trace = coordinator.get_trace(req.envelope.trace_request_id)
-    if not trace:
-        raise HTTPException(status_code=404, detail="The trace request for this envelope was not found.")
     client_ip = request.client.host if request.client else "unknown"
-    check_case_access(trace.case_id, auth, endpoint=request.url.path, method="POST", client_ip=client_ip)
+    if trace:
+        check_case_access(trace.case_id, auth, endpoint=request.url.path, method="POST", client_ip=client_ip)
+
     key_manager = InstitutionKeyManager.get_instance()
     return key_manager.verify_envelope(req.envelope)
 
