@@ -648,6 +648,9 @@ def list_transactions(
     txs_df = data["transactions_df"]
 
     filtered = txs_df.copy()
+    if auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
+        # Unscoped listings are restricted to the investigator's assigned cases.
+        filtered = filtered[filtered["case_id"].isin(auth.user.assigned_cases)]
 
     if case_id:
         filtered = filtered[filtered["case_id"] == case_id]
@@ -709,6 +712,15 @@ def get_transaction_detail(
         raise HTTPException(status_code=404, detail=f"Transaction '{transaction_id}' not found.")
 
     tx = match.iloc[0]
+    tx_case = str(tx.get("case_id", "")).strip() if pd.notna(tx.get("case_id")) else ""
+    if auth.user.role == Role.INVESTIGATOR:
+        if not tx_case:
+            raise HTTPException(status_code=403, detail="This transaction is not assigned to an accessible investigation case.")
+        check_case_access(tx_case, auth, endpoint="/api/transactions/" + transaction_id, method="GET",
+                          client_ip="unknown")
+    elif tx_case:
+        check_case_access(tx_case, auth, endpoint="/api/transactions/" + transaction_id, method="GET",
+                          client_ip="unknown")
     fa = str(tx["from_account"])
     ta = str(tx["to_account"])
 
@@ -733,18 +745,42 @@ def get_transaction_detail(
 
 
 @app.get("/api/accounts", response_model=List[AccountItem])
-def list_accounts(auth: AuthContext = Depends(get_current_user)):
-    """Lists all accounts with opening balances, final reconstructed balances, and history completeness."""
+def list_accounts(
+    request: Request,
+    case_id: Optional[str] = None,
+    auth: AuthContext = Depends(get_current_user),
+):
+    """Return accounts in the requested scope; investigators cannot fetch a global account inventory."""
     data = get_ledger_data()
     accs_df = data["accounts_df"]
+    txs_df = data["transactions_df"]
     final_balances = data["final_balances"]
+    client_ip = request.client.host if request.client else "unknown"
 
+    if case_id:
+        check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
+        scoped_txs = txs_df[txs_df["case_id"] == case_id]
+    elif auth.user.role == Role.INVESTIGATOR:
+        raise HTTPException(status_code=400, detail="case_id is required when listing accounts as an investigator.")
+    else:
+        scoped_txs = txs_df
+
+    involved_ids = set(scoped_txs["from_account"]).union(set(scoped_txs["to_account"]))
     results = []
     for _, acc in accs_df.iterrows():
         aid = str(acc["account_id"])
+        if case_id and aid not in involved_ids:
+            continue
+
+        if auth.user.role == Role.INVESTIGATOR:
+            # Do not expose account-wide balances if the account appears in any out-of-scope or unassigned event.
+            related = txs_df[(txs_df["from_account"] == aid) | (txs_df["to_account"] == aid)]
+            related_case_ids = set(related["case_id"].fillna("").astype(str).str.strip())
+            if not related_case_ids or "" in related_case_ids or not related_case_ids.issubset(set(auth.user.assigned_cases)):
+                continue
+
         opening = int(acc["opening_balance_paise"])
         final = int(final_balances.get(aid, opening))
-
         results.append(
             AccountItem(
                 account_id=aid,
@@ -763,18 +799,38 @@ def list_accounts(auth: AuthContext = Depends(get_current_user)):
 @app.get("/api/accounts/{account_id}/balance-history", response_model=List[BalanceEventItem])
 def get_account_balance_history(
     account_id: str,
+    request: Request,
+    case_id: Optional[str] = None,
     auth: AuthContext = Depends(get_current_user),
 ):
-    """Returns chronological balance history events for a specific account."""
+    """Return authorized balance history; refuse account-wide history that crosses investigator scope."""
     data = get_ledger_data()
     events = data["balance_events"]
+    txs_df = data["transactions_df"]
+    client_ip = request.client.host if request.client else "unknown"
 
-    matched_events = [e for e in events if e.account_id == account_id]
-    if not matched_events:
-        # Check if account exists
-        accs_df = data["accounts_df"]
-        if accs_df[accs_df["account_id"] == account_id].empty:
-            raise HTTPException(status_code=404, detail=f"Account '{account_id}' not found.")
+    if auth.user.role == Role.INVESTIGATOR and not case_id:
+        raise HTTPException(status_code=400, detail="case_id is required when requesting balance history as an investigator.")
+    if case_id:
+        check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
+
+    related = txs_df[(txs_df["from_account"] == account_id) | (txs_df["to_account"] == account_id)]
+    if related.empty:
+        if data["accounts_df"][data["accounts_df"]["account_id"] == account_id].empty:
+            raise HTTPException(status_code=404, detail="Account not found.")
+        return []
+
+    if auth.user.role == Role.INVESTIGATOR:
+        related_case_ids = set(related["case_id"].fillna("").astype(str).str.strip())
+        if "" in related_case_ids or not related_case_ids.issubset(set(auth.user.assigned_cases)):
+            raise HTTPException(status_code=403, detail="Account history includes events outside the authorized case scope.")
+    if case_id:
+        related_case_ids = set(related["case_id"].fillna("").astype(str).str.strip())
+        if auth.user.role == Role.INVESTIGATOR and ("" in related_case_ids or not related_case_ids.issubset(set(auth.user.assigned_cases))):
+            raise HTTPException(status_code=403, detail="Account-wide balances cannot be shown because this account spans additional case records.")
+        matched_events = [e for e in events if e.account_id == account_id and e.case_id == case_id]
+    else:
+        matched_events = [e for e in events if e.account_id == account_id]
 
     return [
         BalanceEventItem(
