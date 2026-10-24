@@ -798,7 +798,8 @@ def list_accounts(
             # Do not expose account-wide balances if the account appears in any out-of-scope or unassigned event.
             related = txs_df[(txs_df["from_account"] == aid) | (txs_df["to_account"] == aid)]
             related_case_ids = set(related["case_id"].fillna("").astype(str).str.strip())
-            if not related_case_ids or "" in related_case_ids or not related_case_ids.issubset(set(auth.user.assigned_cases)):
+            allowed_scope = {case_id} if case_id else set(auth.user.assigned_cases)
+            if not related_case_ids or "" in related_case_ids or not related_case_ids.issubset(allowed_scope):
                 continue
 
         opening = int(acc["opening_balance_paise"])
@@ -848,8 +849,10 @@ def get_account_balance_history(
             raise HTTPException(status_code=403, detail="Account history includes events outside the authorized case scope.")
     if case_id:
         related_case_ids = set(related["case_id"].fillna("").astype(str).str.strip())
-        if auth.user.role == Role.INVESTIGATOR and ("" in related_case_ids or not related_case_ids.issubset(set(auth.user.assigned_cases))):
-            raise HTTPException(status_code=403, detail="Account-wide balances cannot be shown because this account spans additional case records.")
+        if auth.user.role == Role.INVESTIGATOR:
+            allowed_scope = {case_id} if case_id else set(auth.user.assigned_cases)
+            if "" in related_case_ids or not related_case_ids.issubset(allowed_scope):
+                raise HTTPException(status_code=403, detail="Account-wide balances cannot be shown because this account spans additional case records.")
         matched_events = [e for e in events if e.account_id == account_id and e.case_id == case_id]
     else:
         matched_events = [e for e in events if e.account_id == account_id]
@@ -1076,9 +1079,12 @@ def get_investigation_priority_rankings(
     txs_df = data["transactions_df"]
     accs_df = data["accounts_df"]
 
-    # Filter to authorized cases for investigators
+    # Score only within the investigator's authorized case data scope.
     if auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
         cases_df = cases_df[cases_df["case_id"].isin(auth.user.assigned_cases)]
+        txs_df = txs_df[txs_df["case_id"].isin(auth.user.assigned_cases)]
+        involved_accounts = set(txs_df["from_account"]).union(set(txs_df["to_account"]))
+        accs_df = accs_df[accs_df["account_id"].isin(involved_accounts)]
 
     engine = get_scoring_engine()
     scores = engine.score_all_cases(cases_df, txs_df, accs_df)
@@ -1130,12 +1136,19 @@ def get_case_priority_score(
     if matched.empty:
         raise HTTPException(status_code=404, detail=f"Case '{case_id}' not found.")
 
+    scoring_txs = txs_df
+    scoring_accounts = accs_df
+    if auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
+        scoring_txs = txs_df[txs_df["case_id"].isin(auth.user.assigned_cases)]
+        involved_accounts = set(scoring_txs["from_account"]).union(set(scoring_txs["to_account"]))
+        scoring_accounts = accs_df[accs_df["account_id"].isin(involved_accounts)]
+
     engine = get_scoring_engine()
     s = engine.score_case(
         case=matched.iloc[0].to_dict(),
-        transactions=txs_df,
-        accounts=accs_df,
-        baseline_transactions=txs_df,
+        transactions=scoring_txs,
+        accounts=scoring_accounts,
+        baseline_transactions=scoring_txs,
     )
 
     return PriorityScoreResponse(
