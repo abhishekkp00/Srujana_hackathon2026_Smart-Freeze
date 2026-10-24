@@ -203,6 +203,7 @@ export interface MLStatusData {
   artifact_sha256_verified?: boolean;
   feature_count: number;
   features: string[];
+  demo_sample_count?: number;
   training_timestamp?: string;
   dataset_source?: string;
   dataset_rows?: number;
