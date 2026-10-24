@@ -360,23 +360,29 @@ def test_excessive_hop_traversal_bounded(admin_client: TestClient):
 # ==============================================================================
 
 def test_tampered_model_artifact_loading_refused(tmp_path: Path):
-    """If model artifact SHA-256 hash fails verification, loading is rejected."""
-    # Create a mock metadata file with a mismatched SHA-256 hash
+    """A mismatched local artifact digest leaves the service unavailable and inference disabled."""
+    tampered_artifact_path = tmp_path / "tampered_model.joblib"
+    tampered_artifact_path.write_bytes(b"test fixture bytes; not a serialized model")
     tampered_meta_path = tmp_path / "tampered_metadata.json"
     dummy_meta = {
-        "artifact_sha256": "deadbeef" * 8,  # Mismatched hash
+        "artifact_sha256": "deadbeef" * 8,
         "selected_threshold": 0.63,
+        "features": [],
         "primary_model_metrics": {"model_name": "TamperedTestModel"},
     }
     tampered_meta_path.write_text(json.dumps(dummy_meta), encoding="utf-8")
 
-    # Attempt to load service pointing to real artifact but tampered metadata hash
-    with pytest.raises(ModelArtifactError) as exc_info:
-        MLService(
-            artifact_path=Path("models/fraud_detector_v1.joblib"),
-            metadata_path=tampered_meta_path,
-        )
-    assert "integrity check failed" in str(exc_info.value).lower()
+    service = MLService(
+        artifact_path=tampered_artifact_path,
+        metadata_path=tampered_meta_path,
+        demo_path=tmp_path / "missing_demo_samples.json",
+    )
+    status = service.get_status()
+    assert status["status"] == "UNAVAILABLE"
+    assert status["artifact_sha256_verified"] is False
+    assert "integrity verification failed" in status["message"].lower()
+    with pytest.raises(ModelArtifactError, match="not loaded"):
+        service.get_evaluation_report()
 
 
 # ==============================================================================
