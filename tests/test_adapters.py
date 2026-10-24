@@ -140,9 +140,14 @@ def test_elliptic_adapter_real_files_if_available():
 # SynthAMLAdapter Tests
 # ==============================================================================
 
-def test_synthaml_adapter_reports_missing_companion_transactions():
-    """Verify SynthAML adapter reports missing synthetic_transactions.csv companion."""
-    adapter = SynthAMLAdapter(REAL_RAW_DIR)
+def test_synthaml_adapter_reports_missing_companion_transactions(tmp_path: Path):
+    """Verify missing-companion behaviour using a local fixture, not optional downloaded data."""
+    alerts = ["AlertID,Date,Outcome"]
+    for index in range(1, 11):
+        alerts.append(f"{index},2026-01-01T00:00:00Z,{'Report' if index % 2 else 'Dismiss'}")
+    (tmp_path / "synthetic_alerts.csv").write_text("\n".join(alerts) + "\n", encoding="utf-8")
+
+    adapter = SynthAMLAdapter(tmp_path)
     status = adapter.check_availability()
 
     assert status.alerts_present is True
@@ -150,12 +155,12 @@ def test_synthaml_adapter_reports_missing_companion_transactions():
     assert status.is_complete is False
     assert "missing" in status.message.lower()
 
-    # Loading alerts works
+    # Loading alerts works from the fixture.
     df_alerts = adapter.load_alerts(limit=10)
     assert len(df_alerts) == 10
     assert set(df_alerts.columns) == {"AlertID", "Date", "Outcome"}
 
-    # Loading transactions must fail and NEVER fabricate data
+    # Loading transactions must fail and NEVER fabricate data.
     with pytest.raises(FileNotFoundError) as exc:
         adapter.load_transactions()
     assert "not found" in str(exc.value).lower()
