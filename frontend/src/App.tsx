@@ -11,95 +11,44 @@ import { MLAnalysis } from './pages/MLAnalysis';
 import { TraceProof } from './pages/TraceProof';
 import { SecurityAudit } from './pages/SecurityAudit';
 
+const PAGE_META: Record<string, { title: string; subtitle: string; section: string }> = {
+  '/': { title: 'Case overview', subtitle: 'A working view of the investigative queue and ledger integrity.', section: 'Workspace' },
+  '/explorer': { title: 'Transaction explorer', subtitle: 'Follow transfer paths, account activity and balance changes.', section: 'Analysis' },
+  '/consensus-lien': { title: 'Fund tracing comparison', subtitle: 'Compare proportional, FIFO and LIBR attribution assumptions.', section: 'Analysis' },
+  '/traceproof': { title: 'TraceProof', subtitle: 'Evidence continuity across simulated financial rails.', section: 'Investigation' },
+  '/investigation': { title: 'Case review', subtitle: 'Review the evidence behind an investigation-priority assessment.', section: 'Investigation' },
+  '/ml-analysis': { title: 'Model evaluation', subtitle: 'Historical credit-card benchmark results and transaction inference.', section: 'Research' },
+  '/data-quality': { title: 'Data quality', subtitle: 'Input coverage, validation findings and dataset provenance.', section: 'Governance' },
+  '/security': { title: 'Security review', subtitle: 'Access boundaries, evidence verification and audit events.', section: 'Governance' },
+};
+
 const AppContent: React.FC = () => {
   const location = useLocation();
-
-  const getPageTitle = (pathname: string): { title: string; subtitle: string } => {
-    switch (pathname) {
-      case '/':
-        return {
-          title: 'Investigation Overview',
-          subtitle: 'System health, ledger integrity, and triage queues',
-        };
-      case '/explorer':
-        return {
-          title: 'Transaction Explorer & Graph',
-          subtitle: 'Multi-hop fund transfer flows, graph topology, and balance timelines',
-        };
-      case '/consensus-lien':
-        return {
-          title: 'Consensus Lien Comparison',
-          subtitle: 'Proportional vs. FIFO vs. LIBR method bounds and divergence drivers',
-        };
-      case '/traceproof':
-        return {
-          title: 'TraceProof Multi-Rail Reconstruction',
-          subtitle: 'Cryptographically verified cross-institution path across Bank A, Wallet B, and Bank C',
-        };
-      case '/investigation':
-        return {
-          title: 'Investigation Priority Review',
-          subtitle: 'Explainable prioritization score and structured evidence breakdown',
-        };
-      case '/ml-analysis':
-        return {
-          title: 'ML Transaction Fraud Classifier',
-          subtitle: 'European credit card fraud benchmark model and real test vector prediction',
-        };
-      case '/data-quality':
-        return {
-          title: 'Data Quality & Hygiene Audit',
-          subtitle: 'Dataset inventory, schema checks, and ground-truth isolation status',
-        };
-      case '/security':
-        return {
-          title: 'Security Governance & Audit Trail',
-          subtitle: 'Zero-trust BOLA boundaries, PKI cryptographic envelopes, and immutable audit logs',
-        };
-      default:
-        return {
-          title: 'Smart-Freeze',
-          subtitle: 'Fraud Investigation Decision Support',
-        };
-    }
-  };
-
-  const { title, subtitle } = getPageTitle(location.pathname);
+  const page = PAGE_META[location.pathname] ?? PAGE_META['/'];
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-800">
-      {/* Dark Navy Sidebar */}
+    <div className="app-shell">
       <Sidebar />
-
-      {/* Main Workspace Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Navbar */}
-        <Navbar title={title} subtitle={subtitle} />
-
-        {/* Scrollable Page Body */}
-        <main className="flex-1 overflow-y-auto">
-          <Routes>
-            <Route path="/" element={<Overview />} />
-            <Route path="/explorer" element={<TransactionExplorer />} />
-            <Route path="/consensus-lien" element={<ConsensusLien />} />
-            <Route path="/traceproof" element={<TraceProof />} />
-            <Route path="/investigation" element={<InvestigationReview />} />
-            <Route path="/ml-analysis" element={<MLAnalysis />} />
-            <Route path="/data-quality" element={<DataQuality />} />
-            <Route path="/security" element={<SecurityAudit />} />
-          </Routes>
+      <div className="workspace">
+        <Navbar title={page.title} subtitle={page.subtitle} section={page.section} />
+        <main className="workspace-main">
+          <div className="page-width">
+            <Routes>
+              <Route path="/" element={<Overview />} />
+              <Route path="/explorer" element={<TransactionExplorer />} />
+              <Route path="/consensus-lien" element={<ConsensusLien />} />
+              <Route path="/traceproof" element={<TraceProof />} />
+              <Route path="/investigation" element={<InvestigationReview />} />
+              <Route path="/ml-analysis" element={<MLAnalysis />} />
+              <Route path="/data-quality" element={<DataQuality />} />
+              <Route path="/security" element={<SecurityAudit />} />
+            </Routes>
+          </div>
         </main>
       </div>
     </div>
   );
 };
 
-export const App: React.FC = () => {
-  return (
-    <Router>
-      <AppContent />
-    </Router>
-  );
-};
-
+export const App: React.FC = () => <Router><AppContent /></Router>;
 export default App;
