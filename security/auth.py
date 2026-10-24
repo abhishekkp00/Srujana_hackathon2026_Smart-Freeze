@@ -13,9 +13,11 @@ Enforces Deny-By-Default:
 from __future__ import annotations
 
 import os
+import secrets
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
-from typing import Callable, Dict, List, Optional
+from datetime import datetime, timedelta, timezone
+from threading import Lock
+from typing import Callable, Dict, List, Optional, Tuple
 from fastapi import Depends, Header, HTTPException, Request, status
 
 from security.audit import SecurityAuditLogger
@@ -69,6 +71,20 @@ DEMO_PERSONAS: Dict[str, User] = {
     ),
 }
 
+# Random, expiring sessions are used only in explicitly enabled local demo mode.
+DEMO_SESSION_TTL_SECONDS = 3600
+DEMO_SESSIONS: Dict[str, Tuple[User, datetime]] = {}
+_DEMO_SESSIONS_LOCK = Lock()
+
+
+def issue_demo_token(user: User) -> Tuple[str, datetime]:
+    """Issue a short-lived, unguessable local-demo token; never use this for production identity."""
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=DEMO_SESSION_TTL_SECONDS)
+    with _DEMO_SESSIONS_LOCK:
+        DEMO_SESSIONS[token] = (user, expires_at)
+    return token, expires_at
+
 
 class AuthenticationProvider(ABC):
     """Abstract interface for enterprise identity providers."""
@@ -101,14 +117,35 @@ class DevTokenAuthProvider(AuthenticationProvider):
     """Isolated local development and testing identity provider."""
 
     def authenticate(self, token: str) -> Optional[AuthContext]:
-        if DEMO_AUTH_ENABLED and token in DEMO_PERSONAS:
-            user = DEMO_PERSONAS[token]
-            now_iso = datetime.now(timezone.utc).isoformat()
+        if not DEMO_AUTH_ENABLED:
+            return None
+
+        now = datetime.now(timezone.utc)
+        with _DEMO_SESSIONS_LOCK:
+            issued = DEMO_SESSIONS.get(token)
+            if issued and issued[1] <= now:
+                DEMO_SESSIONS.pop(token, None)
+                issued = None
+
+        if issued:
+            user, expires_at = issued
             return AuthContext(
                 user=user,
-                token_type="dev_bearer",
+                token_type="local_demo_bearer",
+                issued_at=(expires_at - timedelta(seconds=DEMO_SESSION_TTL_SECONDS)).isoformat(),
+                expires_at=expires_at.isoformat(),
+            )
+
+        # Fixed tokens exist only to keep deterministic unit tests simple. They are not
+        # accepted in a development session or production environment.
+        if ENV_MODE == "test" and token in DEMO_PERSONAS:
+            user = DEMO_PERSONAS[token]
+            now_iso = now.isoformat()
+            return AuthContext(
+                user=user,
+                token_type="test_bearer",
                 issued_at=now_iso,
-                expires_at="DEMO_SESSION",
+                expires_at=(now + timedelta(hours=1)).isoformat(),
             )
         return None
 
