@@ -148,8 +148,8 @@ def get_adapter() -> SyntheticAdapter:
         _adapter = SyntheticAdapter(SYNTHETIC_DIR)
         if not _adapter.exists():
             raise HTTPException(
-                status_code=500,
-                detail=f"Synthetic dataset files missing in {SYNTHETIC_DIR}",
+                status_code=503,
+                detail="Required operational ledger CSV files are unavailable. Check the Data Quality page and local dataset setup.",
             )
     return _adapter
 
@@ -503,7 +503,7 @@ def get_auth_session(auth: AuthContext = Depends(get_current_user)) -> Dict[str,
 @app.get("/api/health")
 def health_check():
     """Health check endpoint (public liveness probe)."""
-    return {"status": "healthy", "service": "smart-freeze-api", "version": "1.0.0"}
+    return {"status": "healthy", "service": "fairhold-api", "version": app.version}
 
 
 @app.get("/api/overview", response_model=OverviewResponse)
@@ -1389,15 +1389,21 @@ def get_security_status(
     ml_service = MLService.get_instance()
     key_manager = InstitutionKeyManager.get_instance()
 
+    demo_mode = DEMO_AUTH_ENABLED
+    registered_keys = len(key_manager._public_registry)
     return SecurityStatusResponse(
-        status="SECURED",
-        auth_mode="DEV_TOKEN_MODE" if ENV_MODE != "production" else "OIDC_ENTERPRISE",
-        pki_signature_algorithm="Ed25519 (SHA-256 canonicalization)",
-        model_sha256_verified=ml_service.is_loaded,
+        status="LOCAL_DEMO_ONLY" if demo_mode else "PRODUCTION_AUTH_NOT_CONFIGURED",
+        auth_mode="LOCAL_DEMO_TOKEN (NOT PRODUCTION AUTH)" if demo_mode else "UNCONFIGURED",
+        production_auth_ready=False,
+        demo_auth_enabled=demo_mode,
+        pki_signature_algorithm=("Ed25519; trusted keys registered" if registered_keys else "Ed25519; no trusted institution keys registered"),
+        model_sha256_verified=ml_service.artifact_sha256_verified,
         bola_enforcement_active=True,
         rate_limiting_active=True,
+        rate_limiting_scope="Per-IP route limits on ML prediction and TraceProof start; not a global gateway limit",
         hidden_data_isolated=True,
+        hidden_data_isolation_status="Operational API does not load hidden ground truth; code-level separation only, not a penetration-test result",
         total_audit_events=telemetry["total_events"],
         security_denials_count=telemetry["denials_count"],
-        active_institutions_registered=len(key_manager._public_registry),
+        active_institutions_registered=registered_keys,
     )
