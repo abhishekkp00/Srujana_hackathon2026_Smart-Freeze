@@ -22,8 +22,9 @@ from security.audit import SecurityAuditLogger
 from security.models import AuditSeverity, AuthContext, Role, User
 
 # Active environment: "development", "test", or "production"
-ENV_MODE = os.getenv("SMART_FREEZE_ENV", "development").strip().lower()
-DEMO_AUTH_ENABLED = ENV_MODE in {"development", "test"} and os.getenv("ENABLE_DEMO_AUTH", "true").strip().lower() in {"1", "true", "yes"}
+ENV_MODE = os.getenv("SMART_FREEZE_ENV", "production").strip().lower()
+# Explicit opt-in: public/re-deployed instances must never inherit known demo bearer tokens.
+DEMO_AUTH_ENABLED = ENV_MODE in {"development", "test"} and os.getenv("ENABLE_DEMO_AUTH", "false").strip().lower() in {"1", "true", "yes"}
 
 # Mock demonstration personas for local development and testing
 DEMO_PERSONAS: Dict[str, User] = {
