@@ -10,6 +10,7 @@ from engine.balances import (
     BalanceTracker,
     NegativeBalanceError,
 )
+from engine.fifo import FIFOTracer
 from engine.ledger import LedgerReconstructionEngine
 from engine.models import (
     AccountState,
@@ -24,6 +25,10 @@ from engine.tracing_models import (
     CATEGORY_UNKNOWN,
     AccountSourcePool,
     AllocationExplanation,
+    FIFOAllocationExplanation,
+    FIFOConsumptionEvent,
+    FIFOLot,
+    FIFOTraceResult,
     ProportionalTraceResult,
     TracingHop,
     make_suspected_category,
@@ -50,4 +55,10 @@ __all__ = [
     "ProportionalTraceResult",
     "TracingExplanationBuilder",
     "ProportionalTracer",
+    "FIFOLot",
+    "FIFOConsumptionEvent",
+    "FIFOAllocationExplanation",
+    "FIFOTraceResult",
+    "FIFOTracer",
 ]
+

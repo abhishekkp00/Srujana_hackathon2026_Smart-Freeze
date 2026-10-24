@@ -54,8 +54,15 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
 - CLI tool (`scripts/run_proportional_trace.py`) for running tracing against designated source transactions.
 - Automated test suite in `tests/test_proportional.py` verifying exact value conservation and edge-case handling.
 
+**Step 5: FIFO Fund-Tracing Engine** (Complete)
+- Deterministic First-In, First-Out (FIFO) fund-tracing engine (`engine/fifo.py`) utilizing ordered source lots.
+- Structured lot lineage tracking (`FIFOLot`, `FIFOConsumptionEvent`, `FIFOAllocationExplanation`, `FIFOTraceResult` in `engine/tracing_models.py`).
+- Exact integer-paise arithmetic, deterministic tie-breaking for equal timestamps, and unknown provenance preservation for incomplete account histories.
+- CLI tool (`scripts/run_fifo_trace.py`) for running FIFO tracing against designated source transactions.
+- Automated test suite in `tests/test_fifo.py` with 14 unit tests covering direct transfers, multi-hop propagation, partial lot consumption, commingling, withdrawals, and synthetic Case 1 validation.
+
 *Upcoming Phases:*
-- **Step 5:** Consensus Lien (FIFO, LIBR comparison), Investigation Scoring, and Streamlit Dashboard.
+- **Step 6:** Lowest Intermediate Balance Rule (LIBR), Consensus Lien comparison, Investigation Scoring, and Streamlit Dashboard.
 
 ---
 
@@ -84,9 +91,10 @@ fairhold/
 │   ├── balances.py                     # Account running balance tracking and conservation
 │   ├── transaction_graph.py            # NetworkX MultiDiGraph constructor and summary
 │   ├── ledger.py                       # End-to-end ledger reconstruction coordinator
-│   ├── tracing_models.py               # Source pool models and structured trace results
+│   ├── tracing_models.py               # Source pool models, FIFO lots, and structured trace results
 │   ├── tracing_explanations.py         # Step-by-step mathematical allocation explanation builder
-│   └── proportional.py                 # Deterministic proportional fund-tracing engine
+│   ├── proportional.py                 # Deterministic proportional fund-tracing engine
+│   └── fifo.py                         # Deterministic FIFO fund-tracing engine
 ├── pipeline/                           # Data ingestion, schema validation, profiling, and adapters
 │   ├── __init__.py
 │   ├── schemas.py                      # Canonical schemas and field specifications
@@ -103,17 +111,20 @@ fairhold/
 │   ├── generate_synthetic_data.py      # Deterministic synthetic data generation script
 │   ├── profile_datasets.py             # CLI tool for dataset profiling and validation
 │   ├── reconstruct_ledger.py           # CLI tool for ledger reconstruction and graph generation
-│   └── run_proportional_trace.py       # CLI tool for executing proportional fund tracing
+│   ├── run_proportional_trace.py       # CLI tool for executing proportional fund tracing
+│   └── run_fifo_trace.py               # CLI tool for executing FIFO fund tracing
 └── tests/
     ├── test_synthetic_data.py          # Step 1 synthetic data validation tests
-    ├── test_validation.py              # Step 2 structural and semantic validation tests
-    ├── test_profiling.py               # Step 2 profiling metrics and format tests
-    ├── test_adapters.py                # Step 2 dataset adapters and isolation tests
-    ├── test_balances.py                # Step 3 running balance tracking tests
-    ├── test_transaction_graph.py       # Step 3 directed transaction graph tests
-    ├── test_ledger.py                  # Step 3 ledger reconstruction & conservation tests
-    └── test_proportional.py            # Step 4 proportional fund-tracing engine tests
+    ├── test_validation.py              # Step 2 structural validation tests
+    ├── test_profiling.py               # Step 2 profiling tests
+    ├── test_adapters.py                # Step 2 dataset adapter tests
+    ├── test_balances.py                # Step 3 balance tracking tests
+    ├── test_transaction_graph.py       # Step 3 transaction graph tests
+    ├── test_ledger.py                  # Step 3 ledger reconstruction tests
+    ├── test_proportional.py            # Step 4 proportional tracing tests
+    └── test_fifo.py                    # Step 5 FIFO fund-tracing tests
 ```
+
 
 ---
 
