@@ -84,8 +84,23 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
 - CLI tool (`scripts/run_investigation_scoring.py`) for ranking cases, generating structured narrative explanations, and exporting triage audits (`data/processed/investigation_scores.json`).
 - Automated test suites in `tests/test_behavioural_features.py` (5 tests) and `tests/test_investigation_score.py` (9 tests).
 
-*Upcoming Phases:*
-- **Step 9:** Streamlit Interactive Fraud Investigation and Fund-Tracing Dashboard.
+**Step 9: React Frontend with FastAPI Backend** (Complete)
+- **FastAPI Backend Application (`app/main.py`)**:
+  - Reuses validated engines (`engine/ledger.py`, `engine/consensus_lien.py`, `engine/investigation_score.py`).
+  - Strict Pydantic models for validation and responses.
+  - Endpoints for overview metrics, cases, paginated/filtered transactions, account balance timelines, directed transaction graph topology, Consensus Lien multi-method comparisons, and data quality audits.
+  - Ground-truth isolation: operational endpoints cannot access `ground_truth.json`.
+  - Comprehensive API test suite in `tests/test_api.py` (11 tests).
+- **React Frontend Application (`frontend/`)**:
+  - Built with React 18, Vite, TypeScript, and Tailwind CSS.
+  - Interactive directed multigraph visualization powered by Cytoscape.js.
+  - Chronological account balance timelines rendered via Recharts.
+  - Five core investigation views:
+    1. **Overview**: Executive ledger health, operational statistics, case queue, and reported loss distribution.
+    2. **Transaction Explorer**: Searchable/filterable transactions, case/account filters, transaction detail modal, balance history chart, and interactive Cytoscape graph.
+    3. **Consensus Lien**: Proportional vs. FIFO vs. LIBR comparison table, lower/upper lien bounds, method disagreement range, and audit-ready legal divergence narrative.
+    4. **Investigation Review**: Priority score breakdown (B/T/H weights), component metrics, positive/mitigating factors, and mandatory human governance disclaimer.
+    5. **Data Quality**: Dataset status inventory, schema validation, row counts, and missing file analysis for Synthetic FairHold, Elliptic, AMLNet, and SynthAML.
 
 ---
 
@@ -95,8 +110,21 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
 smart-freeze/
 ├── .gitignore                          # Git exclusions for Python caches, venvs, and temp files
 ├── README.md                           # Project documentation, schemas, and usage guide
-├── requirements.txt                    # Minimal production and testing dependencies
-├── app.py                              # Streamlit dashboard entrypoint (Step 1 placeholder)
+├── requirements.txt                    # Production and testing dependencies (FastAPI, uvicorn, pydantic, etc.)
+├── app/                                # FastAPI backend service
+│   ├── __init__.py
+│   └── main.py                         # FastAPI application entrypoint and REST endpoints
+├── frontend/                           # React + Vite + TypeScript frontend
+│   ├── package.json                    # Frontend dependencies (React, Vite, Recharts, Cytoscape, Lucide)
+│   ├── vite.config.ts                  # Vite configuration with /api backend proxy
+│   ├── tailwind.config.js              # Tailwind CSS styling tokens (Navy, Slate, Teal)
+│   └── src/
+│       ├── main.tsx                    # React application entrypoint
+│       ├── App.tsx                     # React Router navigation and layout shell
+│       ├── api/                        # Centralized Axios API client and endpoint functions
+│       ├── components/                 # Reusable UI components (Sidebar, Navbar, StatCard, Badge)
+│       ├── pages/                      # 5 investigation views (Overview, TransactionExplorer, etc.)
+│       └── types/                      # TypeScript domain types and API contracts
 ├── data/
 │   ├── raw/                            # Immutable external datasets (e.g., AMLNet, Elliptic, SynthAML)
 │   ├── processed/                      # Normalized operational data
@@ -340,5 +368,43 @@ Raw datasets remain immutable under `data/raw/` and are never committed if excee
 - **Synthetic Domain**: These records are generated for algorithmic testing and decision-support validation; they do not represent real proprietary banking data.
 - **Simplified Counterparties**: Real inter-bank settlements involve clearing houses, payment aggregators, and chargeback lifecycles which are abstracted via `EXT_` counterparties in this synthetic ledger.
 - **SynthAML Companion Absence**: `synthetic_transactions.csv` is missing in `data/raw/`, so `synthetic_alerts.csv` cannot be joined to transaction logs.
+
+---
+
+## 9. Launch Instructions (FastAPI & React)
+
+### Prerequisites
+- Python 3.12+ with virtual environment configured (`.venv`).
+- Node.js 18+ and npm.
+
+### Backend (FastAPI)
+To run the FastAPI server:
+```bash
+# From workspace root
+.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+API docs are interactively available at: `http://127.0.0.1:8000/docs`
+
+### Frontend (React + Vite)
+To start the React development server:
+```bash
+# Navigate to frontend/ directory
+cd frontend
+npm install
+npm run dev
+```
+The application will be available at `http://localhost:5173`. Vite is pre-configured to proxy `/api/*` requests to the FastAPI backend at `http://localhost:8000`.
+
+To create a production build:
+```bash
+cd frontend
+npm run build
+```
+
+### Running Test Suites
+```bash
+# Run all backend unit, integration, and API tests
+.venv/bin/pytest -v
+```
 - **Step 4 Boundary**: FIFO and LIBR tracing algorithms, Consensus Lien bounds, and investigation scoring will be implemented in Step 5. Proportional tracing estimates reflect algorithm assumptions (fungible commingling) and do not constitute legal conclusions or proof of guilt.
 
