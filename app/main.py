@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import uuid
 from pathlib import Path
+from typing import Tuple
 from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, HTTPException, Query, Depends, Request, status
 from fastapi.responses import JSONResponse
@@ -33,9 +34,9 @@ from engine.proportional import ProportionalTracer
 from engine.transaction_graph import TransactionGraphEngine
 from pipeline.adapters.synthetic_adapter import SyntheticAdapter
 from pipeline.profiling import DatasetProfile
-from pipeline.schemas import EXTERNAL_ACCOUNT_PREFIX, DatasetType
+from pipeline.schemas import (EXTERNAL_ACCOUNT_PREFIX, DatasetType, CANONICAL_ACCOUNT_COLUMNS, CANONICAL_TRANSACTION_COLUMNS, CANONICAL_CASE_COLUMNS, ELLIPTIC_CLASSES_COLUMNS, ELLIPTIC_EDGELIST_COLUMNS, AMLNET_COLUMNS, SYNTHAML_ALERTS_COLUMNS)
 from ml.service import MLService, ModelArtifactError
-from ml.schemas import PredictRequest, PredictResponse
+from ml.schemas import PredictRequest, PredictResponse, FEATURE_NAMES, TARGET_NAME
 from traceproof.coordinator import TraceCoordinator
 from traceproof.crypto import InstitutionKeyManager
 from traceproof.scenarios import get_scenario_metadata_list
@@ -136,6 +137,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Cached resources
 _adapter: Optional[SyntheticAdapter] = None
 _reconstructed_ledger: Optional[Dict[str, Any]] = None
+_ledger_cache_signature: Optional[Tuple[Tuple[int, int], ...]] = None
 _scoring_engine: Optional[InvestigationScoringEngine] = None
 
 
@@ -152,32 +154,42 @@ def get_adapter() -> SyntheticAdapter:
 
 
 def get_ledger_data() -> Dict[str, Any]:
-    global _reconstructed_ledger
-    if _reconstructed_ledger is None:
-        adapter = get_adapter()
-        accounts_df = pd.read_csv(adapter.accounts_path)
-        transactions_df = pd.read_csv(adapter.transactions_path)
-        cases_df = pd.read_csv(adapter.cases_path)
+    """Load a validated ledger cache and rebuild it when any source CSV changes."""
+    global _reconstructed_ledger, _ledger_cache_signature
+    adapter = get_adapter()
+    source_paths = (adapter.accounts_path, adapter.transactions_path, adapter.cases_path)
+    try:
+        signature = tuple((path.stat().st_mtime_ns, path.stat().st_size) for path in source_paths)
+    except OSError as exc:
+        raise HTTPException(status_code=503, detail="One or more operational ledger files are unavailable.") from exc
 
-        engine = LedgerReconstructionEngine(SYNTHETIC_DIR)
-        tracker, graph, report = engine.reconstruct(
-            accounts_df=accounts_df,
-            transactions_df=transactions_df,
-        )
-        balances = {aid: state.current_balance_paise for aid, state in tracker.accounts.items()}
-        balance_events = tracker.balance_events
-        graph_summary = TransactionGraphEngine.summarize_graph(graph)
+    if _reconstructed_ledger is not None and signature == _ledger_cache_signature:
+        return _reconstructed_ledger
 
-        _reconstructed_ledger = {
-            "accounts_df": accounts_df,
-            "transactions_df": transactions_df,
-            "cases_df": cases_df,
-            "validation_report": report,
-            "final_balances": balances,
-            "balance_events": balance_events,
-            "graph": graph,
-            "graph_summary": graph_summary,
-        }
+    accounts_df = pd.read_csv(adapter.accounts_path)
+    transactions_df = pd.read_csv(adapter.transactions_path)
+    cases_df = pd.read_csv(adapter.cases_path)
+
+    engine = LedgerReconstructionEngine(SYNTHETIC_DIR)
+    tracker, graph, report = engine.reconstruct(
+        accounts_df=accounts_df,
+        transactions_df=transactions_df,
+    )
+    balances = {aid: state.current_balance_paise for aid, state in tracker.accounts.items()}
+    balance_events = tracker.balance_events
+    graph_summary = TransactionGraphEngine.summarize_graph(graph)
+
+    _reconstructed_ledger = {
+        "accounts_df": accounts_df,
+        "transactions_df": transactions_df,
+        "cases_df": cases_df,
+        "validation_report": report,
+        "final_balances": balances,
+        "balance_events": balance_events,
+        "graph": graph,
+        "graph_summary": graph_summary,
+    }
+    _ledger_cache_signature = signature
     return _reconstructed_ledger
 
 
