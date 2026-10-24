@@ -39,9 +39,9 @@ export const DataQuality: React.FC = () => {
           <Database className="w-4 h-4" />
           <span>Multi-Dataset Audit & Hygiene</span>
         </div>
-        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Data Quality, Integrity & Provenance Audit</h2>
+        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Data quality and source inventory</h2>
         <p className="text-xs text-slate-500 mt-0.5 max-w-3xl leading-relaxed">
-          Verifies structural schema conformance, integer-paise representation, and dataset isolation. Public and external benchmark datasets are kept strictly distinct without fabricating missing transactions.
+          Reports available files, schema checks, observed row counts and known data limitations. Missing companion files remain missing; external datasets are not treated as operational bank records.
         </p>
       </div>
 
@@ -60,7 +60,7 @@ export const DataQuality: React.FC = () => {
           {/* Audit Summary KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <StatCard
-              label="Global Conservation Audit"
+              label="Ledger validation"
               value={dataQuality.ledger_conservation_valid ? 'CONSERVED' : 'FAILED'}
               subtext="Sum(Initial) + Sum(Deposits) - Sum(Withdrawals) = Sum(Final)"
               icon={ShieldCheck}
@@ -80,14 +80,20 @@ export const DataQuality: React.FC = () => {
               value={dataQuality.overall_status}
               subtext="Core decision-support services active"
               icon={CheckCircle2}
-              badge={{ text: 'Operational', variant: 'info' }}
+              badge={{
+                text: dataQuality.overall_status,
+                variant: dataQuality.overall_status === 'HEALTHY' ? 'success' : 'warning',
+              }}
             />
             <StatCard
-              label="Ground Truth Status"
-              value="STRICTLY ISOLATED"
-              subtext="Hidden ground truth excluded from operational paths"
+              label="Datasets with valid schema"
+              value={dataQuality.datasets.filter((dataset) => dataset.columns_valid).length}
+              subtext={\`of \${dataQuality.datasets.length} listed datasets passed their configured column checks\`}
               icon={ShieldCheck}
-              badge={{ text: 'Secured', variant: 'success' }}
+              badge={{
+                text: \`\${dataQuality.datasets.filter((dataset) => dataset.columns_valid).length} validated\`,
+                variant: dataQuality.datasets.some((dataset) => !dataset.columns_valid) ? 'warning' : 'success',
+              }}
             />
           </div>
 
@@ -96,7 +102,7 @@ export const DataQuality: React.FC = () => {
             <div className="p-5 border-b border-slate-200">
               <h3 className="text-sm font-bold text-slate-900">Supported Dataset Inventory</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Audit of canonical synthetic ledger and optional external benchmark datasets.
+                Current file inventory and schema checks; a CSV being present does not mean it is integrated into tracing.
               </p>
             </div>
 
@@ -115,17 +121,15 @@ export const DataQuality: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {dataQuality.datasets.map((ds, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
+                    <tr key={ds.dataset_name} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-4 px-4 font-bold text-slate-800">{ds.dataset_name}</td>
                       <td className="py-4 px-4 text-slate-600">{ds.category}</td>
                       <td className="py-4 px-4">
                         <Badge
                           variant={
-                            ds.status === 'VERIFIED_OPERATIONAL'
+                            ds.status === 'SCHEMA_VALIDATED'
                               ? 'success'
-                              : ds.status === 'SUPPORTED_EXTERNAL'
-                              ? 'info'
-                              : ds.status === 'ORPHAN_ALERTS'
+                              : ds.status === 'ORPHAN_ALERTS' || ds.status.includes('PARTIAL') || ds.status.includes('INVALID') || ds.status.includes('MISMATCH') || ds.status === 'DEGRADED'
                               ? 'warning'
                               : 'neutral'
                           }
