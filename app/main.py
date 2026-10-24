@@ -1415,8 +1415,12 @@ def predict_fraud(
 
 @app.get("/api/traceproof/scenarios")
 def get_traceproof_scenarios(auth: AuthContext = Depends(get_current_user)) -> List[Dict[str, Any]]:
-    """Return list of demonstrable preconfigured multi-rail evidence scenarios."""
-    return get_scenario_metadata_list()
+    """Return only simulated scenarios whose case scope is authorized for this identity."""
+    return [
+        scenario
+        for scenario in get_scenario_metadata_list()
+        if auth.can_access_case(str(scenario.get("case_id", "")))
+    ]
 
 
 @app.post("/api/traceproof/start", response_model=TraceProofResponse)
@@ -1465,9 +1469,16 @@ def get_traceproof_result(
 @app.post("/api/traceproof/verify-envelope", response_model=EnvelopeVerificationResult)
 def verify_envelope(
     req: VerifyEnvelopeRequest,
+    request: Request,
     auth: AuthContext = Depends(get_current_user),
 ) -> EnvelopeVerificationResult:
-    """Verify authenticity, SHA-256 payload integrity, and Ed25519 signature of an evidence envelope."""
+    """Verify an envelope only when its originating trace belongs to an accessible case."""
+    coordinator = TraceCoordinator.get_instance()
+    trace = coordinator.get_trace(req.envelope.trace_request_id)
+    if not trace:
+        raise HTTPException(status_code=404, detail="The trace request for this envelope was not found.")
+    client_ip = request.client.host if request.client else "unknown"
+    check_case_access(trace.case_id, auth, endpoint=request.url.path, method="POST", client_ip=client_ip)
     key_manager = InstitutionKeyManager.get_instance()
     return key_manager.verify_envelope(req.envelope)
 
