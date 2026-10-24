@@ -53,13 +53,17 @@ export const getTransactionDetail = async (txId: string): Promise<any> => {
   return data;
 };
 
-export const getAccounts = async (): Promise<AccountItem[]> => {
-  const { data } = await apiClient.get<AccountItem[]>('/api/accounts');
+export const getAccounts = async (caseId?: string): Promise<AccountItem[]> => {
+  const { data } = await apiClient.get<AccountItem[]>('/api/accounts', {
+    params: caseId ? { case_id: caseId } : {},
+  });
   return data;
 };
 
-export const getAccountBalanceHistory = async (accountId: string): Promise<BalanceEventItem[]> => {
-  const { data } = await apiClient.get<BalanceEventItem[]>(`/api/accounts/${accountId}/balance-history`);
+export const getAccountBalanceHistory = async (accountId: string, caseId?: string): Promise<BalanceEventItem[]> => {
+  const { data } = await apiClient.get<BalanceEventItem[]>(`/api/accounts/${encodeURIComponent(accountId)}/balance-history`, {
+    params: caseId ? { case_id: caseId } : {},
+  });
   return data;
 };
 
