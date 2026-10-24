@@ -148,8 +148,9 @@ class MLService:
                 "algorithm": None,
                 "selected_threshold": None,
                 "artifact_sha256_verified": False,
-                "feature_count": len(FEATURE_NAMES),
+                    "feature_count": len(FEATURE_NAMES),
                 "features": FEATURE_NAMES,
+                "demo_sample_count": 0,
             }
 
         primary_metrics = self.metadata.get("primary_model_metrics", {})
@@ -161,6 +162,7 @@ class MLService:
             "artifact_sha256_verified": self.artifact_sha256_verified,
             "feature_count": len(FEATURE_NAMES),
             "features": FEATURE_NAMES,
+            "demo_sample_count": len(self.demo_samples),
             "training_timestamp": self.metadata.get("training_timestamp"),
             "dataset_source": self.metadata.get("dataset_source"),
             "dataset_rows": self.metadata.get("dataset_rows"),
@@ -224,7 +226,7 @@ class MLService:
         if predicted_class == 1:
             explanation = (
                 f"Model score of {prob:.4f} exceeds the validation-selected decision threshold ({self.threshold:.2f}). "
-                "The transaction exhibits multi-dimensional feature deviations characteristic of historical credit-card fraud."
+                "The model score meets the configured threshold for class 1 under patterns learned from the historical credit-card benchmark."
             )
         else:
             explanation = (
@@ -239,6 +241,6 @@ class MLService:
             threshold_used=self.threshold,
             model_version=self.version,
             algorithm=str(self.metadata.get("model_algorithm") or self.metadata.get("selected_model") or "Unknown classifier"),
-            score_type="uncalibrated_fraud_probability_estimate",
+            score_type="uncalibrated_positive_class_score",
             explanation=explanation,
         )
