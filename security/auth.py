@@ -31,7 +31,14 @@ DEMO_PERSONAS: Dict[str, User] = {
         email="sarah.chen@fairhold.internal",
         display_name="Sarah Chen (Investigator)",
         role=Role.INVESTIGATOR,
-        assigned_cases=["CASE-2026-001", "CASE-2026-002"],
+        assigned_cases=[
+            "CASE-2026-001",
+            "CASE-2026-002",
+            "CASE-2026-TP-01",
+            "CASE-2026-TP-02",
+            "CASE-2026-TP-03",
+            "CASE-2026-TP-04",
+        ],
         institution_id="FIU_IND_CENTRAL",
     ),
     "dev_token_investigator_2": User(

@@ -44,6 +44,12 @@ export const InvestigationReview: React.FC = () => {
       }
     };
     fetchData();
+
+    const handleAuthChange = () => {
+      fetchData();
+    };
+    window.addEventListener('auth-changed', handleAuthChange);
+    return () => window.removeEventListener('auth-changed', handleAuthChange);
   }, []);
 
   // Update active score when selection changes

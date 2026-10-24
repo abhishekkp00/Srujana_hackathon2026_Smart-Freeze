@@ -66,6 +66,12 @@ export const TraceProof: React.FC = () => {
       }
     };
     fetchScenarios();
+
+    const handleAuthChange = () => {
+      fetchScenarios();
+    };
+    window.addEventListener('auth-changed', handleAuthChange);
+    return () => window.removeEventListener('auth-changed', handleAuthChange);
   }, []);
 
   const runTrace = async (scenarioId: string, caseId: string) => {

@@ -77,6 +77,12 @@ export const TransactionExplorer: React.FC = () => {
       }
     };
     fetchMetadata();
+
+    const handleAuthChange = () => {
+      fetchMetadata();
+    };
+    window.addEventListener('auth-changed', handleAuthChange);
+    return () => window.removeEventListener('auth-changed', handleAuthChange);
   }, []);
 
   // Fetch transactions and graph data when filters change

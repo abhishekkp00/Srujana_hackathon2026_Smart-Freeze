@@ -1,0 +1,56 @@
+{
+  "environment": {
+    "os": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+    "python_version": "3.12.3",
+    "cpu_count": 8,
+    "ram_gb": "System memory"
+  },
+  "results": {
+    "ledger_reconstruction": {
+      "accounts_count": 38,
+      "transactions_count": 119,
+      "graph_nodes": 38,
+      "graph_edges": 98,
+      "conservation_valid": true,
+      "latency_ms": 18.69
+    },
+    "consensus_lien": {
+      "status": "COMPARABLE",
+      "accounts_evaluated": 4,
+      "lower_bound_inr": 54901.96,
+      "upper_bound_inr": 151890.76,
+      "disagreement_inr": 96988.8,
+      "latency_ms": 16.08
+    },
+    "scenario_a_complete": {
+      "status": "COMPLETE",
+      "total_hops": 7,
+      "confirmed_links": 7,
+      "unresolved_links": 0,
+      "envelopes_verified": 7,
+      "all_signatures_valid": true,
+      "latency_ms": 3.09
+    },
+    "scenario_b_unresolved": {
+      "status": "PARTIAL",
+      "total_hops": 5,
+      "confirmed_links": 4,
+      "unresolved_links": 1,
+      "unresolved_explanation": "Wallet B documented outward settlement request 'REF_PAY_2026_001_HOP3', but Bank C settlement processor returned no confirmed allocation evidence. Link remains strictly UNRESOLVED (never fabricated).",
+      "latency_ms": 1.72
+    },
+    "scenario_c_security": {
+      "status": "INVALID_EVIDENCE",
+      "tampered_detected": true,
+      "trace_halted": true,
+      "latency_ms": 2.06
+    },
+    "ml_inference": {
+      "model": "Random Forest Classifier (Primary)",
+      "threshold": 0.63,
+      "predicted_label": "FRAUD",
+      "model_score": 0.8398,
+      "latency_ms": 27.88
+    }
+  }
+}

@@ -29,6 +29,12 @@ export const ConsensusLien: React.FC = () => {
       }
     };
     fetchCases();
+
+    const handleAuthChange = () => {
+      fetchCases();
+    };
+    window.addEventListener('auth-changed', handleAuthChange);
+    return () => window.removeEventListener('auth-changed', handleAuthChange);
   }, []);
 
   // Load Consensus Lien data for selected case
