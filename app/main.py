@@ -200,6 +200,42 @@ def get_scoring_engine() -> InvestigationScoringEngine:
     return _scoring_engine
 
 
+_CSV_PROFILE_CACHE: Dict[Tuple[str, int, int, str, Tuple[str, ...], Optional[int], Optional[str]], Dict[str, Any]] = {}
+
+def _profile_csv(path: Path, required_columns: Optional[List[str]] = None, header: Any = "infer", expected_column_count: Optional[int] = None, target_column: Optional[str] = None) -> Dict[str, Any]:
+    """Profile a local CSV from its actual header and row stream; cache only until the file changes."""
+    if not path.is_file():
+        return {"exists": False, "parsed": False, "columns": [], "rows": 0, "columns_valid": False, "target_counts": {}, "error": None}
+    stat = path.stat()
+    required = tuple(required_columns or [])
+    key = (str(path.resolve()), stat.st_mtime_ns, stat.st_size, str(header), required, expected_column_count, target_column)
+    if key in _CSV_PROFILE_CACHE:
+        return _CSV_PROFILE_CACHE[key]
+    profile: Dict[str, Any] = {"exists": True, "parsed": False, "columns": [], "rows": 0, "columns_valid": False, "target_counts": {}, "error": None}
+    try:
+        head = pd.read_csv(path, header=header, nrows=0)
+        columns = [str(col) for col in head.columns.tolist()]
+        profile["columns"] = columns
+        profile["columns_valid"] = set(required).issubset(set(columns)) and (expected_column_count is None or len(columns) == expected_column_count)
+        profile["parsed"] = True
+        if len(head.columns):
+            count_col = head.columns[0]
+            profile["rows"] = sum(len(chunk) for chunk in pd.read_csv(path, header=header, usecols=[count_col], chunksize=100000))
+        if target_column and target_column in columns:
+            counts: Dict[str, int] = {}
+            for chunk in pd.read_csv(path, usecols=[target_column], chunksize=100000):
+                for value, count in chunk[target_column].astype(str).value_counts(dropna=False).items():
+                    counts[str(value)] = counts.get(str(value), 0) + int(count)
+            profile["target_counts"] = counts
+    except Exception as exc:
+        profile["error"] = type(exc).__name__
+        profile["parsed"] = False
+        profile["columns_valid"] = False
+    if len(_CSV_PROFILE_CACHE) > 64:
+        _CSV_PROFILE_CACHE.clear()
+    _CSV_PROFILE_CACHE[key] = profile
+    return profile
+
 # ==============================================================================
 # Pydantic Response Models
 # ==============================================================================
