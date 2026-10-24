@@ -64,8 +64,28 @@ class MLService:
         """Force reload of artifacts from disk."""
         self._load_artifacts()
 
+    def _current_signature(self) -> tuple:
+        """Return file signatures for the configured model, metadata and demo samples."""
+        signature = []
+        for path in (self.artifact_path, self.metadata_path, self.demo_path):
+            try:
+                stat = path.stat()
+                signature.append((str(path), stat.st_mtime_ns, stat.st_size))
+            except OSError:
+                signature.append((str(path), None, None))
+        return tuple(signature)
+
+    def _reload_if_changed(self) -> None:
+        """Refresh cached model state when training creates or replaces local artifacts."""
+        current = self._current_signature()
+        if current != self._last_checked_signature:
+            self._load_artifacts()
+
     def _load_artifacts(self) -> None:
         """Load a locally trusted model only after validating metadata and its SHA-256 digest."""
+        # Store the observed signature before loading. If any file changes during loading,
+        # the next request will detect the new signature and retry.
+        self._last_checked_signature = self._current_signature()
         self.pipeline = None
         self.metadata = None
         self.demo_samples = []
@@ -140,6 +160,7 @@ class MLService:
 
     def get_status(self) -> Dict[str, Any]:
         """Return live model readiness based on loaded artifacts and their integrity check."""
+        self._reload_if_changed()
         if not self.is_loaded or self.metadata is None:
             return {
                 "status": "UNAVAILABLE",
@@ -148,7 +169,7 @@ class MLService:
                 "algorithm": None,
                 "selected_threshold": None,
                 "artifact_sha256_verified": False,
-                    "feature_count": len(FEATURE_NAMES),
+                "feature_count": len(FEATURE_NAMES),
                 "features": FEATURE_NAMES,
                 "demo_sample_count": 0,
             }
@@ -175,16 +196,19 @@ class MLService:
 
     def get_evaluation_report(self) -> Dict[str, Any]:
         """Return the comprehensive held-out test evaluation report."""
+        self._reload_if_changed()
         if not self.is_loaded or self.metadata is None:
             raise ModelArtifactError("Evaluation report is unavailable because model artifact is not loaded.")
         return self.metadata
 
     def get_demo_samples(self) -> list[Dict[str, Any]]:
         """Return real labelled demo feature vectors from the test partition."""
+        self._reload_if_changed()
         return self.demo_samples
 
     def predict(self, feature_dict: Dict[str, Any]) -> PredictResponse:
         """Validate input features and compute fraud risk prediction."""
+        self._reload_if_changed()
         if not self.is_loaded or self.pipeline is None:
             raise ModelArtifactError("ML model is not loaded. Train model or inspect /api/ml/status.")
 
