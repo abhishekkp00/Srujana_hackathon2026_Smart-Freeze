@@ -144,7 +144,7 @@ def test_synthaml_adapter_reports_missing_companion_transactions(tmp_path: Path)
     """Verify missing-companion behaviour using a local fixture, not optional downloaded data."""
     alerts = ["AlertID,Date,Outcome"]
     for index in range(1, 11):
-        alerts.append(f"{index},2026-01-01T00:00:00Z,{'Report' if index % 2 else 'Dismiss'}")
+        alerts.append(f"{index},2026-01-01,{'Report' if index % 2 else 'Dismiss'}")
     (tmp_path / "synthetic_alerts.csv").write_text("\n".join(alerts) + "\n", encoding="utf-8")
 
     adapter = SynthAMLAdapter(tmp_path)
