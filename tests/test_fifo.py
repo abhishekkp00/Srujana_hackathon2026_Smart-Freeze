@@ -1,4 +1,4 @@
-"""Unit tests for FairHold First-In, First-Out (FIFO) fund-tracing engine (engine.fifo).
+"""Unit tests for Smart-Freeze First-In, First-Out (FIFO) fund-tracing engine (engine.fifo).
 
 Tests:
 1. Direct suspected-source transfer without commingling.

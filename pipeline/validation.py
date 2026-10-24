@@ -1,4 +1,4 @@
-"""FairHold Data Validation Module.
+"""Smart-Freeze Data Validation Module.
 
 Performs structural and semantic validation for financial ledgers, transaction journals,
 and external datasets. Distinguishes fatal validation errors from non-fatal quality warnings.
@@ -75,7 +75,7 @@ def validate_date_string(date_str: str, fmt: str = "%Y-%m-%d") -> bool:
 def validate_synthetic_accounts(
     df: pd.DataFrame,
 ) -> ValidationResult:
-    """Validate accounts table against FairHold canonical schema."""
+    """Validate accounts table against Smart-Freeze canonical schema."""
     result = ValidationResult(dataset_name="synthetic_accounts", is_valid=True)
     result.records_checked = len(df)
 
@@ -133,7 +133,7 @@ def validate_synthetic_accounts(
 def validate_synthetic_cases(
     df: pd.DataFrame,
 ) -> ValidationResult:
-    """Validate cases table against FairHold canonical schema."""
+    """Validate cases table against Smart-Freeze canonical schema."""
     result = ValidationResult(dataset_name="synthetic_cases", is_valid=True)
     result.records_checked = len(df)
 
@@ -179,7 +179,7 @@ def validate_synthetic_transactions(
     valid_accounts: Optional[Set[str]] = None,
     valid_cases: Optional[Set[str]] = None,
 ) -> ValidationResult:
-    """Validate transactions table against FairHold canonical schema and references."""
+    """Validate transactions table against Smart-Freeze canonical schema and references."""
     result = ValidationResult(dataset_name="synthetic_transactions", is_valid=True)
     result.records_checked = len(df)
 

@@ -2,10 +2,10 @@
 trigger: always_on
 ---
 
-# FairHold — Project Rules
+# Smart-Freeze — Project Rules
 
 ## Project objective
-Build FairHold, a transparent fraud-investigation and fund-tracing decision-support MVP for a 48-hour hackathon.
+Build Smart-Freeze, a transparent fraud-investigation and fund-tracing decision-support MVP for a 48-hour hackathon.
 
 ## Development workflow
 1. Inspect the existing repository before making changes.

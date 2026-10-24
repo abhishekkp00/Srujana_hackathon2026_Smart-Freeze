@@ -1,5 +1,5 @@
 ---
-description: Validate FairHold datasets, maintain hidden ground truth,
+description: Validate Smart-Freeze datasets, maintain hidden ground truth,
   test calculations, and produce reproducible evaluation results without
   fabricated metrics.
 name: testing-data-and-evaluation
@@ -9,7 +9,7 @@ name: testing-data-and-evaluation
 
 ## Purpose
 
-Ensure FairHold's transaction processing, tracing methods, Consensus
+Ensure Smart-Freeze's transaction processing, tracing methods, Consensus
 Lien, and investigation signals are tested against appropriate evidence.
 
 ## Required workflow

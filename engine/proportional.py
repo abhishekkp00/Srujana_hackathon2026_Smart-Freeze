@@ -1,4 +1,4 @@
-"""FairHold Proportional Fund-Tracing Engine.
+"""Smart-Freeze Proportional Fund-Tracing Engine.
 
 Implements deterministic, explainable proportional fund tracing across commingled
 accounts. Tracks suspected-source lots through multi-hop downstream transfers,

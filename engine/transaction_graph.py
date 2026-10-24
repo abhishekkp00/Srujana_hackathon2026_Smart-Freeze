@@ -1,4 +1,4 @@
-"""FairHold Directed Transaction Graph Engine.
+"""Smart-Freeze Directed Transaction Graph Engine.
 
 Constructs and summarizes a directed multigraph (NetworkX MultiDiGraph) representing
 inter-account fund flows. Preserves transaction provenance, multiple transfers

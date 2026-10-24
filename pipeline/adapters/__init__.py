@@ -1,7 +1,7 @@
-"""FairHold Dataset Adapters Package.
+"""Smart-Freeze Dataset Adapters Package.
 
 Contains dataset-specific adapters for ingestion, validation, and normalization:
-- SyntheticAdapter: FairHold internal deterministic synthetic financial ledger
+- SyntheticAdapter: Smart-Freeze internal deterministic synthetic financial ledger
 - EllipticAdapter: Elliptic Bitcoin transaction graph benchmark
 - SynthAMLAdapter: SynthAML alerts and transactions adapter (reports missing companion)
 - AMLNetAdapter: AMLNet Australian banking transaction dataset

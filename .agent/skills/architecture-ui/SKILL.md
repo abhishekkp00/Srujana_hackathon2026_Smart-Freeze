@@ -1,14 +1,14 @@
 ---
-description: Keep FairHold modular, auditable, secure, and usable, with
+description: Keep Smart-Freeze modular, auditable, secure, and usable, with
   evidence-backed explanations and a functional Streamlit dashboard.
 name: architecture-explainability-and-ui
 ---
 
-# FairHold Architecture, Explainability and UI
+# Smart-Freeze Architecture, Explainability and UI
 
 ## Purpose
 
-Build a coherent FairHold application in which every displayed number
+Build a coherent Smart-Freeze application in which every displayed number
 comes from the tested backend and every investigation signal is
 traceable to evidence.
 

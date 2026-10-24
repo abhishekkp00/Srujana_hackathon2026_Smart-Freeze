@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FairHold Proportional Fund-Tracing CLI Tool.
+"""Smart-Freeze Proportional Fund-Tracing CLI Tool.
 
 Executes deterministic proportional fund tracing from a designated suspected
 fraud origin transaction, tracking commingled fund propagation across internal
@@ -28,7 +28,7 @@ from pipeline.adapters.synthetic_adapter import SyntheticAdapter
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="FairHold Proportional Fund-Tracing CLI"
+        description="Smart-Freeze Proportional Fund-Tracing CLI"
     )
     parser.add_argument(
         "--tx-id",
@@ -63,7 +63,7 @@ def main() -> int:
     args = parser.parse_args()
 
     print("=" * 70)
-    print("FAIRHOLD: PROPORTIONAL FUND-TRACING RUN")
+    print("SMART-FREEZE: PROPORTIONAL FUND-TRACING RUN")
     print("=" * 70)
     print(f"Source Transaction:  {args.tx_id}")
     print(f"Source Case:         {args.case_id}")

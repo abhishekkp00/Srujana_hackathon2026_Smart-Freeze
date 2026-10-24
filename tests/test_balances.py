@@ -1,4 +1,4 @@
-"""Unit tests for FairHold balance tracking and reconstruction (engine.balances).
+"""Unit tests for Smart-Freeze balance tracking and reconstruction (engine.balances).
 
 Tests:
 1. Opening balances are loaded accurately.

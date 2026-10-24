@@ -1,4 +1,4 @@
-"""FairHold Evaluation Package.
+"""Smart-Freeze Evaluation Package.
 
 Contains modules for comparing tracing outputs against controlled ground truth
 and computing audit metrics. Hidden ground truth is isolated here and must never

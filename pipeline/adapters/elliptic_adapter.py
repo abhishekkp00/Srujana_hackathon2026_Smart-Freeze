@@ -1,4 +1,4 @@
-"""FairHold Elliptic Bitcoin Dataset Adapter.
+"""Smart-Freeze Elliptic Bitcoin Dataset Adapter.
 
 Loads and normalizes the Elliptic cryptocurrency transaction graph benchmark.
 Treats Elliptic strictly as a cryptocurrency graph dataset, preserving original

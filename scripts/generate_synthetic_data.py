@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""FairHold Deterministic Synthetic Financial Ledger Generator.
+"""Smart-Freeze Deterministic Synthetic Financial Ledger Generator.
 
 Generates a controlled, deterministic synthetic financial dataset for evaluating
-FairHold's fund-tracing algorithms (FIFO, Proportional, LIBR) and Consensus Lien
+Smart-Freeze's fund-tracing algorithms (FIFO, Proportional, LIBR) and Consensus Lien
 against verified ground truth.
 
 Conventions:
@@ -530,7 +530,7 @@ def validate_dataset(
     cases: List[Dict[str, Any]],
     ground_truth: Dict[str, Any],
 ) -> None:
-    """Validate all generated records against FairHold financial integrity constraints."""
+    """Validate all generated records against Smart-Freeze financial integrity constraints."""
     # 1. Accounts Validation
     if not accounts:
         raise ValueError("Accounts list is empty.")
@@ -715,7 +715,7 @@ def save_dataset(
 
 def main() -> None:
     """CLI entrypoint for synthetic data generation."""
-    parser = argparse.ArgumentParser(description="FairHold Synthetic Financial Data Generator")
+    parser = argparse.ArgumentParser(description="Smart-Freeze Synthetic Financial Data Generator")
     parser.add_argument("--seed", type=int, default=42, help="Deterministic random seed (default: 42)")
     parser.add_argument(
         "--output-dir",
@@ -725,7 +725,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    print(f"Generating FairHold synthetic dataset with seed={args.seed}...")
+    print(f"Generating Smart-Freeze synthetic dataset with seed={args.seed}...")
     accounts, transactions, cases, ground_truth = generate_all_data(seed=args.seed)
 
     print("Validating generated records...")

@@ -1,7 +1,7 @@
-"""FairHold Canonical Schemas and Field Definitions.
+"""Smart-Freeze Canonical Schemas and Field Definitions.
 
 Defines the canonical schema models, constants, and field semantics
-for the FairHold financial investigation decision-support platform.
+for the Smart-Freeze financial investigation decision-support platform.
 Preserves strict integer-paise representation for internal ledgers and
 documents schemas and limitations of external datasets.
 """
@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Set
 
 
 # ==============================================================================
-# FairHold Canonical Internal Ledger Schema (Step 1 & Step 2)
+# Smart-Freeze Canonical Internal Ledger Schema (Step 1 & Step 2)
 # ==============================================================================
 
 # Required column names for CSV validation
@@ -186,7 +186,10 @@ AMLNET_COLUMNS = [
 
 class DatasetType(str, Enum):
     """Categorization of supported datasets."""
-    FAIRHOLD_SYNTHETIC = "fairhold_synthetic"
+    SMART_FREEZE_SYNTHETIC = "smartfreeze_synthetic"
+    SMARTFREEZE_SYNTHETIC = "smartfreeze_synthetic"
+    FAIRHOLD_SYNTHETIC = "smartfreeze_synthetic"
     ELLIPTIC_BITCOIN = "elliptic_bitcoin"
     SYNTHAML_ALERTS = "synthaml_alerts"
     AMLNET = "amlnet"
+

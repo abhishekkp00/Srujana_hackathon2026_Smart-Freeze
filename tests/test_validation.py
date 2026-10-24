@@ -1,4 +1,4 @@
-"""Unit tests for FairHold structural and semantic validation (pipeline.validation).
+"""Unit tests for Smart-Freeze structural and semantic validation (pipeline.validation).
 
 Tests all validation constraints using small, isolated in-memory fixtures:
 - Required column presence

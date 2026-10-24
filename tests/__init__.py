@@ -1,2 +1,2 @@
-"""FairHold Tests Package.
+"""Smart-Freeze Tests Package.
 """

@@ -1,4 +1,4 @@
-"""Unit tests for FairHold proportional fund-tracing engine (engine.proportional).
+"""Unit tests for Smart-Freeze proportional fund-tracing engine (engine.proportional).
 
 Tests:
 1. Direct transfer of suspected funds without commingling.

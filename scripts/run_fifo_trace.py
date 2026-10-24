@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FairHold First-In, First-Out (FIFO) Fund-Tracing CLI Tool.
+"""Smart-Freeze First-In, First-Out (FIFO) Fund-Tracing CLI Tool.
 
 Executes deterministic FIFO fund tracing from a designated suspected fraud origin
 transaction, tracking ordered source-lot consumption across internal accounts
@@ -28,7 +28,7 @@ from pipeline.adapters.synthetic_adapter import SyntheticAdapter
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="FairHold FIFO Fund-Tracing CLI"
+        description="Smart-Freeze FIFO Fund-Tracing CLI"
     )
     parser.add_argument(
         "--tx-id",
@@ -63,7 +63,7 @@ def main() -> int:
     args = parser.parse_args()
 
     print("=" * 70)
-    print("FAIRHOLD: FIRST-IN, FIRST-OUT (FIFO) FUND-TRACING RUN")
+    print("SMART-FREEZE: FIRST-IN, FIRST-OUT (FIFO) FUND-TRACING RUN")
     print("=" * 70)
     print(f"Source Transaction:  {args.tx_id}")
     print(f"Source Case:         {args.case_id}")

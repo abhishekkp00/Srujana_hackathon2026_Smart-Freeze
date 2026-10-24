@@ -1,4 +1,4 @@
-"""FairHold Data Pipeline Package.
+"""Smart-Freeze Data Pipeline Package.
 
 Contains modules for canonical schemas, data validation, profiling, and adapters.
 """

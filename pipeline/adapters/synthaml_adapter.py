@@ -1,4 +1,4 @@
-"""FairHold SynthAML and AMLNet Dataset Adapters.
+"""Smart-Freeze SynthAML and AMLNet Dataset Adapters.
 
 Handles external AML datasets with strict provenance tracking:
 - SynthAMLAdapter: Handles synthetic_alerts.csv and explicitly checks for the
@@ -84,7 +84,7 @@ class SynthAMLAdapter:
         if not self.transactions_path.exists():
             raise FileNotFoundError(
                 f"SynthAML companion transactions file not found: {self.transactions_path}. "
-                "FairHold will not fabricate or invent missing transaction records."
+                "Smart-Freeze will not fabricate or invent missing transaction records."
             )
         return pd.read_csv(self.transactions_path, nrows=limit)
 

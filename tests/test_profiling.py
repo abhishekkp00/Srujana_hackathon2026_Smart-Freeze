@@ -1,4 +1,4 @@
-"""Unit tests for FairHold dataset profiling (pipeline.profiling).
+"""Unit tests for Smart-Freeze dataset profiling (pipeline.profiling).
 
 Tests:
 - Deterministic profiling output
@@ -88,12 +88,12 @@ def test_synthetic_profiling_missing_dataset():
 def test_profiling_text_and_dict_representations(synthetic_temp_dir):
     profile = profile_synthetic_dataset(synthetic_temp_dir)
     txt = profile.format_text()
-    assert "FAIRHOLD DATASET PROFILE: FAIRHOLD_SYNTHETIC" in txt
+    assert "SMART-FREEZE DATASET PROFILE: SMARTFREEZE_SYNTHETIC" in txt
     assert "Status: SUCCESS" in txt
     assert "total_turnover_paise: 14000" in txt
 
     d = profile.to_dict()
-    assert d["dataset_name"] == "fairhold_synthetic"
+    assert d["dataset_name"] == "smartfreeze_synthetic"
     assert d["status"] == "success"
 
 

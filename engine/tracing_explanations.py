@@ -1,4 +1,4 @@
-"""FairHold Tracing Explanations Module.
+"""Smart-Freeze Tracing Explanations Module.
 
 Constructs detailed, evidence-backed mathematical explanations for proportional
 fund-tracing decisions. Separates mathematical allocation calculations from

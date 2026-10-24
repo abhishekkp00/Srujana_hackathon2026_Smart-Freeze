@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FairHold Ledger Reconstruction and Transaction Graph CLI.
+"""Smart-Freeze Ledger Reconstruction and Transaction Graph CLI.
 
 Validates the operational synthetic financial ledger, calculates chronological
 balance histories with exact integer-paise arithmetic, builds the directed transaction
@@ -27,7 +27,7 @@ from engine.transaction_graph import TransactionGraphEngine
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="FairHold Ledger Reconstruction and Transaction Graph Generator"
+        description="Smart-Freeze Ledger Reconstruction and Transaction Graph Generator"
     )
     parser.add_argument(
         "--synthetic-dir",
@@ -45,7 +45,7 @@ def main() -> int:
     args = parser.parse_args()
 
     print("=" * 70)
-    print("FAIRHOLD: LEDGER RECONSTRUCTION & TRANSACTION GRAPH")
+    print("SMART-FREEZE: LEDGER RECONSTRUCTION & TRANSACTION GRAPH")
     print("=" * 70)
     print(f"Input Directory:  {args.synthetic_dir}")
     print(f"Output Directory: {args.output_dir}\n")

@@ -1,4 +1,4 @@
-"""FairHold First-In, First-Out (FIFO) Fund-Tracing Engine.
+"""Smart-Freeze First-In, First-Out (FIFO) Fund-Tracing Engine.
 
 Implements deterministic, explainable FIFO fund tracing using ordered source lots.
 When funds leave an account, the oldest available source lots are consumed first

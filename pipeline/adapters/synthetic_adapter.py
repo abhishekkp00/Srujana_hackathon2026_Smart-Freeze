@@ -1,4 +1,4 @@
-"""FairHold Synthetic Dataset Adapter.
+"""Smart-Freeze Synthetic Dataset Adapter.
 
 Loads and normalizes the operational synthetic accounts, transactions, and cases.
 Enforces integer-paise representation and strict ground-truth isolation.
@@ -34,7 +34,7 @@ class GroundTruthAccessViolationError(PermissionError):
 
 
 class SyntheticAdapter:
-    """Adapter for FairHold synthetic operational financial records."""
+    """Adapter for Smart-Freeze synthetic operational financial records."""
 
     def __init__(self, data_dir: Path | str):
         self.data_dir = Path(data_dir)

@@ -1,4 +1,4 @@
-"""Unit tests for FairHold ledger reconstruction coordinator (engine.ledger).
+"""Unit tests for Smart-Freeze ledger reconstruction coordinator (engine.ledger).
 
 Tests:
 1. End-to-end ledger reconstruction on real operational synthetic data.

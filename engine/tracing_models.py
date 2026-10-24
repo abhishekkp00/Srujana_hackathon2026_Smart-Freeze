@@ -1,4 +1,4 @@
-"""FairHold Fund-Tracing Data Models.
+"""Smart-Freeze Fund-Tracing Data Models.
 
 Defines domain models, source-lot pool tracking, and structured tracing result types
 for proportional, FIFO, and LIBR tracing algorithms. All amounts are strictly

@@ -1,4 +1,4 @@
-"""Unit tests for FairHold directed transaction graph (engine.transaction_graph).
+"""Unit tests for Smart-Freeze directed transaction graph (engine.transaction_graph).
 
 Tests:
 1. Internal accounts are represented as nodes.

@@ -1,4 +1,4 @@
-"""Unit tests for FairHold dataset adapters (pipeline.adapters).
+"""Unit tests for Smart-Freeze dataset adapters (pipeline.adapters).
 
 Tests:
 - SyntheticAdapter: schema integrity, integer paise preservation, ground-truth isolation

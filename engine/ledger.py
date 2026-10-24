@@ -1,7 +1,7 @@
-"""FairHold Ledger Reconstruction Coordinator.
+"""Smart-Freeze Ledger Reconstruction Coordinator.
 
 Orchestrates loading, validation, deterministic chronological sorting, balance
-reconstruction, and transaction graph generation for FairHold's synthetic financial ledger.
+reconstruction, and transaction graph generation for Smart-Freeze's synthetic financial ledger.
 Verifies global balance conservation and exports audit-ready processed artifacts.
 """
 

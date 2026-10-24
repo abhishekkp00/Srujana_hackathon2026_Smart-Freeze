@@ -1,6 +1,6 @@
-# FairHold
+# Smart-Freeze
 
-FairHold is a transparent fraud-investigation and fund-tracing decision-support MVP designed to assist authorized financial investigators in analyzing suspected fraudulent fund transfers, reconstructing transaction ledgers, tracing commingled money flows, and comparing lien estimates without automated prejudgment or black-box closures.
+Smart-Freeze is a transparent fraud-investigation and fund-tracing decision-support MVP designed to assist authorized financial investigators in analyzing suspected fraudulent fund transfers, reconstructing transaction ledgers, tracing commingled money flows, and comparing lien estimates without automated prejudgment or black-box closures.
 
 ---
 
@@ -8,7 +8,7 @@ FairHold is a transparent fraud-investigation and fund-tracing decision-support 
 
 When victims report cyber-fraud or unauthorized digital transactions, financial authorities and institutions must trace where the funds traveled across multi-hop accounts, identify intermediary mules, and place appropriate lien holds. 
 
-However, blanket or arbitrary account freezes frequently harm innocent counterparties (e.g., downstream employees, legitimate merchants, or secondary recipients receiving commingled funds). FairHold addresses this challenge by providing:
+However, blanket or arbitrary account freezes frequently harm innocent counterparties (e.g., downstream employees, legitimate merchants, or secondary recipients receiving commingled funds). Smart-Freeze addresses this challenge by providing:
 - **Transparent ledger reconstruction** using exact integer arithmetic (in paise).
 - **Multi-method fund tracing** comparing Proportional, FIFO, and Lowest Intermediate Balance Rule (LIBR) approaches.
 - **Consensus Lien bounds** (reporting lower bounds, upper bounds, and method disagreements).
@@ -69,7 +69,7 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
 ## 3. Folder Structure
 
 ```text
-fairhold/
+smart-freeze/
 ├── .gitignore                          # Git exclusions for Python caches, venvs, and temp files
 ├── README.md                           # Project documentation, schemas, and usage guide
 ├── requirements.txt                    # Minimal production and testing dependencies
@@ -102,7 +102,7 @@ fairhold/
 │   ├── profiling.py                    # Deterministic profiling and statistical metrics
 │   └── adapters/                       # Dataset-specific adapters
 │       ├── __init__.py
-│       ├── synthetic_adapter.py        # Operational FairHold synthetic ledger adapter
+│       ├── synthetic_adapter.py        # Operational Smart-Freeze synthetic ledger adapter
 │       ├── elliptic_adapter.py         # Elliptic Bitcoin cryptocurrency graph adapter
 │       └── synthaml_adapter.py         # SynthAML and AMLNet dataset adapters
 ├── evaluation/                         # Evaluation metrics and benchmark comparison modules
@@ -255,7 +255,7 @@ The generator uses a seedable Pseudo-Random Number Generator (`random.Random(see
 
 | Dataset | Location | Status | Notes / Limitations |
 | :--- | :--- | :--- | :--- |
-| **FairHold Synthetic** | `data/synthetic/` | Supported | Internal operational ledger in integer paise (`accounts.csv`, `transactions.csv`, `cases.csv`). Ground truth strictly isolated. |
+| **Smart-Freeze Synthetic** | `data/synthetic/` | Supported | Internal operational ledger in integer paise (`accounts.csv`, `transactions.csv`, `cases.csv`). Ground truth strictly isolated. |
 | **Elliptic Bitcoin** | `data/raw/elliptic_bitcoin_dataset/` | Supported | Cryptocurrency transaction graph (`elliptic_txs_classes.csv`, `elliptic_txs_edgelist.csv`, `elliptic_txs_features.csv`). Labels: illicit (1), licit (2), unknown. Preserves directed UTXO flows; does NOT represent bank accounts or INR balances. |
 | **SynthAML Alerts** | `data/raw/synthetic_alerts.csv` | Partially Supported (Orphan) | Contains 20,000 alerts with Outcome (`Report`, `Dismiss`). Companion `synthetic_transactions.csv` is missing from `data/raw/`. Retained as orphan alerts; companion is not fabricated. |
 | **AMLNet** | `data/raw/AMLNet_August 2025.csv` | Supported (Separate) | Australian multi-channel banking transaction dataset (1.09M rows) with 17 features including typologies (`structuring`, `layering`, `integration`). Treated as independent dataset; NOT conflated with SynthAML. |

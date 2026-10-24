@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""FairHold Dataset Profiling CLI Tool.
+"""Smart-Freeze Dataset Profiling CLI Tool.
 
-Profiles available datasets (FairHold synthetic ledger, Elliptic Bitcoin graph,
+Profiles available datasets (Smart-Freeze synthetic ledger, Elliptic Bitcoin graph,
 SynthAML alerts, and AMLNet), validates schemas, reports missing values, duplicate keys,
 amount distributions, and data quality warnings.
 
@@ -41,7 +41,7 @@ def profile_datasets(
     """Execute profiling for the selected dataset(s)."""
     profiles: List[DatasetProfile] = []
 
-    # 1. FairHold Synthetic
+    # 1. Smart-Freeze Synthetic
     if dataset_choice in ("synthetic", "all"):
         profiles.append(profile_synthetic_dataset(synthetic_dir))
 
@@ -64,7 +64,7 @@ def profile_datasets(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="FairHold Dataset Profiling and Validation CLI"
+        description="Smart-Freeze Dataset Profiling and Validation CLI"
     )
     parser.add_argument(
         "--dataset",

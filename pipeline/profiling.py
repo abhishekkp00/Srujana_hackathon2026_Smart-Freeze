@@ -1,4 +1,4 @@
-"""FairHold Dataset Profiling Module.
+"""Smart-Freeze Dataset Profiling Module.
 
 Generates deterministic profiling summaries for supported datasets:
 - Row and column counts
@@ -60,7 +60,7 @@ class DatasetProfile:
         """Render a readable text profile report."""
         lines = [
             f"=" * 70,
-            f"FAIRHOLD DATASET PROFILE: {self.dataset_name.upper()}",
+            f"SMART-FREEZE DATASET PROFILE: {self.dataset_name.upper()}",
             f"=" * 70,
             f"Status: {self.status.upper()}",
         ]
@@ -133,9 +133,9 @@ class DatasetProfile:
 
 
 def profile_synthetic_dataset(data_dir: Path | str) -> DatasetProfile:
-    """Profile FairHold synthetic financial dataset (accounts, transactions, cases)."""
+    """Profile Smart-Freeze synthetic financial dataset (accounts, transactions, cases)."""
     p_dir = Path(data_dir)
-    profile = DatasetProfile(dataset_name="fairhold_synthetic")
+    profile = DatasetProfile(dataset_name="smartfreeze_synthetic")
 
     acc_path = p_dir / "accounts.csv"
     tx_path = p_dir / "transactions.csv"

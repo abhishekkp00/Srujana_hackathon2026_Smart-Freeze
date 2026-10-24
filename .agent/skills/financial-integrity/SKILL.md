@@ -1,5 +1,5 @@
 ---
-description: Build FairHold's validated transaction ledger, fund-flow
+description: Build Smart-Freeze's validated transaction ledger, fund-flow
   graph, proportional tracing, FIFO, LIBR, and Consensus Lien with
   precise arithmetic and explicit assumptions.
 name: financial-integrity-and-fund-tracing
@@ -9,7 +9,7 @@ name: financial-integrity-and-fund-tracing
 
 ## Purpose
 
-Implement FairHold's core financial processing and fund-tracing logic
+Implement Smart-Freeze's core financial processing and fund-tracing logic
 accurately, transparently, and reproducibly.
 
 ## Required workflow

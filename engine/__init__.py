@@ -1,4 +1,4 @@
-"""FairHold Core Engine Package.
+"""Smart-Freeze Core Engine Package.
 
 Contains modules for ledger reconstruction, balance tracking,
 transaction graph construction, and proportional fund-tracing algorithms.

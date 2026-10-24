@@ -1,4 +1,4 @@
-"""FairHold Step 1 Automated Tests: Synthetic Ledger and Project Foundation.
+"""Smart-Freeze Step 1 Automated Tests: Synthetic Ledger and Project Foundation.
 
 Verifies:
 1. Output files exist and are populated.

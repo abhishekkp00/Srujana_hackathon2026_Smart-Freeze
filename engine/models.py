@@ -1,4 +1,4 @@
-"""FairHold Financial Engine Data Models.
+"""Smart-Freeze Financial Engine Data Models.
 
 Defines domain models for ledger reconstruction, balance events,
 validation reports, and graph summaries. All monetary amounts are

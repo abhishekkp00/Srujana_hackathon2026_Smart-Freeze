@@ -1,4 +1,4 @@
-"""FairHold Balance Tracking and History Reconstruction Engine.
+"""Smart-Freeze Balance Tracking and History Reconstruction Engine.
 
 Tracks running balances per internal account, validates balance conservation,
 verifies that accounts never enter negative balances (overdraft unsupported),
