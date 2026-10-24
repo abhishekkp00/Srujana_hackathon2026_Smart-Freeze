@@ -79,9 +79,9 @@ export interface GraphNode {
   label: string;
   type: string;
   is_external: boolean;
-  opening_balance_inr: number;
-  final_balance_inr: number;
-  history_complete: boolean;
+  opening_balance_inr: number | null;
+  final_balance_inr: number | null;
+  history_complete: boolean | null;
 }
 
 export interface GraphEdge {
