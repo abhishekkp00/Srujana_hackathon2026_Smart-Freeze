@@ -136,7 +136,7 @@ export const MLAnalysis: React.FC = () => {
   const activeSample = demoSamples.find((s) => s.sample_id === selectedSampleId);
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Top Banner: Model Status & Provenance */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
