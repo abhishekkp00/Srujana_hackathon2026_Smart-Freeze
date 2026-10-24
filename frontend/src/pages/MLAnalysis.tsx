@@ -42,6 +42,7 @@ export const MLAnalysis: React.FC = () => {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -74,7 +75,7 @@ export const MLAnalysis: React.FC = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [refreshKey]);
 
   const handleSelectSample = (sampleId: string) => {
     setSelectedSampleId(sampleId);
@@ -144,6 +145,15 @@ export const MLAnalysis: React.FC = () => {
           <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             Predictions are disabled until training succeeds and the model artifact passes its SHA-256 integrity check.
           </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="fh-button-secondary"
+              onClick={() => setRefreshKey((value) => value + 1)}
+            >
+              <RotateCcw size={13} /> Check model status again
+            </button>
+          </div>
           <div className="mt-4">
             <div className="eyebrow">Training command</div>
             <code className="mt-2 block rounded-md bg-[#202b2a] p-3 text-sm text-white">python scripts/train_ml_model.py</code>
@@ -185,7 +195,7 @@ export const MLAnalysis: React.FC = () => {
                 <h2 className="text-xl font-bold text-slate-900">
                   Transaction Fraud Classifier
                 </h2>
-                <Badge variant="success" size="sm">
+                <Badge variant={status.artifact_sha256_verified ? "success" : "warning"} size="sm">
                   {status.status}
                 </Badge>
                 <Badge variant="info" size="sm">
@@ -200,6 +210,13 @@ export const MLAnalysis: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            onClick={() => setRefreshKey((value) => value + 1)}
+          >
+            <RotateCcw size={12} /> Refresh
+          </button>
           <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
             Algorithm: {evaluation.selected_model}
           </span>
@@ -279,7 +296,7 @@ export const MLAnalysis: React.FC = () => {
                 {cm.true_positives}
               </span>
               <span className="text-[11px] text-emerald-700 mt-1 block">
-                Fraud accurately flagged
+                Labelled fraud correctly classified
               </span>
             </div>
 
@@ -315,7 +332,7 @@ export const MLAnalysis: React.FC = () => {
                 {cm.true_negatives.toLocaleString()}
               </span>
               <span className="text-[11px] text-slate-600 mt-1 block">
-                Legitimate accurately cleared
+                Labelled non-fraud correctly classified
               </span>
             </div>
           </div>
