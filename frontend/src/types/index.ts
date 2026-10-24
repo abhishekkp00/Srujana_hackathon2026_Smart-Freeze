@@ -196,15 +196,21 @@ export interface DataQualityData {
 
 export interface MLStatusData {
   status: string;
-  model_version?: string;
-  algorithm?: string;
-  selected_threshold?: number;
+  message?: string;
+  model_version?: string | null;
+  algorithm?: string | null;
+  selected_threshold?: number | null;
+  artifact_sha256_verified?: boolean;
   feature_count: number;
   features: string[];
   training_timestamp?: string;
   dataset_source?: string;
-  held_out_test_f1?: number;
-  held_out_test_pr_auc?: number;
+  dataset_rows?: number;
+  train_size?: number;
+  validation_size?: number;
+  test_size?: number;
+  held_out_test_f1?: number | null;
+  held_out_test_pr_auc?: number | null;
 }
 
 export interface ConfusionMatrixData {
