@@ -91,7 +91,7 @@ export const DataQuality: React.FC = () => {
                             subtext={`of ${dataQuality.datasets.length} listed datasets passed their configured column checks`}
               icon={ShieldCheck}
               badge={{
-                text: \`\${dataQuality.datasets.filter((dataset) => dataset.columns_valid).length} validated\`,
+                text: `${dataQuality.datasets.filter((dataset) => dataset.columns_valid).length} validated`,
                 variant: dataQuality.datasets.some((dataset) => !dataset.columns_valid) ? 'warning' : 'success',
               }}
             />
