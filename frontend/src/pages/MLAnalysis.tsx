@@ -427,16 +427,17 @@ export const MLAnalysis: React.FC = () => {
               Interactive Transaction Prediction Inspector
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Select verified real test records from the dataset or adjust feature values, then evaluate via <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">POST /api/ml/predict</code>.
+              Select a held-out dataset sample or adjust its feature vector, then request a fresh backend inference via <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">POST /api/ml/predict</code>.
             </p>
           </div>
 
           <div className="flex items-center space-x-3">
-            <span className="text-xs font-semibold text-slate-600">Preloaded Samples:</span>
+            <span className="text-xs font-semibold text-slate-600">Held-out samples:</span>
             <select
               value={selectedSampleId}
               onChange={(e) => handleSelectSample(e.target.value)}
-              className="bg-white border border-slate-200 text-xs font-semibold rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              disabled={demoSamples.length === 0}
+              className="bg-white border border-slate-200 text-xs font-semibold rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50"
             >
               {demoSamples.map((s) => (
                 <option key={s.sample_id} value={s.sample_id}>
@@ -446,7 +447,7 @@ export const MLAnalysis: React.FC = () => {
             </select>
             <button
               onClick={handleRunPrediction}
-              disabled={isPredicting}
+              disabled={isPredicting || demoSamples.length === 0}
               className="flex items-center space-x-1.5 px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm transition-colors disabled:opacity-60"
             >
               <Play className="w-3.5 h-3.5" />
@@ -464,7 +465,7 @@ export const MLAnalysis: React.FC = () => {
                 <span className="font-bold text-slate-900 text-sm">{activeSample.description}</span>
               </div>
               <div className="flex items-center space-x-2">
-                <span className="text-slate-500 font-medium">Historical Ground Truth:</span>
+                <span className="text-slate-500 font-medium">Dataset label (held-out record):</span>
                 <Badge variant={activeSample.ground_truth_class === 1 ? 'danger' : 'neutral'} size="sm">
                   {activeSample.ground_truth_label}
                 </Badge>
@@ -489,7 +490,7 @@ export const MLAnalysis: React.FC = () => {
                   <div>
                     <div className="flex items-center space-x-2">
                       <h4 className="text-base font-bold text-slate-900">
-                        Prediction: {prediction.predicted_label === 'FRAUD' ? 'FRAUD SUSPICION FLAGGED' : 'GENUINE TRANSACTION PROFILE'}
+                        Model classification: {prediction.predicted_label === 'FRAUD' ? 'FRAUD PATTERN FLAG' : 'NON-FRAUD PATTERN'}
                       </h4>
                       <Badge variant={prediction.predicted_class === 1 ? 'danger' : 'success'} size="sm">
                         Class {prediction.predicted_class}
@@ -515,9 +516,9 @@ export const MLAnalysis: React.FC = () => {
               {/* Score Bar visualization */}
               <div className="mt-4 pt-3 border-t border-slate-200/60">
                 <div className="flex justify-between text-[11px] text-slate-500 mb-1">
-                  <span>0.00 (Low Risk)</span>
+                  <span>0.00 (lower model score)</span>
                   <span className="font-semibold text-slate-700">Operating Threshold ({prediction.threshold_used.toFixed(2)})</span>
-                  <span>1.00 (High Risk)</span>
+                  <span>1.00 (higher model score)</span>
                 </div>
                 <div className="relative w-full h-3 bg-slate-200 rounded-full overflow-hidden">
                   <div
@@ -539,6 +540,12 @@ export const MLAnalysis: React.FC = () => {
             <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center space-x-2">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
               <span>{predictError}</span>
+            </div>
+          )}
+
+          {demoSamples.length === 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
+              The model artifact is loaded, but its generated demo-sample file is missing or empty. Interactive sample prediction is disabled rather than using fabricated vectors. Re-run <code>python scripts/train_ml_model.py</code> with <code>data/raw/creditcard.csv</code> available to regenerate both artifacts.
             </div>
           )}
 
