@@ -77,14 +77,18 @@ class SecurityAuditEvent(BaseModel):
 
 
 class SecurityStatusResponse(BaseModel):
-    """System-wide security posture and defense telemetry."""
+    """Runtime security telemetry with explicit limitations."""
     status: str
     auth_mode: str
+    production_auth_ready: bool
+    demo_auth_enabled: bool
     pki_signature_algorithm: str
     model_sha256_verified: bool
     bola_enforcement_active: bool
     rate_limiting_active: bool
+    rate_limiting_scope: str
     hidden_data_isolated: bool
+    hidden_data_isolation_status: str
     total_audit_events: int
     security_denials_count: int
     active_institutions_registered: int
