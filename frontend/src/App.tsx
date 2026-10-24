@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { Activity, ArrowLeftRight, BriefcaseBusiness, LoaderCircle, ShieldAlert } from 'lucide-react';
+import { Activity, BriefcaseBusiness, LoaderCircle, ShieldAlert } from 'lucide-react';
 import { apiClient, DEMO_TOKEN_KEY } from './api/client';
 import { Sidebar } from './components/layout/Sidebar';
 import { Navbar } from './components/layout/Navbar';
@@ -55,9 +55,10 @@ interface AppContentProps {
   session: Session;
   personas: DemoPersona[];
   onSelectPersona: (personaId: string) => Promise<void>;
+  onSignOut: () => void;
 }
 
-const AppContent: React.FC<AppContentProps> = ({ session, personas, onSelectPersona }) => {
+const AppContent: React.FC<AppContentProps> = ({ session, personas, onSelectPersona, onSignOut }) => {
   const location = useLocation();
   const page = PAGE_META[location.pathname] ?? PAGE_META['/'];
   return (
@@ -71,6 +72,7 @@ const AppContent: React.FC<AppContentProps> = ({ session, personas, onSelectPers
           currentUser={session.user}
           personas={personas}
           onSelectPersona={onSelectPersona}
+          onSignOut={onSignOut}
         />
         <main className="workspace-main" key={session.user.user_id}>
           <div className="page-width">
@@ -181,10 +183,8 @@ const AuthGate: React.FC = () => {
     return (
       <Router>
         <div className="relative">
-          <AppContent session={session} personas={personas} onSelectPersona={selectPersona} />
-          <button type="button" onClick={signOut} className="fixed bottom-4 right-4 z-50 rounded-md border border-[#dfe2d8] bg-[#fbfbf8] px-3 py-2 text-xs font-medium text-[#526057] shadow-sm hover:bg-[#eef0e8]">
-            End demo session
-          </button>
+          <AppContent session={session} personas={personas} onSelectPersona={selectPersona} onSignOut={signOut} />
+
         </div>
       </Router>
     );
