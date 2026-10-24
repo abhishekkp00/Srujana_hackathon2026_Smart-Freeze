@@ -22,7 +22,8 @@ def test_api_health():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["service"] == "smart-freeze-api"
+    assert data["service"] == "fairhold-api"
+    assert data["version"] == app.version
 
 
 def test_api_overview():
