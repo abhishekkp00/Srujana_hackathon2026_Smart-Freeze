@@ -52,24 +52,20 @@ interface SecurityAuditEvent {
 export const SecurityAudit: React.FC = () => {
   const [status, setStatus] = useState<SecurityStatus | null>(null);
   const [events, setEvents] = useState<SecurityAuditEvent[]>([]);
-  const [caseIds, setCaseIds] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSeverity, setSelectedSeverity] = useState<string>('ALL');
-  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const fetchSecurityData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [statusRes, auditRes, casesRes] = await Promise.all([
+      const [statusRes, auditRes] = await Promise.all([
         apiClient.get('/api/admin/security-status'),
         apiClient.get('/api/admin/audit-logs?limit=50'),
-        apiClient.get('/api/cases'),
       ]);
       setStatus(statusRes.data);
       setEvents(auditRes.data);
-      setCaseIds((casesRes.data || []).map((item: { case_id: string }) => item.case_id));
     } catch (err: any) {
       setError(err.message || 'Failed to load security audit telemetry.');
     } finally {
@@ -86,25 +82,6 @@ export const SecurityAudit: React.FC = () => {
     window.addEventListener('auth-changed', handleAuthChange);
     return () => window.removeEventListener('auth-changed', handleAuthChange);
   }, []);
-
-  // Quick adversarial test simulation triggers
-  const triggerProbe = async (endpoint: string, label: string) => {
-    setActionFeedback(null);
-    try {
-      await apiClient.get(endpoint);
-      setActionFeedback({
-        type: 'success',
-        message: `${label}: HTTP ${200}. The endpoint responded; this alone does not prove the whole security control is effective.`,
-      });
-      fetchSecurityData();
-    } catch (err: any) {
-      setActionFeedback({
-        type: 'error',
-        message: `${label}: HTTP ${err?.response?.status ?? 'unavailable'} — ${err.message}. Review the response; a denial alone does not prove all access paths are protected.`,
-      });
-      fetchSecurityData();
-    }
-  };
 
   const filteredEvents = events.filter((e) => {
     if (selectedSeverity === 'ALL') return true;
@@ -139,27 +116,6 @@ export const SecurityAudit: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {/* Action Probe Feedback Banner */}
-      {actionFeedback && (
-        <div
-          className={`p-4 rounded-xl border flex items-start space-x-3 text-sm transition-all duration-300 ${
-            actionFeedback.type === 'success'
-              ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
-              : 'bg-rose-50 border-rose-300 text-rose-900'
-          }`}
-        >
-          {actionFeedback.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-          ) : (
-            <XCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
-          )}
-          <div className="flex-1">
-            <span className="font-bold">{actionFeedback.type === 'success' ? 'Authorized Access' : 'Security Defense Activated'}: </span>
-            <span>{actionFeedback.message}</span>
-          </div>
-        </div>
-      )}
 
       {/* Role / Access Control Warning if error loading */}
       {error && (
@@ -208,6 +164,22 @@ export const SecurityAudit: React.FC = () => {
         </div>
       )}
 
+      {status && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 grid gap-3 md:grid-cols-2">
+          <div>
+            <div className="text-xs font-semibold text-slate-700">Rate-limit coverage</div>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">{status.rate_limiting_scope}</p>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-slate-700">Ground-truth isolation</div>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">{status.hidden_data_isolation_status}</p>
+          </div>
+          <div className="md:col-span-2 text-xs text-amber-800">
+            Production OIDC readiness: {status.production_auth_ready ? 'reported ready by backend configuration' : 'not implemented / not configured'}. Demo identity mode: {status.demo_auth_enabled ? 'enabled' : 'disabled'}.
+          </div>
+        </div>
+      )}
+
       {/* Threat Model & Active Defense Controls */}
       <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
         <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2 mb-4">
@@ -221,8 +193,7 @@ export const SecurityAudit: React.FC = () => {
               <span>BOLA & Horizontal Access</span>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Every case-scoped request (Case Detail, Cytoscape Graph, Consensus Lien, TraceProof) verifies user assignment.
-              Investigators cannot view or trace unassigned cases.
+              The API checks case assignment on case-scoped routes and filters investigator list responses to assigned cases. This remains a prototype control and requires route-by-route regression testing.
             </p>
           </div>
 
@@ -242,44 +213,11 @@ export const SecurityAudit: React.FC = () => {
               <span>Model & Infrastructure Defense</span>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              The configured model loader checks the artifact digest before deserialization. Request-size middleware and route-level rate limits are present; this is not a substitute for a security assessment.
+              The model loader checks a configured artifact digest before deserialization. Request-size middleware is installed; rate limits cover selected routes only, as described in the runtime details below.
             </p>
           </div>
         </div>
 
-        {/* Live Adversarial Verification Buttons */}
-        <div className="mt-6 pt-5 border-t border-slate-100">
-          <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center space-x-2">
-            <Terminal className="w-4 h-4 text-slate-500" />
-            <span>Interactive Adversarial Probes (Test Active Persona Defense)</span>
-          </div>
-          <div className="flex flex-wrap gap-2.5">
-            {caseIds[0] && <button
-              onClick={() => triggerProbe('/api/cases/' + encodeURIComponent(caseIds[0]), 'Read case ' + caseIds[0])}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition-colors"
-            >
-              Probe: Read {caseIds[0]}
-            </button>}
-            {caseIds[1] && <button
-              onClick={() => triggerProbe('/api/cases/' + encodeURIComponent(caseIds[1]), 'Read case ' + caseIds[1])}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition-colors"
-            >
-              Probe: Read {caseIds[1]}
-            </button>}
-            <button
-              onClick={() => triggerProbe('/api/admin/audit-logs', 'Access Admin Audit Logs')}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition-colors"
-            >
-              Probe: Request Admin Audit Logs
-            </button>
-            <button
-              onClick={() => triggerProbe('/api/admin/security-status', 'Access Admin Security Status')}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition-colors"
-            >
-              Probe: Request Security Status
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Security Audit Log Table */}
@@ -288,7 +226,7 @@ export const SecurityAudit: React.FC = () => {
           <div>
             <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
               <Activity className="w-5 h-5 text-teal-600" />
-              <span>Real-time Security Audit Log</span>
+              <span>Recorded security events</span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
               Recorded application events. Logs are application telemetry and have not been independently certified as immutable.
