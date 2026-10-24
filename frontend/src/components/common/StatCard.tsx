@@ -13,13 +13,7 @@ interface StatCardProps {
   highlightColor?: string;
 }
 
-export const StatCard: React.FC<StatCardProps> = ({
-  label,
-  value,
-  subtext,
-  icon: Icon,
-  badge,
-}) => {
+export const StatCard: React.FC<StatCardProps> = ({ label, value, subtext, icon: Icon, badge }) => {
   const badgeStyles = {
     success: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     warning: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -29,26 +23,16 @@ export const StatCard: React.FC<StatCardProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow transition-shadow">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</span>
-        {Icon && (
-          <div className="p-2 rounded-lg bg-slate-50 text-slate-600 border border-slate-100">
-            <Icon className="w-4 h-4" />
-          </div>
-        )}
+    <section className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <span className="text-xs font-medium text-slate-500">{label}</span>
+        {Icon && <Icon className="w-4 h-4 text-slate-400" strokeWidth={1.7} />}
       </div>
-
-      <div className="flex items-baseline space-x-2">
-        <div className="text-2xl font-bold text-slate-900 tracking-tight">{value}</div>
-        {badge && (
-          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${badgeStyles[badge.variant]}`}>
-            {badge.text}
-          </span>
-        )}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <div className="text-2xl font-semibold text-slate-900 tracking-tight tabular-nums">{value}</div>
+        {badge && <span className={`text-[10px] font-medium px-2 py-0.5 rounded border ${badgeStyles[badge.variant]}`}>{badge.text}</span>}
       </div>
-
-      {subtext && <p className="text-xs text-slate-500 mt-1.5 font-normal leading-relaxed">{subtext}</p>}
-    </div>
+      {subtext && <p className="text-xs text-slate-500 mt-2 leading-relaxed">{subtext}</p>}
+    </section>
   );
 };
