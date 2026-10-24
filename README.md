@@ -95,12 +95,25 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
   - Built with React 18, Vite, TypeScript, and Tailwind CSS.
   - Interactive directed multigraph visualization powered by Cytoscape.js.
   - Chronological account balance timelines rendered via Recharts.
-  - Five core investigation views:
-    1. **Overview**: Executive ledger health, operational statistics, case queue, and reported loss distribution.
-    2. **Transaction Explorer**: Searchable/filterable transactions, case/account filters, transaction detail modal, balance history chart, and interactive Cytoscape graph.
-    3. **Consensus Lien**: Proportional vs. FIFO vs. LIBR comparison table, lower/upper lien bounds, method disagreement range, and audit-ready legal divergence narrative.
-    4. **Investigation Review**: Priority score breakdown (B/T/H weights), component metrics, positive/mitigating factors, and mandatory human governance disclaimer.
-    5. **Data Quality**: Dataset status inventory, schema validation, row counts, and missing file analysis for Synthetic FairHold, Elliptic, AMLNet, and SynthAML.
+  - Five core investigation views (Overview, Transaction Explorer, Consensus Lien, Investigation Review, Data Quality).
+
+**Step 10: Machine Learning Fraud Classifier on European Credit Card Benchmark** (Complete)
+- Genuine transaction-fraud classification model trained on the ULB / Worldline European Credit Card dataset (284,807 transactions, 492 fraud cases, 0.173% class imbalance).
+- Random Forest primary candidate achieving **87.50% Precision**, **75.68% Recall**, **0.8116 F1-score**, and **0.8079 PR-AUC** on held-out test data (42,722 transactions).
+- Operating threshold ($\tau = 0.63$) selected strictly on validation data to optimize minority F1-score.
+- Dedicated interactive ML Analysis dashboard with live feature inspector and real test demo vectors.
+- Automated test suite in `tests/test_ml.py` (15 tests).
+
+**Step 12: TraceProof Multi-Rail Evidence Reconstruction** (Complete)
+- Core capability reconstructing verifiable transaction trails across three independent institutions:
+  1. **Bank A**: Originating retail/commercial banking rail.
+  2. **Wallet B**: PPI / e-money digital wallet provider.
+  3. **Bank C / Settlement Provider**: Acquiring bank and merchant settlement clearing processor.
+- **Signed Evidence Envelopes**: Ed25519 digital signatures and SHA-256 canonical payload hashing ensuring envelope authenticity and payload integrity against an institutional public-key registry.
+- **Strict Evidence Standards**: Distinguishes **CONFIRMED**, **INFERRED**, **AMBIGUOUS**, **CONTRADICTORY**, and **UNRESOLVED** links. Missing counterparty records remain visibly unresolved and are never silently fabricated.
+- **Evidence-Bounded Trace Range**: Integrates multi-method bounds (Proportional, FIFO, LIBR) calculated across verified evidence hops.
+- **Trace Coordinator & Scenarios**: Complete cross-institution trail, unresolved settlement gap, fee/refund tracking, and adversarial tampered envelope detection.
+- Automated test suite in `tests/test_traceproof.py` (11 tests).
 
 ---
 

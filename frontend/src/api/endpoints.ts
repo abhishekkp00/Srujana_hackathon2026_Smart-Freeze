@@ -13,6 +13,11 @@ import {
   MLEvaluationReport,
   MLDemoSample,
   MLPredictResponse,
+  TraceProofScenario,
+  SignedEvidenceEnvelope,
+  EnvelopeVerificationResult,
+  TraceProofResponse,
+  StartTraceRequest,
 } from '../types';
 
 export const getOverview = async (): Promise<OverviewData> => {
@@ -108,3 +113,32 @@ export const predictFraud = async (features: Record<string, number>): Promise<ML
   const { data } = await apiClient.post<MLPredictResponse>('/api/ml/predict', { features });
   return data;
 };
+
+// ==============================================================================
+// TraceProof Multi-Rail Evidence Reconstruction Endpoints
+// ==============================================================================
+
+export const getTraceProofScenarios = async (): Promise<TraceProofScenario[]> => {
+  const { data } = await apiClient.get<TraceProofScenario[]>('/api/traceproof/scenarios');
+  return data;
+};
+
+export const startTraceProof = async (req: StartTraceRequest): Promise<TraceProofResponse> => {
+  const { data } = await apiClient.post<TraceProofResponse>('/api/traceproof/start', req);
+  return data;
+};
+
+export const getTraceProofResult = async (requestId: string): Promise<TraceProofResponse> => {
+  const { data } = await apiClient.get<TraceProofResponse>(`/api/traceproof/requests/${requestId}`);
+  return data;
+};
+
+export const verifyEvidenceEnvelope = async (
+  envelope: SignedEvidenceEnvelope
+): Promise<EnvelopeVerificationResult> => {
+  const { data } = await apiClient.post<EnvelopeVerificationResult>('/api/traceproof/verify-envelope', {
+    envelope,
+  });
+  return data;
+};
+

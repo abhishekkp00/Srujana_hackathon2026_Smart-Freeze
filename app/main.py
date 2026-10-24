@@ -34,6 +34,15 @@ from pipeline.profiling import DatasetProfile
 from pipeline.schemas import EXTERNAL_ACCOUNT_PREFIX, DatasetType
 from ml.service import MLService, ModelArtifactError
 from ml.schemas import PredictRequest, PredictResponse
+from traceproof.coordinator import TraceCoordinator
+from traceproof.crypto import InstitutionKeyManager
+from traceproof.scenarios import get_scenario_metadata_list
+from traceproof.schemas import (
+    StartTraceRequest,
+    TraceProofResponse,
+    VerifyEnvelopeRequest,
+    EnvelopeVerificationResult,
+)
 
 # Base paths
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -1032,3 +1041,45 @@ def predict_fraud(request: PredictRequest) -> PredictResponse:
         raise HTTPException(status_code=422, detail=str(e))
     except ModelArtifactError as e:
         raise HTTPException(status_code=503, detail=str(e))
+
+
+# ==============================================================================
+# 10. TraceProof Multi-Rail Evidence Reconstruction Endpoints
+# ==============================================================================
+
+@app.get("/api/traceproof/scenarios")
+def get_traceproof_scenarios() -> List[Dict[str, Any]]:
+    """Return list of demonstrable preconfigured multi-rail evidence scenarios."""
+    return get_scenario_metadata_list()
+
+
+@app.post("/api/traceproof/start", response_model=TraceProofResponse)
+def start_traceproof(request: StartTraceRequest) -> TraceProofResponse:
+    """Execute a cryptographic multi-rail evidence reconstruction trace."""
+    coordinator = TraceCoordinator.get_instance()
+    try:
+        return coordinator.execute_trace(
+            case_id=request.case_id,
+            seed_reference=request.seed_reference,
+            scenario_id=request.scenario_id,
+            max_hops=request.max_hops,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"TraceProof coordinator failure: {str(e)}")
+
+
+@app.get("/api/traceproof/requests/{request_id}", response_model=TraceProofResponse)
+def get_traceproof_result(request_id: str) -> TraceProofResponse:
+    """Retrieve the results and evidence graph for a specific trace request ID."""
+    coordinator = TraceCoordinator.get_instance()
+    res = coordinator.get_trace(request_id)
+    if not res:
+        raise HTTPException(status_code=404, detail=f"Trace request '{request_id}' not found.")
+    return res
+
+
+@app.post("/api/traceproof/verify-envelope", response_model=EnvelopeVerificationResult)
+def verify_envelope(request: VerifyEnvelopeRequest) -> EnvelopeVerificationResult:
+    """Verify authenticity, SHA-256 payload integrity, and Ed25519 signature of an evidence envelope."""
+    key_manager = InstitutionKeyManager.get_instance()
+    return key_manager.verify_envelope(request.envelope)

@@ -8,6 +8,7 @@ import { ConsensusLien } from './pages/ConsensusLien';
 import { InvestigationReview } from './pages/InvestigationReview';
 import { DataQuality } from './pages/DataQuality';
 import { MLAnalysis } from './pages/MLAnalysis';
+import { TraceProof } from './pages/TraceProof';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
@@ -28,6 +29,11 @@ const AppContent: React.FC = () => {
         return {
           title: 'Consensus Lien Comparison',
           subtitle: 'Proportional vs. FIFO vs. LIBR method bounds and divergence drivers',
+        };
+      case '/traceproof':
+        return {
+          title: 'TraceProof Multi-Rail Reconstruction',
+          subtitle: 'Cryptographically verified cross-institution path across Bank A, Wallet B, and Bank C',
         };
       case '/investigation':
         return {
@@ -70,6 +76,7 @@ const AppContent: React.FC = () => {
             <Route path="/" element={<Overview />} />
             <Route path="/explorer" element={<TransactionExplorer />} />
             <Route path="/consensus-lien" element={<ConsensusLien />} />
+            <Route path="/traceproof" element={<TraceProof />} />
             <Route path="/investigation" element={<InvestigationReview />} />
             <Route path="/ml-analysis" element={<MLAnalysis />} />
             <Route path="/data-quality" element={<DataQuality />} />

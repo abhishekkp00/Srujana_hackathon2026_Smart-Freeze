@@ -264,3 +264,114 @@ export interface MLPredictResponse {
   explanation: string;
   governance_notice: string;
 }
+
+// ==============================================================================
+// TraceProof Multi-Rail Interfaces
+// ==============================================================================
+
+export interface TraceProofScenario {
+  scenario_id: string;
+  title: string;
+  case_id: string;
+  seed_reference: string;
+  description: string;
+  expected_status: string;
+}
+
+export interface SignedEvidenceEnvelope {
+  schema_version: string;
+  trace_request_id: string;
+  institution_id: string;
+  source_record_id: string;
+  approved_payload: Record<string, any>;
+  payload_sha256: string;
+  key_id: string;
+  signature_hex: string;
+  issued_at: string;
+  expires_at: string;
+}
+
+export interface EnvelopeVerificationResult {
+  is_valid: boolean;
+  status: string;
+  institution_id: string;
+  source_record_id: string;
+  key_id: string;
+  message: string;
+}
+
+export interface TraceProofNode {
+  id: string;
+  label: string;
+  institution_id: string;
+  account_token: string;
+  account_type: string;
+  is_external?: boolean;
+}
+
+export interface TraceProofEdge {
+  id: string;
+  source: string;
+  target: string;
+  event_id: string;
+  institution_id: string;
+  event_type: string;
+  amount_minor: number;
+  amount_display: number;
+  currency: string;
+  timestamp: string;
+  link_status: 'CONFIRMED' | 'INFERRED' | 'AMBIGUOUS' | 'CONTRADICTORY' | 'UNRESOLVED';
+  evidence_status: string;
+  transaction_reference: string;
+  fee_minor?: number;
+  envelope_id?: string;
+  unresolved_reason?: string;
+}
+
+export interface TraceProofRangeMethod {
+  method: string;
+  amount_paise: number;
+  amount_display: number;
+  valid: boolean;
+  assumption: string;
+}
+
+export interface TraceProofRange {
+  lower_bound_paise: number;
+  upper_bound_paise: number;
+  disagreement_paise: number;
+  lower_bound_display: number;
+  upper_bound_display: number;
+  disagreement_display: number;
+  methods: TraceProofRangeMethod[];
+  reasons: string[];
+}
+
+export interface TraceProofResponse {
+  request_id: string;
+  case_id: string;
+  status: 'COMPLETE' | 'PARTIAL' | 'PENDING' | 'UNAVAILABLE' | 'AMBIGUOUS' | 'INVALID_EVIDENCE';
+  origin_institution: string;
+  origin_record_id: string;
+  total_hops_traversed: number;
+  confirmed_links_count: number;
+  inferred_links_count: number;
+  ambiguous_links_count: number;
+  unresolved_links_count: number;
+  nodes: TraceProofNode[];
+  edges: TraceProofEdge[];
+  envelopes: SignedEvidenceEnvelope[];
+  verification_results: EnvelopeVerificationResult[];
+  unresolved_explanations: string[];
+  evidence_bounded_range?: TraceProofRange;
+  narrative_summary: string;
+  governance_notice: string;
+}
+
+export interface StartTraceRequest {
+  scenario_id?: string;
+  case_id: string;
+  seed_reference?: string;
+  max_hops?: number;
+}
+
