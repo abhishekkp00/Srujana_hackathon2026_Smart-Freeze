@@ -88,7 +88,7 @@ export const DataQuality: React.FC = () => {
             <StatCard
               label="Datasets with valid schema"
               value={dataQuality.datasets.filter((dataset) => dataset.columns_valid).length}
-              subtext={\`of \${dataQuality.datasets.length} listed datasets passed their configured column checks\`}
+                            subtext={`of ${dataQuality.datasets.length} listed datasets passed their configured column checks`}
               icon={ShieldCheck}
               badge={{
                 text: \`\${dataQuality.datasets.filter((dataset) => dataset.columns_valid).length} validated\`,
