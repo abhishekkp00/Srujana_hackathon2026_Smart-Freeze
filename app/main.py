@@ -510,13 +510,23 @@ def health_check():
 def get_overview(auth: AuthContext = Depends(get_current_user)):
     """Returns top-level operational statistics and data health status."""
     data = get_ledger_data()
-    accs = data["accounts_df"]
-    txs = data["transactions_df"]
-    cases = data["cases_df"]
+    all_accs = data["accounts_df"]
+    all_txs = data["transactions_df"]
+    all_cases = data["cases_df"]
     report = data["validation_report"]
 
-    incomplete_accs = int((~accs["history_complete"]).sum()) if "history_complete" in accs.columns else 0
+    if auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
+        cases = all_cases[all_cases["case_id"].isin(auth.user.assigned_cases)]
+        txs = all_txs[all_txs["case_id"].isin(auth.user.assigned_cases)]
+        account_ids = set(txs["from_account"]).union(set(txs["to_account"]))
+        accs = all_accs[all_accs["account_id"].isin(account_ids)]
+    else:
+        accs, txs, cases = all_accs, all_txs, all_cases
+
+    incomplete_accs = int((~accs["history_complete"].astype(bool)).sum()) if "history_complete" in accs.columns else 0
     total_vol_paise = int(txs["amount_paise"].sum())
+    closed_statuses = {"CLOSED", "RESOLVED", "COMPLETED", "DISMISSED"}
+    cases_requiring_review = int((~cases["status"].astype(str).str.upper().isin(closed_statuses)).sum()) if not cases.empty else 0
 
     return OverviewResponse(
         accounts_analyzed=len(accs),
@@ -525,9 +535,9 @@ def get_overview(auth: AuthContext = Depends(get_current_user)):
         ledger_valid=report.is_valid,
         validation_status="VERIFIED" if report.is_valid else "VALIDATION_FAILED",
         incomplete_history_accounts=incomplete_accs,
-        cases_requiring_review=len(cases),  # All consequential cases require human review
+        cases_requiring_review=cases_requiring_review,
         total_volume_inr=total_vol_paise / 100.0,
-        system_version="1.0.0-mvp",
+        system_version=app.version,
         governance_disclaimer=GOVERNANCE_DISCLAIMER,
     )
 
@@ -543,6 +553,11 @@ def list_cases(auth: AuthContext = Depends(get_current_user)):
     # Filter cases based on user's authorized scope if Investigator
     if auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
         cases_df = cases_df[cases_df["case_id"].isin(auth.user.assigned_cases)]
+
+    if auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
+        txs_df = txs_df[txs_df["case_id"].isin(auth.user.assigned_cases)]
+        involved_accounts = set(txs_df["from_account"]).union(set(txs_df["to_account"]))
+        accs_df = accs_df[accs_df["account_id"].isin(involved_accounts)]
 
     engine = get_scoring_engine()
     scores = engine.score_all_cases(cases_df, txs_df, accs_df)
@@ -594,12 +609,19 @@ def get_case_detail(
     case_txs = txs_df[txs_df["case_id"] == case_id]
     origin_tx = case_txs.iloc[0]["transaction_id"] if not case_txs.empty else None
 
+    scoring_txs = txs_df
+    scoring_accounts = accs_df
+    if auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
+        scoring_txs = txs_df[txs_df["case_id"].isin(auth.user.assigned_cases)]
+        involved_accounts = set(scoring_txs["from_account"]).union(set(scoring_txs["to_account"]))
+        scoring_accounts = accs_df[accs_df["account_id"].isin(involved_accounts)]
+
     engine = get_scoring_engine()
     sc = engine.score_case(
         case=row.to_dict(),
-        transactions=txs_df,
-        accounts=accs_df,
-        baseline_transactions=txs_df,
+        transactions=scoring_txs,
+        accounts=scoring_accounts,
+        baseline_transactions=scoring_txs,
     )
 
     return {
@@ -871,6 +893,8 @@ def get_transaction_graph(
 
     if case_id:
         filtered_txs = txs_df[txs_df["case_id"] == case_id]
+    elif auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
+        filtered_txs = txs_df[txs_df["case_id"].isin(auth.user.assigned_cases)]
     else:
         filtered_txs = txs_df
 
@@ -1406,6 +1430,11 @@ def get_traceproof_result(
     res = coordinator.get_trace(request_id)
     if not res:
         raise HTTPException(status_code=404, detail=f"Trace request '{request_id}' not found.")
+    client_ip = "unknown"
+    case_id = getattr(res, "case_id", None)
+    if not case_id:
+        raise HTTPException(status_code=403, detail="Trace result has no verifiable case scope.")
+    check_case_access(case_id, auth, endpoint="/api/traceproof/requests/" + request_id, method="GET", client_ip=client_ip)
     return res
 
 
