@@ -26,10 +26,9 @@ interface SecurityStatus {
   demo_auth_enabled: boolean;
   pki_signature_algorithm: string;
   model_sha256_verified: boolean;
-  bola_enforcement_active: boolean;
+  case_scope_authorization_status: string;
   rate_limiting_active: boolean;
   rate_limiting_scope: string;
-  hidden_data_isolated: boolean;
   hidden_data_isolation_status: string;
   total_audit_events: number;
   security_denials_count: number;
@@ -190,10 +189,10 @@ export const SecurityAudit: React.FC = () => {
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
             <div className="flex items-center space-x-2 text-indigo-700 font-bold text-xs uppercase mb-1">
               <Lock className="w-4 h-4" />
-              <span>BOLA & Horizontal Access</span>
+              <span>Case-scoped access</span>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              The API checks case assignment on case-scoped routes and filters investigator list responses to assigned cases. This remains a prototype control and requires route-by-route regression testing.
+              {status ? status.case_scope_authorization_status.replace(/_/g, ' ').toLowerCase() : 'Status unavailable'}. Case-scoped checks are implemented on reviewed routes; remaining routes require regression testing before production use.
             </p>
           </div>
 
