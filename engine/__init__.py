@@ -10,6 +10,12 @@ from engine.balances import (
     BalanceTracker,
     NegativeBalanceError,
 )
+from engine.consensus_explanations import ConsensusExplanationBuilder
+from engine.consensus_lien import (
+    AccountConsensusLien,
+    ConsensusLienEngine,
+    ConsensusLienResult,
+)
 from engine.fifo import FIFOTracer
 from engine.ledger import LedgerReconstructionEngine
 from engine.libr import LIBRTracer
@@ -37,6 +43,7 @@ from engine.tracing_models import (
     make_suspected_category,
 )
 from engine.transaction_graph import TransactionGraphEngine
+
 
 
 __all__ = [
@@ -67,6 +74,11 @@ __all__ = [
     "LIBRAttributionEvent",
     "LIBRTraceResult",
     "LIBRTracer",
+    "AccountConsensusLien",
+    "ConsensusLienResult",
+    "ConsensusLienEngine",
+    "ConsensusExplanationBuilder",
 ]
+
 
 

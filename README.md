@@ -68,8 +68,17 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
 - CLI tool (`scripts/run_libr_trace.py`) for running LIBR tracing against designated source transactions.
 - Automated test suite in `tests/test_libr.py` with 14 unit tests covering direct inflows, partial withdrawals, no-replenishment, multi-hop propagation, overdraft protection, and synthetic Case 1 validation.
 
+**Step 7: Consensus Lien and Ground-Truth Evaluation** (Complete)
+- Consensus Lien engine (`engine/consensus_lien.py`) comparing independently calculated Proportional, FIFO, and LIBR tracing results for identical source transactions, ledger cutoffs, and scopes.
+- Strict integer-paise bounds: Lower Method Estimate = $\min(P, F, L)$, Upper Method Estimate = $\max(P, F, L)$, Disagreement Range = $\text{Upper} - \text{Lower}$.
+- Structured, human-in-the-loop explanation generator (`engine/consensus_explanations.py`) explaining method divergence drivers, accounting conventions, incomplete history warnings, and human review requirements.
+- Tracing metrics calculator (`evaluation/tracing_metrics.py`) computing exact absolute error (paise and INR), safe relative error (with explicit handling of zero ground truth), exact match rates, and scenario-grouped performance.
+- Reproducible evaluation runner (`evaluation/run_tracing_evaluation.py`) benchmarking operational methods against hidden ground truth and saving reports to `data/processed/tracing_evaluation_report.json`.
+- Strict operational isolation: operational tracing engines (`proportional.py`, `fifo.py`, `libr.py`, `consensus_lien.py`) never read ground truth.
+- Automated test suites in `tests/test_consensus_lien.py` (10 tests) and `tests/test_tracing_evaluation.py` (6 tests).
+
 *Upcoming Phases:*
-- **Step 7:** Consensus Lien comparison (Proportional vs. FIFO vs. LIBR bounds), Investigation Priority Scoring, and Streamlit Dashboard.
+- **Step 8:** Investigation Priority Scoring, Evidence Auditing, and Streamlit Dashboard.
 
 ---
 
@@ -102,7 +111,9 @@ smart-freeze/
 │   ├── tracing_explanations.py         # Step-by-step mathematical allocation explanation builder
 │   ├── proportional.py                 # Deterministic proportional fund-tracing engine
 │   ├── fifo.py                         # Deterministic FIFO fund-tracing engine
-│   └── libr.py                         # Deterministic Lowest Intermediate Balance Rule (LIBR) engine
+│   ├── libr.py                         # Deterministic Lowest Intermediate Balance Rule (LIBR) engine
+│   ├── consensus_lien.py               # Consensus Lien comparison engine (min/max bounds, disagreement)
+│   └── consensus_explanations.py       # Narrative and accounting divergence explanation builder
 ├── pipeline/                           # Data ingestion, schema validation, profiling, and adapters
 │   ├── __init__.py
 │   ├── schemas.py                      # Canonical schemas and field specifications
@@ -113,8 +124,10 @@ smart-freeze/
 │       ├── synthetic_adapter.py        # Operational Smart-Freeze synthetic ledger adapter
 │       ├── elliptic_adapter.py         # Elliptic Bitcoin cryptocurrency graph adapter
 │       └── synthaml_adapter.py         # SynthAML and AMLNet dataset adapters
-├── evaluation/                         # Evaluation metrics and benchmark comparison modules
-│   └── __init__.py
+├── evaluation/                         # Ground-truth evaluation and benchmark comparison modules
+│   ├── __init__.py
+│   ├── tracing_metrics.py              # Error metrics (paise, INR, relative error, match rate)
+│   └── run_tracing_evaluation.py       # Benchmark evaluation runner reading ground truth
 ├── scripts/
 │   ├── generate_synthetic_data.py      # Deterministic synthetic data generation script
 │   ├── profile_datasets.py             # CLI tool for dataset profiling and validation
@@ -132,7 +145,9 @@ smart-freeze/
     ├── test_ledger.py                  # Step 3 ledger reconstruction tests
     ├── test_proportional.py            # Step 4 proportional tracing tests
     ├── test_fifo.py                    # Step 5 FIFO fund-tracing tests
-    └── test_libr.py                    # Step 6 LIBR fund-tracing tests
+    ├── test_libr.py                    # Step 6 LIBR fund-tracing tests
+    ├── test_consensus_lien.py          # Step 7 Consensus Lien tests
+    └── test_tracing_evaluation.py      # Step 7 Ground-truth evaluation tests
 
 ```
 
@@ -187,6 +202,21 @@ python3 scripts/run_proportional_trace.py --tx-id TXN_0009 --case-id CASE-2026-0
 
 # Trace with verbose mathematical allocation explanations
 python3 scripts/run_proportional_trace.py --tx-id TXN_0009 --verbose
+```
+
+### FIFO & LIBR Fund Tracing
+```bash
+# Run FIFO tracing
+python3 scripts/run_fifo_trace.py --tx-id TXN_0009 --case-id CASE-2026-001 --verbose
+
+# Run LIBR tracing
+python3 scripts/run_libr_trace.py --tx-id TXN_0009 --case-id CASE-2026-001 --verbose
+```
+
+### Ground-Truth Tracing Evaluation Runner
+Run the evaluation runner to benchmark all tracing algorithms and Consensus Lien against hidden ground truth:
+```bash
+python3 evaluation/run_tracing_evaluation.py --output data/processed/tracing_evaluation_report.json
 ```
 
 ### Running Tests
