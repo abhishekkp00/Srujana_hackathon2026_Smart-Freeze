@@ -318,9 +318,9 @@ class GraphNode(BaseModel):
     label: str
     type: str
     is_external: bool
-    opening_balance_inr: float
-    final_balance_inr: float
-    history_complete: bool
+    opening_balance_inr: Optional[float] = None
+    final_balance_inr: Optional[float] = None
+    history_complete: Optional[bool] = None
 
 
 class GraphEdge(BaseModel):
@@ -905,16 +905,27 @@ def get_transaction_graph(
     nodes: List[GraphNode] = []
     for aid in sorted(list(involved_acc_ids)):
         is_ext = aid.startswith(EXTERNAL_ACCOUNT_PREFIX)
+        opening = None
+        final = None
+        hist_comp = None
         if aid in acc_map:
             acc_info = acc_map[aid]
-            opening = int(acc_info["opening_balance_paise"])
-            final = int(final_balances.get(aid, opening))
-            hist_comp = bool(acc_info["history_complete"])
             acc_type = str(acc_info["account_type"])
+            if auth.user.role != Role.INVESTIGATOR:
+                opening = int(acc_info["opening_balance_paise"])
+                final = int(final_balances.get(aid, opening))
+                hist_comp = bool(acc_info["history_complete"])
+            else:
+                related = txs_df[(txs_df["from_account"] == aid) | (txs_df["to_account"] == aid)]
+                related_case_ids = set(related["case_id"].fillna("").astype(str).str.strip())
+                allowed_scope = {case_id} if case_id else set(auth.user.assigned_cases)
+                # Account-wide balances are hidden if they include events outside the current authorized scope.
+                if related_case_ids and "" not in related_case_ids and related_case_ids.issubset(allowed_scope):
+                    opening = int(acc_info["opening_balance_paise"])
+                    final = int(final_balances.get(aid, opening))
+                    hist_comp = bool(acc_info["history_complete"])
         else:
-            opening = 0
-            final = 0
-            hist_comp = True
+            # External counterparties have no verified account-level balance in this ledger.
             acc_type = "external"
 
         nodes.append(
@@ -923,8 +934,8 @@ def get_transaction_graph(
                 label=aid,
                 type=acc_type,
                 is_external=is_ext,
-                opening_balance_inr=opening / 100.0,
-                final_balance_inr=final / 100.0,
+                opening_balance_inr=(opening / 100.0) if opening is not None else None,
+                final_balance_inr=(final / 100.0) if final is not None else None,
                 history_complete=hist_comp,
             )
         )
