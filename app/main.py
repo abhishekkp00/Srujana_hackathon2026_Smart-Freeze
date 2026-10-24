@@ -1400,6 +1400,16 @@ def predict_fraud(
     Validates exact feature names (Time, V1..V28, Amount) and numeric types.
     Does NOT modify financial tracing or Consensus Lien calculations.
     """
+    # Validate the feature contract before checking whether a trained artifact is available.
+    # Malformed requests should remain 422 errors even when the model is not installed.
+    provided_features = set(request.features)
+    missing_features = sorted(set(FEATURE_NAMES) - provided_features)
+    extra_features = sorted(provided_features - set(FEATURE_NAMES))
+    if missing_features:
+        raise HTTPException(status_code=422, detail=f"Missing required feature(s): {missing_features}")
+    if extra_features:
+        raise HTTPException(status_code=422, detail=f"Unexpected extra feature(s) provided: {extra_features}")
+
     service = MLService.get_instance()
     try:
         return service.predict(request.features)
