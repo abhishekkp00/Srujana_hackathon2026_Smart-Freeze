@@ -9,6 +9,7 @@ import { InvestigationReview } from './pages/InvestigationReview';
 import { DataQuality } from './pages/DataQuality';
 import { MLAnalysis } from './pages/MLAnalysis';
 import { TraceProof } from './pages/TraceProof';
+import { SecurityAudit } from './pages/SecurityAudit';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
@@ -50,6 +51,11 @@ const AppContent: React.FC = () => {
           title: 'Data Quality & Hygiene Audit',
           subtitle: 'Dataset inventory, schema checks, and ground-truth isolation status',
         };
+      case '/security':
+        return {
+          title: 'Security Governance & Audit Trail',
+          subtitle: 'Zero-trust BOLA boundaries, PKI cryptographic envelopes, and immutable audit logs',
+        };
       default:
         return {
           title: 'Smart-Freeze',
@@ -80,6 +86,7 @@ const AppContent: React.FC = () => {
             <Route path="/investigation" element={<InvestigationReview />} />
             <Route path="/ml-analysis" element={<MLAnalysis />} />
             <Route path="/data-quality" element={<DataQuality />} />
+            <Route path="/security" element={<SecurityAudit />} />
           </Routes>
         </main>
       </div>

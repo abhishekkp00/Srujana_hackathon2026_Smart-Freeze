@@ -76,6 +76,23 @@ class MLService:
         self.threshold = float(self.metadata.get("selected_threshold", 0.50))
         self.version = self.metadata.get("primary_model_metrics", {}).get("model_name", "v1.0.0")
 
+        # Security check: Artifact size bound (< 50MB)
+        file_size = self.artifact_path.stat().st_size
+        if file_size > 50 * 1024 * 1024:
+            raise ModelArtifactError(f"Model artifact exceeds 50MB size limit ({file_size} bytes)")
+
+        # Security check: Cryptographic SHA-256 integrity verification
+        expected_sha = self.metadata.get("artifact_sha256")
+        if expected_sha:
+            import hashlib
+            with open(self.artifact_path, "rb") as f:
+                actual_sha = hashlib.sha256(f.read()).hexdigest()
+            if actual_sha != expected_sha:
+                raise ModelArtifactError(
+                    f"Model artifact integrity check failed! Expected SHA-256 '{expected_sha}', "
+                    f"got '{actual_sha}'. Refusing to deserialize potentially tampered model."
+                )
+
         # Load pipeline safely from trusted local path
         try:
             loaded = joblib.load(self.artifact_path)

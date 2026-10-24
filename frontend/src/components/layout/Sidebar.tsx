@@ -20,6 +20,7 @@ const navItems = [
   { to: '/investigation', label: 'Investigation Review', icon: ShieldAlert },
   { to: '/ml-analysis', label: 'ML Fraud Classifier', icon: Cpu },
   { to: '/data-quality', label: 'Data Quality & Audit', icon: Database },
+  { to: '/security', label: 'Security & Audit', icon: ShieldCheck },
 ];
 
 export const Sidebar: React.FC = () => {

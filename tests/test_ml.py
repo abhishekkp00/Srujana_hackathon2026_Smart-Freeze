@@ -13,7 +13,9 @@ from ml.service import MLService, ModelArtifactError
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(app)
+    c = TestClient(app)
+    c.headers["Authorization"] = "Bearer dev_token_admin"
+    return c
 
 
 @pytest.fixture

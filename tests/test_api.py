@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 client = TestClient(app)
+client.headers["Authorization"] = "Bearer dev_token_admin"
 
 
 def test_api_health():

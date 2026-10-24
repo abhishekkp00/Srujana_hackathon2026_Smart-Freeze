@@ -57,10 +57,25 @@ class TraceCoordinator:
         seed_reference: Optional[str] = None,
         scenario_id: Optional[str] = None,
         max_hops: int = 5,
+        request_id: Optional[str] = None,
     ) -> TraceProofResponse:
         """Execute a verifiable multi-rail evidence reconstruction trace."""
+        # 1. Traversal depth bounds check (DoS prevention)
+        if not (1 <= max_hops <= 10):
+            raise ValueError(
+                f"Traversal limit exceeded: max_hops must be between 1 and 10 (received {max_hops})."
+            )
+
+        # 2. Case identifier sanity check
+        if not case_id or not isinstance(case_id, str) or len(case_id.strip()) == 0:
+            raise ValueError("Invalid case_id: must be a non-empty string identifier.")
+
+        # 3. Idempotent check
+        if request_id and request_id in self._traces:
+            return self._traces[request_id]
+
         self._reset_adapters()
-        request_id = f"REQ_TP_{uuid.uuid4().hex[:10].upper()}"
+        request_id = request_id or f"REQ_TP_{uuid.uuid4().hex[:10].upper()}"
 
         # Apply scenario configuration if requested
         if scenario_id and scenario_id in DEMO_SCENARIOS:

@@ -39,6 +39,7 @@
     "Amount"
   ],
   "training_timestamp": "2026-10-24T21:33:08.622722+00:00",
+  "artifact_sha256": "1021a083358d57312b6374fc108bfd6f03970ace90facb2245de1eb8b0f718f0",
   "random_seed": 42,
   "selected_model": "Random Forest Classifier",
   "selected_threshold": 0.63,

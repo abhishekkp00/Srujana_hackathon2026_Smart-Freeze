@@ -52,3 +52,10 @@ models/*.joblib
 models/*.pkl
 !models/.gitkeep
 !models/*.json
+
+# Secrets, Environment Files & Keys
+.env
+.env.*
+*.pem
+*.key
+*.cert

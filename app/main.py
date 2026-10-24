@@ -8,9 +8,11 @@ Strictly isolates hidden evaluation ground truth from operational APIs.
 from __future__ import annotations
 
 import os
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import pandas as pd
@@ -43,6 +45,23 @@ from traceproof.schemas import (
     VerifyEnvelopeRequest,
     EnvelopeVerificationResult,
 )
+from security.models import (
+    Role,
+    AuthContext,
+    SecurityAuditEvent,
+    SecurityStatusResponse,
+    AuditSeverity,
+)
+from security.auth import (
+    get_current_user,
+    require_role,
+    check_case_access,
+    DEMO_PERSONAS,
+    ENV_MODE,
+)
+from security.audit import SecurityAuditLogger
+from security.rate_limiter import rate_limit
+from security.middleware import SecurityHeadersMiddleware, RequestSizeLimitMiddleware
 
 # Base paths
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -57,7 +76,13 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Configure CORS
+# Enforce Request Size Limit Middleware (1MB max payload)
+app.add_middleware(RequestSizeLimitMiddleware)
+
+# Enforce Defense-in-Depth HTTP Security Headers (CSP, HSTS, XFO, etc.)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Configure CORS with strict explicit origins
 origins_str = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000")
 allowed_origins = [o.strip() for o in origins_str.split(",") if o.strip()]
 
@@ -65,9 +90,48 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Sanitized global exception handler preventing information disclosure.
+    
+    Logs full stack trace and details internally with a unique incident UUID,
+    returning a safe error message without internal filesystem paths or stack traces.
+    """
+    if isinstance(exc, HTTPException):
+        # Re-raise standard HTTP exceptions to preserve intended status codes
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=getattr(exc, "headers", None),
+        )
+
+    incident_id = f"INC_{uuid.uuid4().hex[:8].upper()}"
+    client_ip = request.client.host if request.client else "unknown"
+    audit = SecurityAuditLogger.get_instance()
+    audit.log_event(
+        event_type="UNHANDLED_EXCEPTION",
+        endpoint=request.url.path,
+        method=request.method,
+        severity=AuditSeverity.CRITICAL,
+        ip_address=client_ip,
+        details={
+            "incident_id": incident_id,
+            "error_type": type(exc).__name__,
+            "message": str(exc),
+        },
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "An internal server error occurred. Authorized administrators may reference the incident ID.",
+            "incident_id": incident_id,
+        },
+    )
 
 # Cached resources
 _adapter: Optional[SyntheticAdapter] = None
@@ -304,17 +368,53 @@ class DataQualityResponse(BaseModel):
 
 
 # ==============================================================================
-# API Endpoints
+# Authentication & Identity Endpoints
+# ==============================================================================
+
+@app.get("/api/auth/status")
+def get_auth_status() -> Dict[str, Any]:
+    """Return identity provider mode, PKI status, and defense posture."""
+    return {
+        "status": "OPERATIONAL",
+        "env_mode": ENV_MODE,
+        "auth_provider": "DevTokenAuthProvider" if ENV_MODE != "production" else "OIDCAuthenticationProvider",
+        "available_personas": list(DEMO_PERSONAS.keys()) if ENV_MODE != "production" else [],
+        "pki_signature_algorithm": "Ed25519",
+        "integrity_hash": "SHA-256",
+        "governance_mode": "Strict Deny-By-Default with BOLA and RBAC enforcement",
+    }
+
+
+@app.get("/api/auth/personas")
+def get_auth_personas() -> Dict[str, Any]:
+    """Return available mock personas for local demonstration and testing."""
+    if ENV_MODE == "production":
+        raise HTTPException(status_code=403, detail="Mock personas are disabled in production mode.")
+    return {
+        token: {
+            "token": token,
+            "user_id": user.user_id,
+            "display_name": user.display_name,
+            "role": user.role.value,
+            "assigned_cases": user.assigned_cases,
+            "institution_id": user.institution_id,
+        }
+        for token, user in DEMO_PERSONAS.items()
+    }
+
+
+# ==============================================================================
+# Operational APIs
 # ==============================================================================
 
 @app.get("/api/health")
 def health_check():
-    """Health check endpoint."""
+    """Health check endpoint (public liveness probe)."""
     return {"status": "healthy", "service": "smart-freeze-api", "version": "1.0.0"}
 
 
 @app.get("/api/overview", response_model=OverviewResponse)
-def get_overview():
+def get_overview(auth: AuthContext = Depends(get_current_user)):
     """Returns top-level operational statistics and data health status."""
     data = get_ledger_data()
     accs = data["accounts_df"]
@@ -340,12 +440,16 @@ def get_overview():
 
 
 @app.get("/api/cases", response_model=List[CaseSummary])
-def list_cases():
-    """Lists all cases with transaction counts, loss amounts, and priority scores."""
+def list_cases(auth: AuthContext = Depends(get_current_user)):
+    """Lists authorized cases with transaction counts, loss amounts, and priority scores."""
     data = get_ledger_data()
     cases_df = data["cases_df"]
     txs_df = data["transactions_df"]
     accs_df = data["accounts_df"]
+
+    # Filter cases based on user's authorized scope if Investigator
+    if auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
+        cases_df = cases_df[cases_df["case_id"].isin(auth.user.assigned_cases)]
 
     engine = get_scoring_engine()
     scores = engine.score_all_cases(cases_df, txs_df, accs_df)
@@ -376,8 +480,14 @@ def list_cases():
 
 
 @app.get("/api/cases/{case_id}")
-def get_case_detail(case_id: str):
-    """Returns detailed information for a specific case including transactions and scoring."""
+def get_case_detail(
+    case_id: str,
+    request: Request,
+    auth: AuthContext = Depends(get_current_user),
+):
+    """Returns detailed information for a specific case with BOLA verification."""
+    client_ip = request.client.host if request.client else "unknown"
+    check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
     data = get_ledger_data()
     cases_df = data["cases_df"]
     txs_df = data["transactions_df"]
@@ -426,6 +536,7 @@ def get_case_detail(case_id: str):
 
 @app.get("/api/transactions", response_model=PaginatedTransactions)
 def list_transactions(
+    request: Request,
     case_id: Optional[str] = None,
     account_id: Optional[str] = None,
     transaction_type: Optional[str] = None,
@@ -433,8 +544,13 @@ def list_transactions(
     search: Optional[str] = None,
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    auth: AuthContext = Depends(get_current_user),
 ):
     """Searches and filters transactions across the validated ledger."""
+    client_ip = request.client.host if request.client else "unknown"
+    if case_id:
+        check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
+
     data = get_ledger_data()
     txs_df = data["transactions_df"]
 
@@ -486,7 +602,10 @@ def list_transactions(
 
 
 @app.get("/api/transactions/{transaction_id}")
-def get_transaction_detail(transaction_id: str):
+def get_transaction_detail(
+    transaction_id: str,
+    auth: AuthContext = Depends(get_current_user),
+):
     """Fetches details for a single transaction including account flags."""
     data = get_ledger_data()
     txs_df = data["transactions_df"]
@@ -521,7 +640,7 @@ def get_transaction_detail(transaction_id: str):
 
 
 @app.get("/api/accounts", response_model=List[AccountItem])
-def list_accounts():
+def list_accounts(auth: AuthContext = Depends(get_current_user)):
     """Lists all accounts with opening balances, final reconstructed balances, and history completeness."""
     data = get_ledger_data()
     accs_df = data["accounts_df"]
@@ -549,7 +668,10 @@ def list_accounts():
 
 
 @app.get("/api/accounts/{account_id}/balance-history", response_model=List[BalanceEventItem])
-def get_account_balance_history(account_id: str):
+def get_account_balance_history(
+    account_id: str,
+    auth: AuthContext = Depends(get_current_user),
+):
     """Returns chronological balance history events for a specific account."""
     data = get_ledger_data()
     events = data["balance_events"]
@@ -583,8 +705,16 @@ def get_account_balance_history(account_id: str):
 
 
 @app.get("/api/graph", response_model=GraphResponse)
-def get_transaction_graph(case_id: Optional[str] = None):
+def get_transaction_graph(
+    request: Request,
+    case_id: Optional[str] = None,
+    auth: AuthContext = Depends(get_current_user),
+):
     """Returns nodes and directed edges formatted for Cytoscape.js or web visualizations."""
+    client_ip = request.client.host if request.client else "unknown"
+    if case_id:
+        check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
+
     data = get_ledger_data()
     accs_df = data["accounts_df"]
     txs_df = data["transactions_df"]
@@ -651,8 +781,15 @@ def get_transaction_graph(case_id: Optional[str] = None):
 
 
 @app.get("/api/consensus-lien/{case_id}", response_model=ConsensusLienResponse)
-def get_consensus_lien(case_id: str):
+def get_consensus_lien(
+    case_id: str,
+    request: Request,
+    auth: AuthContext = Depends(get_current_user),
+):
     """Executes Proportional, FIFO, and LIBR tracing and generates Consensus Lien bounds."""
+    client_ip = request.client.host if request.client else "unknown"
+    check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
+
     data = get_ledger_data()
     cases_df = data["cases_df"]
     txs_df = data["transactions_df"]
@@ -746,12 +883,18 @@ def get_consensus_lien(case_id: str):
 
 
 @app.get("/api/investigation-priority", response_model=List[PriorityScoreResponse])
-def get_investigation_priority_rankings():
-    """Returns ranked investigation priority scores across all cases."""
+def get_investigation_priority_rankings(
+    auth: AuthContext = Depends(get_current_user),
+):
+    """Returns ranked investigation priority scores across all authorized cases."""
     data = get_ledger_data()
     cases_df = data["cases_df"]
     txs_df = data["transactions_df"]
     accs_df = data["accounts_df"]
+
+    # Filter to authorized cases for investigators
+    if auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
+        cases_df = cases_df[cases_df["case_id"].isin(auth.user.assigned_cases)]
 
     engine = get_scoring_engine()
     scores = engine.score_all_cases(cases_df, txs_df, accs_df)
@@ -785,8 +928,15 @@ def get_investigation_priority_rankings():
 
 
 @app.get("/api/investigation-priority/{case_id}", response_model=PriorityScoreResponse)
-def get_case_priority_score(case_id: str):
-    """Returns detailed investigation priority score and factors for a specific case."""
+def get_case_priority_score(
+    case_id: str,
+    request: Request,
+    auth: AuthContext = Depends(get_current_user),
+):
+    """Returns detailed investigation priority score and factors with BOLA verification."""
+    client_ip = request.client.host if request.client else "unknown"
+    check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
+
     data = get_ledger_data()
     cases_df = data["cases_df"]
     txs_df = data["transactions_df"]
@@ -827,7 +977,7 @@ def get_case_priority_score(case_id: str):
 
 
 @app.get("/api/data-quality", response_model=DataQualityResponse)
-def get_data_quality():
+def get_data_quality(auth: AuthContext = Depends(get_current_user)):
     """Generates structural and semantic data quality audit across all supported datasets."""
     datasets: List[DataQualityDatasetItem] = []
 
@@ -1004,14 +1154,14 @@ def get_data_quality():
 # ==============================================================================
 
 @app.get("/api/ml/status")
-def get_ml_status() -> Dict[str, Any]:
+def get_ml_status(auth: AuthContext = Depends(get_current_user)) -> Dict[str, Any]:
     """Return model readiness, artifact version, operating threshold, and feature schema."""
     service = MLService.get_instance()
     return service.get_status()
 
 
 @app.get("/api/ml/evaluation")
-def get_ml_evaluation() -> Dict[str, Any]:
+def get_ml_evaluation(auth: AuthContext = Depends(get_current_user)) -> Dict[str, Any]:
     """Return held-out test evaluation report comparing Random Forest and Baseline LR."""
     service = MLService.get_instance()
     try:
@@ -1021,14 +1171,18 @@ def get_ml_evaluation() -> Dict[str, Any]:
 
 
 @app.get("/api/ml/demo-samples")
-def get_ml_demo_samples() -> List[Dict[str, Any]]:
+def get_ml_demo_samples(auth: AuthContext = Depends(get_current_user)) -> List[Dict[str, Any]]:
     """Return verified real test samples for interactive UI prediction demos."""
     service = MLService.get_instance()
     return service.get_demo_samples()
 
 
 @app.post("/api/ml/predict", response_model=PredictResponse)
-def predict_fraud(request: PredictRequest) -> PredictResponse:
+def predict_fraud(
+    request: PredictRequest,
+    auth: AuthContext = Depends(get_current_user),
+    _rate: None = Depends(rate_limit("ml_predict", max_requests=40, window_seconds=60)),
+) -> PredictResponse:
     """Evaluate fraud risk score for a 30-dimensional feature vector.
     
     Validates exact feature names (Time, V1..V28, Amount) and numeric types.
@@ -1048,28 +1202,41 @@ def predict_fraud(request: PredictRequest) -> PredictResponse:
 # ==============================================================================
 
 @app.get("/api/traceproof/scenarios")
-def get_traceproof_scenarios() -> List[Dict[str, Any]]:
+def get_traceproof_scenarios(auth: AuthContext = Depends(get_current_user)) -> List[Dict[str, Any]]:
     """Return list of demonstrable preconfigured multi-rail evidence scenarios."""
     return get_scenario_metadata_list()
 
 
 @app.post("/api/traceproof/start", response_model=TraceProofResponse)
-def start_traceproof(request: StartTraceRequest) -> TraceProofResponse:
-    """Execute a cryptographic multi-rail evidence reconstruction trace."""
+def start_traceproof(
+    req: StartTraceRequest,
+    request: Request,
+    auth: AuthContext = Depends(get_current_user),
+    _rate: None = Depends(rate_limit("traceproof", max_requests=30, window_seconds=60)),
+) -> TraceProofResponse:
+    """Execute a cryptographic multi-rail evidence reconstruction trace with BOLA enforcement."""
+    client_ip = request.client.host if request.client else "unknown"
+    check_case_access(req.case_id, auth, endpoint=request.url.path, method="POST", client_ip=client_ip)
+
     coordinator = TraceCoordinator.get_instance()
     try:
         return coordinator.execute_trace(
-            case_id=request.case_id,
-            seed_reference=request.seed_reference,
-            scenario_id=request.scenario_id,
-            max_hops=request.max_hops,
+            case_id=req.case_id,
+            seed_reference=req.seed_reference,
+            scenario_id=req.scenario_id,
+            max_hops=req.max_hops,
         )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"TraceProof coordinator failure: {str(e)}")
 
 
 @app.get("/api/traceproof/requests/{request_id}", response_model=TraceProofResponse)
-def get_traceproof_result(request_id: str) -> TraceProofResponse:
+def get_traceproof_result(
+    request_id: str,
+    auth: AuthContext = Depends(get_current_user),
+) -> TraceProofResponse:
     """Retrieve the results and evidence graph for a specific trace request ID."""
     coordinator = TraceCoordinator.get_instance()
     res = coordinator.get_trace(request_id)
@@ -1079,7 +1246,50 @@ def get_traceproof_result(request_id: str) -> TraceProofResponse:
 
 
 @app.post("/api/traceproof/verify-envelope", response_model=EnvelopeVerificationResult)
-def verify_envelope(request: VerifyEnvelopeRequest) -> EnvelopeVerificationResult:
+def verify_envelope(
+    req: VerifyEnvelopeRequest,
+    auth: AuthContext = Depends(get_current_user),
+) -> EnvelopeVerificationResult:
     """Verify authenticity, SHA-256 payload integrity, and Ed25519 signature of an evidence envelope."""
     key_manager = InstitutionKeyManager.get_instance()
-    return key_manager.verify_envelope(request.envelope)
+    return key_manager.verify_envelope(req.envelope)
+
+
+# ==============================================================================
+# 11. Security Governance & Administrative Endpoints
+# ==============================================================================
+
+@app.get("/api/admin/audit-logs", response_model=List[SecurityAuditEvent])
+def get_audit_logs(
+    severity: Optional[AuditSeverity] = None,
+    event_type: Optional[str] = None,
+    limit: int = Query(100, ge=1, le=500),
+    auth: AuthContext = Depends(require_role(Role.COMPLIANCE_ADMIN, Role.AUDITOR)),
+) -> List[SecurityAuditEvent]:
+    """Retrieve security audit events. Requires COMPLIANCE_ADMIN or AUDITOR role."""
+    audit = SecurityAuditLogger.get_instance()
+    return audit.get_events(limit=limit, severity=severity, event_type=event_type)
+
+
+@app.get("/api/admin/security-status", response_model=SecurityStatusResponse)
+def get_security_status(
+    auth: AuthContext = Depends(require_role(Role.COMPLIANCE_ADMIN)),
+) -> SecurityStatusResponse:
+    """Return real-time security posture and defense telemetry. Requires COMPLIANCE_ADMIN role."""
+    audit = SecurityAuditLogger.get_instance()
+    telemetry = audit.get_telemetry()
+    ml_service = MLService.get_instance()
+    key_manager = InstitutionKeyManager.get_instance()
+
+    return SecurityStatusResponse(
+        status="SECURED",
+        auth_mode="DEV_TOKEN_MODE" if ENV_MODE != "production" else "OIDC_ENTERPRISE",
+        pki_signature_algorithm="Ed25519 (SHA-256 canonicalization)",
+        model_sha256_verified=ml_service.is_loaded,
+        bola_enforcement_active=True,
+        rate_limiting_active=True,
+        hidden_data_isolated=True,
+        total_audit_events=telemetry["total_events"],
+        security_denials_count=telemetry["denials_count"],
+        active_institutions_registered=len(key_manager._public_registry),
+    )

@@ -83,7 +83,13 @@ class InstitutionKeyManager:
             raise ValueError(f"No private key configured for institution '{institution_id}'")
 
         key_id, priv_key = self._private_keys[institution_id]
-        payload_bytes = canonical_serialize(approved_payload)
+        
+        # Cryptographically bind trace_request_id to payload to prevent cross-request replays
+        payload = dict(approved_payload)
+        if "trace_request_id" not in payload:
+            payload["trace_request_id"] = trace_request_id
+
+        payload_bytes = canonical_serialize(payload)
         payload_hash = hashlib.sha256(payload_bytes).hexdigest()
 
         # Sign canonical payload bytes
@@ -98,7 +104,7 @@ class InstitutionKeyManager:
             trace_request_id=trace_request_id,
             institution_id=institution_id,
             source_record_id=source_record_id,
-            approved_payload=approved_payload,
+            approved_payload=payload,
             payload_sha256=payload_hash,
             key_id=key_id,
             signature_hex=sig_bytes.hex(),
@@ -106,10 +112,110 @@ class InstitutionKeyManager:
             expires_at=exp_iso,
         )
 
+        # In-memory replay tracking: signature_hex -> trace_request_id
+        if not hasattr(self, "_seen_envelopes"):
+            self._seen_envelopes: Dict[str, str] = {}
+
     def verify_envelope(self, envelope: SignedEvidenceEnvelope) -> EnvelopeVerificationResult:
-        """Strictly verify envelope authenticity, integrity, expiration, and key trust."""
+        """Strictly verify envelope authenticity, integrity, expiration, schema, and key trust."""
+        from security.audit import SecurityAuditLogger
+        from security.models import AuditSeverity
+
+        audit = SecurityAuditLogger.get_instance()
+
+        # 0. Validate Schema Version
+        if envelope.schema_version != "traceproof.v1":
+            audit.log_event(
+                event_type="CRYPTO_UNSUPPORTED_SCHEMA",
+                endpoint="/api/traceproof/verify-envelope",
+                method="POST",
+                severity=AuditSeverity.HIGH,
+                details={
+                    "received_schema": envelope.schema_version,
+                    "expected_schema": "traceproof.v1",
+                    "institution_id": envelope.institution_id,
+                },
+            )
+            return EnvelopeVerificationResult(
+                is_valid=False,
+                status="UNSUPPORTED_SCHEMA",
+                institution_id=envelope.institution_id,
+                source_record_id=envelope.source_record_id,
+                key_id=envelope.key_id,
+                message=f"Unsupported schema version '{envelope.schema_version}'. Expected 'traceproof.v1'.",
+            )
+
+        # 1. Validate Expiration
+        try:
+            exp_dt = datetime.fromisoformat(envelope.expires_at)
+            # Ensure UTC timezone awareness
+            if exp_dt.tzinfo is None:
+                exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+            if exp_dt < datetime.now(timezone.utc):
+                audit.log_event(
+                    event_type="CRYPTO_EXPIRED_ENVELOPE",
+                    endpoint="/api/traceproof/verify-envelope",
+                    method="POST",
+                    severity=AuditSeverity.WARNING,
+                    details={
+                        "expires_at": envelope.expires_at,
+                        "source_record_id": envelope.source_record_id,
+                        "institution_id": envelope.institution_id,
+                    },
+                )
+                return EnvelopeVerificationResult(
+                    is_valid=False,
+                    status="EXPIRED_ENVELOPE",
+                    institution_id=envelope.institution_id,
+                    source_record_id=envelope.source_record_id,
+                    key_id=envelope.key_id,
+                    message=f"Evidence envelope expired at {envelope.expires_at}.",
+                )
+        except Exception:
+            return EnvelopeVerificationResult(
+                is_valid=False,
+                status="MALFORMED_TIMESTAMP",
+                institution_id=envelope.institution_id,
+                source_record_id=envelope.source_record_id,
+                key_id=envelope.key_id,
+                message="Envelope expires_at timestamp is malformed.",
+            )
+
+        # 2. Check Replay Attack
+        sig_hex = envelope.signature_hex
+        if hasattr(self, "_seen_envelopes") and sig_hex in self._seen_envelopes:
+            original_req = self._seen_envelopes[sig_hex]
+            if original_req != envelope.trace_request_id:
+                audit.log_event(
+                    event_type="CRYPTO_REPLAY_ATTEMPT",
+                    endpoint="/api/traceproof/verify-envelope",
+                    method="POST",
+                    severity=AuditSeverity.CRITICAL,
+                    details={
+                        "source_record_id": envelope.source_record_id,
+                        "original_request_id": original_req,
+                        "replayed_request_id": envelope.trace_request_id,
+                        "institution_id": envelope.institution_id,
+                    },
+                )
+                return EnvelopeVerificationResult(
+                    is_valid=False,
+                    status="REPLAYED_ENVELOPE",
+                    institution_id=envelope.institution_id,
+                    source_record_id=envelope.source_record_id,
+                    key_id=envelope.key_id,
+                    message=f"Replay detected: envelope signature was previously presented for trace request '{original_req}'.",
+                )
+
         key_id = envelope.key_id
         if key_id not in self._public_registry:
+            audit.log_event(
+                event_type="CRYPTO_UNTRUSTED_KEY",
+                endpoint="/api/traceproof/verify-envelope",
+                method="POST",
+                severity=AuditSeverity.HIGH,
+                details={"untrusted_key_id": key_id, "institution_id": envelope.institution_id},
+            )
             return EnvelopeVerificationResult(
                 is_valid=False,
                 status="UNTRUSTED_KEY",
@@ -121,6 +227,17 @@ class InstitutionKeyManager:
 
         reg_inst, pub_key = self._public_registry[key_id]
         if reg_inst != envelope.institution_id:
+            audit.log_event(
+                event_type="CRYPTO_KEY_INSTITUTION_MISMATCH",
+                endpoint="/api/traceproof/verify-envelope",
+                method="POST",
+                severity=AuditSeverity.HIGH,
+                details={
+                    "claimed_institution": envelope.institution_id,
+                    "registered_institution": reg_inst,
+                    "key_id": key_id,
+                },
+            )
             return EnvelopeVerificationResult(
                 is_valid=False,
                 status="INSTITUTION_KEY_MISMATCH",
@@ -130,9 +247,21 @@ class InstitutionKeyManager:
                 message=f"Key '{key_id}' belongs to '{reg_inst}', not '{envelope.institution_id}'.",
             )
 
-        # 1. Verify payload hash integrity
+        # 3. Verify payload hash integrity
         calculated_hash = compute_payload_hash(envelope.approved_payload)
         if calculated_hash != envelope.payload_sha256:
+            audit.log_event(
+                event_type="CRYPTO_TAMPERED_PAYLOAD",
+                endpoint="/api/traceproof/verify-envelope",
+                method="POST",
+                severity=AuditSeverity.CRITICAL,
+                details={
+                    "source_record_id": envelope.source_record_id,
+                    "institution_id": envelope.institution_id,
+                    "calculated_hash": calculated_hash,
+                    "envelope_hash": envelope.payload_sha256,
+                },
+            )
             return EnvelopeVerificationResult(
                 is_valid=False,
                 status="TAMPERED_PAYLOAD",
@@ -142,20 +271,36 @@ class InstitutionKeyManager:
                 message="Envelope payload hash does not match approved_payload content (data altered).",
             )
 
-        # 2. Verify Ed25519 signature
+        # 4. Verify Ed25519 signature
         payload_bytes = canonical_serialize(envelope.approved_payload)
         try:
             sig_bytes = bytes.fromhex(envelope.signature_hex)
             pub_key.verify(sig_bytes, payload_bytes)
         except (ValueError, InvalidSignature) as exc:
+            audit.log_event(
+                event_type="CRYPTO_SIGNATURE_MISMATCH",
+                endpoint="/api/traceproof/verify-envelope",
+                method="POST",
+                severity=AuditSeverity.CRITICAL,
+                details={
+                    "source_record_id": envelope.source_record_id,
+                    "institution_id": envelope.institution_id,
+                    "key_id": key_id,
+                },
+            )
             return EnvelopeVerificationResult(
                 is_valid=False,
                 status="SIGNATURE_MISMATCH",
                 institution_id=envelope.institution_id,
                 source_record_id=envelope.source_record_id,
                 key_id=key_id,
-                message=f"Cryptographic signature check failed: invalid signature for payload.",
+                message="Cryptographic signature check failed: invalid signature for payload.",
             )
+
+        # Record envelope signature to prevent future replays across different requests
+        if not hasattr(self, "_seen_envelopes"):
+            self._seen_envelopes = {}
+        self._seen_envelopes[sig_hex] = envelope.trace_request_id
 
         return EnvelopeVerificationResult(
             is_valid=True,
