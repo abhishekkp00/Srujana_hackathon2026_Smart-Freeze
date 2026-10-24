@@ -1,7 +1,7 @@
 """FairHold Core Engine Package.
 
 Contains modules for ledger reconstruction, balance tracking,
-and transaction graph construction.
+transaction graph construction, and proportional fund-tracing algorithms.
 """
 
 from engine.balances import (
@@ -17,6 +17,17 @@ from engine.models import (
     GraphSummary,
     LedgerValidationReport,
 )
+from engine.proportional import ProportionalTracer
+from engine.tracing_explanations import TracingExplanationBuilder
+from engine.tracing_models import (
+    CATEGORY_LEGITIMATE,
+    CATEGORY_UNKNOWN,
+    AccountSourcePool,
+    AllocationExplanation,
+    ProportionalTraceResult,
+    TracingHop,
+    make_suspected_category,
+)
 from engine.transaction_graph import TransactionGraphEngine
 
 __all__ = [
@@ -30,4 +41,13 @@ __all__ = [
     "BalanceConservationError",
     "TransactionGraphEngine",
     "LedgerReconstructionEngine",
+    "CATEGORY_LEGITIMATE",
+    "CATEGORY_UNKNOWN",
+    "make_suspected_category",
+    "AccountSourcePool",
+    "TracingHop",
+    "AllocationExplanation",
+    "ProportionalTraceResult",
+    "TracingExplanationBuilder",
+    "ProportionalTracer",
 ]

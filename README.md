@@ -47,9 +47,15 @@ However, blanket or arbitrary account freezes frequently harm innocent counterpa
 - CLI tool (`scripts/reconstruct_ledger.py`) for reproducible reconstruction.
 - Comprehensive test suites in `tests/test_balances.py`, `tests/test_transaction_graph.py`, and `tests/test_ledger.py`.
 
+**Step 4: Proportional Fund-Tracing Engine** (Complete)
+- Tracing domain models, source pool tracking, and hop provenance (`engine/tracing_models.py`).
+- Step-by-step mathematical explanation generator for proportional allocations (`engine/tracing_explanations.py`).
+- Deterministic proportional fund-tracing engine (`engine/proportional.py`) tracking suspected-source lots through commingled multi-hop flows with exact integer-paise arithmetic and remainder tie-breaking.
+- CLI tool (`scripts/run_proportional_trace.py`) for running tracing against designated source transactions.
+- Automated test suite in `tests/test_proportional.py` verifying exact value conservation and edge-case handling.
+
 *Upcoming Phases:*
-- **Step 4:** Consensus Lien and Investigation Priority Scoring.
-- **Step 5:** Interactive Streamlit Dashboard and Audit Reporting.
+- **Step 5:** Consensus Lien (FIFO, LIBR comparison), Investigation Scoring, and Streamlit Dashboard.
 
 ---
 
@@ -72,12 +78,15 @@ fairhold/
 │       ├── transactions.csv            # Operational chronological transaction journal
 │       ├── cases.csv                   # Reported fraud cases
 │       └── ground_truth.json           # Evaluation-only hidden ground truth (isolated)
-├── engine/                             # Core algorithms package (ledger, balances, graph)
+├── engine/                             # Core algorithms package (ledger, balances, graph, tracing)
 │   ├── __init__.py
 │   ├── models.py                       # Ledger domain models and event representations
 │   ├── balances.py                     # Account running balance tracking and conservation
 │   ├── transaction_graph.py            # NetworkX MultiDiGraph constructor and summary
-│   └── ledger.py                       # End-to-end ledger reconstruction coordinator
+│   ├── ledger.py                       # End-to-end ledger reconstruction coordinator
+│   ├── tracing_models.py               # Source pool models and structured trace results
+│   ├── tracing_explanations.py         # Step-by-step mathematical allocation explanation builder
+│   └── proportional.py                 # Deterministic proportional fund-tracing engine
 ├── pipeline/                           # Data ingestion, schema validation, profiling, and adapters
 │   ├── __init__.py
 │   ├── schemas.py                      # Canonical schemas and field specifications
@@ -93,7 +102,8 @@ fairhold/
 ├── scripts/
 │   ├── generate_synthetic_data.py      # Deterministic synthetic data generation script
 │   ├── profile_datasets.py             # CLI tool for dataset profiling and validation
-│   └── reconstruct_ledger.py           # CLI tool for ledger reconstruction and graph generation
+│   ├── reconstruct_ledger.py           # CLI tool for ledger reconstruction and graph generation
+│   └── run_proportional_trace.py       # CLI tool for executing proportional fund tracing
 └── tests/
     ├── test_synthetic_data.py          # Step 1 synthetic data validation tests
     ├── test_validation.py              # Step 2 structural and semantic validation tests
@@ -101,7 +111,8 @@ fairhold/
     ├── test_adapters.py                # Step 2 dataset adapters and isolation tests
     ├── test_balances.py                # Step 3 running balance tracking tests
     ├── test_transaction_graph.py       # Step 3 directed transaction graph tests
-    └── test_ledger.py                  # Step 3 ledger reconstruction & conservation tests
+    ├── test_ledger.py                  # Step 3 ledger reconstruction & conservation tests
+    └── test_proportional.py            # Step 4 proportional fund-tracing engine tests
 ```
 
 ---
@@ -145,6 +156,16 @@ This generates audit-ready artifacts in `data/processed/`:
 - `data/processed/balance_history.csv`
 - `data/processed/ledger_validation_report.json`
 - `data/processed/transaction_graph_summary.json`
+
+### Proportional Fund Tracing
+Execute deterministic proportional fund tracing from a designated source transaction:
+```bash
+# Trace Case 1 suspected fraud origin (TXN_0009)
+python3 scripts/run_proportional_trace.py --tx-id TXN_0009 --case-id CASE-2026-001
+
+# Trace with verbose mathematical allocation explanations
+python3 scripts/run_proportional_trace.py --tx-id TXN_0009 --verbose
+```
 
 ### Running Tests
 Execute the full automated test suite:
@@ -242,5 +263,5 @@ Raw datasets remain immutable under `data/raw/` and are never committed if excee
 - **Synthetic Domain**: These records are generated for algorithmic testing and decision-support validation; they do not represent real proprietary banking data.
 - **Simplified Counterparties**: Real inter-bank settlements involve clearing houses, payment aggregators, and chargeback lifecycles which are abstracted via `EXT_` counterparties in this synthetic ledger.
 - **SynthAML Companion Absence**: `synthetic_transactions.csv` is missing in `data/raw/`, so `synthetic_alerts.csv` cannot be joined to transaction logs.
-- **Step 3 Boundary**: Multi-method fund tracing algorithms (FIFO, Proportional, LIBR) and Consensus Lien bounds will be implemented in Step 4. Reconstructed balances reflect recorded transactions and do not constitute legal conclusions or proof of guilt.
+- **Step 4 Boundary**: FIFO and LIBR tracing algorithms, Consensus Lien bounds, and investigation scoring will be implemented in Step 5. Proportional tracing estimates reflect algorithm assumptions (fungible commingling) and do not constitute legal conclusions or proof of guilt.
 
