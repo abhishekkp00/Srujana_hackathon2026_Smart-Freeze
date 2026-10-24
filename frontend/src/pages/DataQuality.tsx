@@ -76,9 +76,9 @@ export const DataQuality: React.FC = () => {
               icon={Database}
             />
             <StatCard
-              label="System Operational Health"
+              label="Operational ledger status"
               value={dataQuality.overall_status}
-              subtext="Core decision-support services active"
+              subtext="Derived from ledger validation; this is not a health check for every service"
               icon={CheckCircle2}
               badge={{
                 text: dataQuality.overall_status,
@@ -188,13 +188,13 @@ export const DataQuality: React.FC = () => {
               <div className="p-4 rounded-lg bg-slate-50 border border-slate-100 space-y-1">
                 <span className="font-bold text-slate-800">Ground-Truth Isolation:</span>
                 <p className="text-slate-600 leading-relaxed">
-                  Controlled ground truth (ground_truth.json) is strictly isolated to post-hoc evaluation runners. Operational tracing and scoring engines are blocked from reading it.
+                  The evaluator ground-truth file is intended for post-hoc tests only. This is a code-level separation claim; the endpoint and module tests must continue to enforce it.
                 </p>
               </div>
               <div className="p-4 rounded-lg bg-slate-50 border border-slate-100 space-y-1">
                 <span className="font-bold text-slate-800">Multi-Model Separation:</span>
                 <p className="text-slate-600 leading-relaxed">
-                  Elliptic Bitcoin cryptocurrency UTXO transaction graphs are kept logically distinct from account-based fiat banking ledgers.
+                  Elliptic results remain a separate cryptocurrency analysis and are not used as INR bank-ledger inputs.
                 </p>
               </div>
             </div>
