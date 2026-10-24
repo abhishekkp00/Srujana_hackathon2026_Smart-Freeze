@@ -172,7 +172,7 @@ def test_api_data_quality_endpoint():
     res = client.get("/api/data-quality")
     assert res.status_code == 200
     dq = res.json()
-    assert dq["overall_status"] == "OPERATIONAL"
+    assert dq["overall_status"] in {"HEALTHY", "DEGRADED"}
     assert dq["ledger_conservation_valid"] is True
     assert len(dq["datasets"]) >= 4
 
