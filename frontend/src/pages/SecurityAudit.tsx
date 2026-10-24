@@ -22,11 +22,15 @@ import { StatCard } from '../components/common/StatCard';
 interface SecurityStatus {
   status: string;
   auth_mode: string;
+  production_auth_ready: boolean;
+  demo_auth_enabled: boolean;
   pki_signature_algorithm: string;
   model_sha256_verified: boolean;
   bola_enforcement_active: boolean;
   rate_limiting_active: boolean;
+  rate_limiting_scope: string;
   hidden_data_isolated: boolean;
+  hidden_data_isolation_status: string;
   total_audit_events: number;
   security_denials_count: number;
   active_institutions_registered: number;
@@ -48,6 +52,7 @@ interface SecurityAuditEvent {
 export const SecurityAudit: React.FC = () => {
   const [status, setStatus] = useState<SecurityStatus | null>(null);
   const [events, setEvents] = useState<SecurityAuditEvent[]>([]);
+  const [caseIds, setCaseIds] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSeverity, setSelectedSeverity] = useState<string>('ALL');
@@ -57,12 +62,14 @@ export const SecurityAudit: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [statusRes, auditRes] = await Promise.all([
+      const [statusRes, auditRes, casesRes] = await Promise.all([
         apiClient.get('/api/admin/security-status'),
         apiClient.get('/api/admin/audit-logs?limit=50'),
+        apiClient.get('/api/cases'),
       ]);
       setStatus(statusRes.data);
       setEvents(auditRes.data);
+      setCaseIds((casesRes.data || []).map((item: { case_id: string }) => item.case_id));
     } catch (err: any) {
       setError(err.message || 'Failed to load security audit telemetry.');
     } finally {
@@ -87,13 +94,13 @@ export const SecurityAudit: React.FC = () => {
       await apiClient.get(endpoint);
       setActionFeedback({
         type: 'success',
-        message: `[ALLOW] ${label}: Request succeeded (HTTP 200). Your persona is authorized.`,
+        message: `${label}: HTTP ${200}. The endpoint responded; this alone does not prove the whole security control is effective.`,
       });
       fetchSecurityData();
     } catch (err: any) {
       setActionFeedback({
         type: 'error',
-        message: `[BLOCK] ${label}: ${err.message}. Defense barrier successfully enforced!`,
+        message: `${label}: HTTP ${err?.response?.status ?? 'unavailable'} — ${err.message}. Review the response; a denial alone does not prove all access paths are protected.`,
       });
       fetchSecurityData();
     }
@@ -113,14 +120,13 @@ export const SecurityAudit: React.FC = () => {
           <div>
             <div className="flex items-center space-x-2 text-teal-400 text-xs font-semibold uppercase tracking-wider mb-2">
               <ShieldCheck className="w-4 h-4" />
-              <span>Step 13: Security Hardening & Threat Model Verification</span>
+              <span>Runtime configuration and audit evidence</span>
             </div>
             <h1 className="text-2xl font-extrabold text-white tracking-tight">
-              Security Governance, PKI & Audit Trail
+              Security posture and audit events
             </h1>
             <p className="text-slate-300 text-sm mt-1 max-w-3xl leading-relaxed">
-              Enforcing zero-trust case boundaries (BOLA defense), cryptographic Ed25519 envelope verification,
-              tamper-proof ML artifact hashes, rate limiting, and immutable audit logs.
+              Shows the controls configured in this running instance. Local personas are simulated; OIDC production authentication is not implemented, and rate limiting is applied only to selected routes.
             </p>
           </div>
           <button
@@ -160,9 +166,9 @@ export const SecurityAudit: React.FC = () => {
         <div className="p-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 flex items-start space-x-3">
           <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
-            <div className="font-bold text-sm">Role Privilege Restriction (RBAC Defense Active)</div>
+            <div className="font-bold text-sm">Security telemetry unavailable</div>
             <div className="text-xs text-amber-800 mt-1">
-              {error} Switch to <strong>Alex Thorne (Compliance Admin)</strong> in the top header to view system-wide audit telemetry.
+              {error} The telemetry endpoint may require a local demo Compliance Admin session. The interface does not assume or silently select an administrator.
             </div>
           </div>
         </div>
@@ -174,7 +180,7 @@ export const SecurityAudit: React.FC = () => {
           <StatCard
             label="Security Posture"
             value={status.status}
-            subtext="Deny-by-default active"
+            subtext={status.production_auth_ready ? 'Production identity configured' : 'Production authentication is not configured'}
             icon={ShieldCheck}
             badge={{ text: status.auth_mode, variant: 'neutral' }}
           />
@@ -187,17 +193,17 @@ export const SecurityAudit: React.FC = () => {
           />
           <StatCard
             label="Model Hash Verified"
-            value={status.model_sha256_verified ? 'VERIFIED' : 'FAILED'}
-            subtext="SHA-256 anti-tamper lock"
+            value={status.model_sha256_verified ? 'VERIFIED' : 'UNVERIFIED'}
+            subtext="True only when the loaded model artifact matches its recorded SHA-256 digest"
             icon={FileKey}
-            badge={{ text: 'Anti-Tampering Active', variant: 'warning' }}
+            badge={{ text: status.model_sha256_verified ? 'Digest matched' : 'No verified model digest', variant: status.model_sha256_verified ? 'success' : 'warning' }}
           />
           <StatCard
             label="Security Interceptions"
             value={status.security_denials_count}
             subtext={`${status.total_audit_events} total logged events`}
             icon={ShieldAlert}
-            badge={{ text: 'Audit Logging Active', variant: 'neutral' }}
+            badge={{ text: status.total_audit_events > 0 ? 'Events recorded' : 'No events recorded', variant: 'neutral' }}
           />
         </div>
       )}
@@ -226,8 +232,7 @@ export const SecurityAudit: React.FC = () => {
               <span>Cryptographic Proof Integrity</span>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Ed25519 signatures and canonical SHA-256 hashes prevent transit tampering, envelope forging,
-              untrusted institution keys, request replays, and expired evidence.
+              The simulated evidence flow uses signed envelopes. Inspect individual verification results; cryptographic signatures do not establish that source records are factually correct.
             </p>
           </div>
 
@@ -237,8 +242,7 @@ export const SecurityAudit: React.FC = () => {
               <span>Model & Infrastructure Defense</span>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Pre-deserialization SHA-256 hash checks prevent malicious model loading.
-              1MB payload cap prevents buffer overflow DoS. Sliding-window rate limiters throttle compute.
+              The configured model loader checks the artifact digest before deserialization. Request-size middleware and route-level rate limits are present; this is not a substitute for a security assessment.
             </p>
           </div>
         </div>
@@ -250,18 +254,18 @@ export const SecurityAudit: React.FC = () => {
             <span>Interactive Adversarial Probes (Test Active Persona Defense)</span>
           </div>
           <div className="flex flex-wrap gap-2.5">
-            <button
-              onClick={() => triggerProbe('/api/cases/CASE-2026-001', 'Access CASE-2026-001')}
+            {caseIds[0] && <button
+              onClick={() => triggerProbe('/api/cases/' + encodeURIComponent(caseIds[0]), 'Read case ' + caseIds[0])}
               className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition-colors"
             >
-              Probe: Request Case 001
-            </button>
-            <button
-              onClick={() => triggerProbe('/api/cases/CASE-2026-003', 'Access CASE-2026-003')}
+              Probe: Read {caseIds[0]}
+            </button>}
+            {caseIds[1] && <button
+              onClick={() => triggerProbe('/api/cases/' + encodeURIComponent(caseIds[1]), 'Read case ' + caseIds[1])}
               className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition-colors"
             >
-              Probe: Request Case 003
-            </button>
+              Probe: Read {caseIds[1]}
+            </button>}
             <button
               onClick={() => triggerProbe('/api/admin/audit-logs', 'Access Admin Audit Logs')}
               className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition-colors"
@@ -287,7 +291,7 @@ export const SecurityAudit: React.FC = () => {
               <span>Real-time Security Audit Log</span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Immutable security event trail recording authorization denials, BOLA violations, cryptographic checks, and replays.
+              Recorded application events. Logs are application telemetry and have not been independently certified as immutable.
             </p>
           </div>
 
