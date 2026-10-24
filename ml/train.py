@@ -1,6 +1,7 @@
 """Training, threshold selection, held-out evaluation, and artifact serialization."""
 
 import json
+import hashlib
 import os
 import time
 from datetime import datetime, timezone
@@ -36,7 +37,8 @@ from ml.schemas import (
     DemoSample,
 )
 
-MODEL_DIR = Path("models")
+ROOT_DIR = Path(__file__).resolve().parents[1]
+MODEL_DIR = Path(os.getenv("FAIRHOLD_MODEL_DIR", str(ROOT_DIR / "models"))).resolve()
 MODEL_ARTIFACT_PATH = MODEL_DIR / "fraud_detector_v1.joblib"
 METADATA_PATH = MODEL_DIR / "model_metadata.json"
 DEMO_SAMPLES_PATH = MODEL_DIR / "demo_samples.json"
@@ -145,15 +147,21 @@ def extract_demo_samples(
 
 
 def run_training_pipeline(
-    csv_path: str = "data/raw/creditcard.csv",
+    csv_path: str | Path | None = None,
     random_state: int = 42,
     model_version: str = "v1.0.0",
 ) -> Dict[str, Any]:
     """Execute end-to-end ML training, evaluation, and artifact export."""
+    started_at = time.perf_counter()
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    dataset_path = Path(csv_path) if csv_path is not None else ROOT_DIR / "data" / "raw" / "creditcard.csv"
+    if not dataset_path.is_absolute():
+        dataset_path = (ROOT_DIR / dataset_path).resolve()
+    else:
+        dataset_path = dataset_path.resolve()
 
-    print(f"[{datetime.now(timezone.utc).isoformat()}] Step 1: Loading and validating dataset from '{csv_path}'...")
-    df = load_and_validate_dataset(csv_path)
+    print(f"[{datetime.now(timezone.utc).isoformat()}] Step 1: Loading and validating dataset from '{dataset_path}'...")
+    df = load_and_validate_dataset(str(dataset_path))
     total_rows = len(df)
     fraud_count = int(df[TARGET_NAME].sum())
     non_fraud_count = total_rows - fraud_count
@@ -233,6 +241,11 @@ def run_training_pipeline(
     # Step 6: Serialize Artifacts
     print(f"Step 6: Serializing fitted Random Forest pipeline to '{MODEL_ARTIFACT_PATH}'...")
     joblib.dump(rf_pipeline, MODEL_ARTIFACT_PATH, compress=3)
+    artifact_digest = hashlib.sha256()
+    with MODEL_ARTIFACT_PATH.open("rb") as artifact_file:
+        for chunk in iter(lambda: artifact_file.read(1024 * 1024), b""):
+            artifact_digest.update(chunk)
+    artifact_sha256 = artifact_digest.hexdigest()
 
     eval_report = EvaluationReport(
         dataset_source="European Credit Card Fraud Detection (ULB / Worldline, Kaggle)",
@@ -256,10 +269,27 @@ def run_training_pipeline(
         ),
     )
 
-    # Save metadata JSON
-    with open(METADATA_PATH, "w") as f:
-        json.dump(eval_report.model_dump(), f, indent=2)
-    print(f"Saved metadata to '{METADATA_PATH}'.")
+    # Include reproducibility and integrity metadata derived from this actual training run.
+    metadata = eval_report.model_dump()
+    metadata.update({
+        "model_version": model_version,
+        "model_algorithm": "RandomForestClassifier",
+        "model_configuration": {
+            "n_estimators": 100,
+            "max_depth": 12,
+            "class_weight": "balanced",
+            "random_state": random_state,
+            "n_jobs": -1,
+        },
+        "dataset_path_at_training": str(dataset_path),
+        "artifact_sha256": artifact_sha256,
+        "training_duration_seconds": round(time.perf_counter() - started_at, 3),
+        "baseline_training_duration_seconds": round(lr_duration, 3),
+        "primary_training_duration_seconds": round(rf_duration, 3),
+    })
+    with METADATA_PATH.open("w", encoding="utf-8") as f:
+        json.dump(metadata, f, indent=2)
+    print(f"Saved metadata and artifact SHA-256 to '{METADATA_PATH}'.")
 
     # Save demo samples JSON
     demo_samples = extract_demo_samples(df, X_test, y_test, count_per_class=5)
@@ -269,6 +299,15 @@ def run_training_pipeline(
 
     return {
         "status": "SUCCESS",
+        "model_version": model_version,
+        "dataset_path": str(dataset_path),
+        "dataset_rows": total_rows,
+        "fraud_count": fraud_count,
+        "non_fraud_count": non_fraud_count,
+        "train_size": len(X_train),
+        "val_size": len(X_val),
+        "test_size": len(X_test),
+        "artifact_sha256": artifact_sha256,
         "primary_metrics": primary_metrics.model_dump(),
         "baseline_metrics": baseline_metrics.model_dump(),
         "rf_training_duration_sec": rf_duration,
