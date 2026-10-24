@@ -48,23 +48,27 @@ export const MLAnalysis: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const [statData, evalData, samples] = await Promise.all([
-          getMLStatus(),
-          getMLEvaluation(),
-          getMLDemoSamples(),
-        ]);
+        const statData = await getMLStatus();
         setStatus(statData);
+
+        // An unavailable model is a valid runtime state; show its status and training instructions.
+        if (statData.status !== 'LOADED') {
+          setEvaluation(null);
+          setDemoSamples([]);
+          return;
+        }
+
+        const [evalData, samples] = await Promise.all([getMLEvaluation(), getMLDemoSamples()]);
         setEvaluation(evalData);
         setDemoSamples(samples);
 
-        // Preload first sample
         if (samples.length > 0) {
           setSelectedSampleId(samples[0].sample_id);
           setCurrentFeatures(samples[0].features);
         }
       } catch (err: any) {
         console.error('Failed to load ML analysis data:', err);
-        setError(err?.response?.data?.detail || err?.message || 'Failed to connect to ML backend service');
+        setError(err?.response?.data?.detail || err?.message || 'Failed to load model metadata.');
       } finally {
         setLoading(false);
       }
@@ -83,16 +87,22 @@ export const MLAnalysis: React.FC = () => {
   };
 
   const handleFeatureChange = (featName: string, valStr: string) => {
-    const num = parseFloat(valStr);
+    const num = valStr.trim() === '' ? Number.NaN : Number(valStr);
     setCurrentFeatures((prev) => ({
       ...prev,
-      [featName]: isNaN(num) ? 0 : num,
+      [featName]: num,
     }));
   };
 
   const handleRunPrediction = async () => {
-    setIsPredicting(true);
     setPredictError(null);
+    const requiredFeatures = status?.features ?? [];
+    const invalidFeatures = requiredFeatures.filter((feature) => !Number.isFinite(currentFeatures[feature]));
+    if (invalidFeatures.length > 0) {
+      setPredictError('Enter a finite numeric value for: ' + invalidFeatures.join(', '));
+      return;
+    }
+    setIsPredicting(true);
     try {
       const res = await predictFraud(currentFeatures);
       setPrediction(res);
@@ -113,18 +123,44 @@ export const MLAnalysis: React.FC = () => {
     );
   }
 
-  if (error || !evaluation || !status) {
+  if (error || !status) {
     return (
-      <div className="p-8">
-        <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 text-rose-800">
-          <div className="flex items-center space-x-3 mb-2">
-            <AlertTriangle className="w-6 h-6 text-rose-600" />
-            <h3 className="text-base font-bold">ML Model Service Unavailable</h3>
+      <div className="space-y-4">
+        <div className="fh-error">
+          <strong>Model status could not be retrieved</strong>
+          <p className="mt-2">{error || 'The API did not return a model status.'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status.status !== 'LOADED') {
+    return (
+      <div className="space-y-5">
+        <div className="surface p-6">
+          <div className="eyebrow">Machine learning / Model readiness</div>
+          <h2 className="page-heading mt-2">No verified model is available</h2>
+          <p className="page-subheading mt-2">{status.message || 'The model artifact is not loaded or did not pass integrity verification.'}</p>
+          <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Predictions are disabled until training succeeds and the model artifact passes its SHA-256 integrity check.
           </div>
-          <p className="text-sm">{error || 'Model artifacts or evaluation metadata could not be loaded.'}</p>
-          <p className="text-xs text-rose-600 mt-3 font-mono">
-            Execute: python scripts/train_ml_model.py
-          </p>
+          <div className="mt-4">
+            <div className="eyebrow">Training command</div>
+            <code className="mt-2 block rounded-md bg-[#202b2a] p-3 text-sm text-white">python scripts/train_ml_model.py</code>
+            <p className="mt-2 text-xs text-slate-500">Dataset expected at data/raw/creditcard.csv. The command must run successfully before metrics or predictions can be shown.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !evaluation) {
+    return (
+      <div className="space-y-4">
+        <div className="fh-error">
+          <strong>Model loaded, but evaluation data is unavailable</strong>
+          <p className="mt-2">{error || 'The API did not return the evaluation metadata.'}</p>
+          <p className="mt-2 text-xs">Re-run the training pipeline and verify that its artifact, metadata and demo samples are from the same training run.</p>
         </div>
       </div>
     );
@@ -157,7 +193,7 @@ export const MLAnalysis: React.FC = () => {
                 </Badge>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Trained on real European Credit Card Fraud Detection benchmark (ULB / Worldline, Kaggle).
+                Dataset: {evaluation.dataset_source}. Historical credit-card benchmark; not an Indian bank AML model.
               </p>
             </div>
           </div>
@@ -177,7 +213,7 @@ export const MLAnalysis: React.FC = () => {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-            Held-Out Test Set Metrics (42,722 Transactions)
+            Held-out test metrics ({evaluation.test_size.toLocaleString()} transactions)
           </h3>
           <span className="text-xs text-slate-500 font-medium">
             Strictly untouched during training and threshold tuning
@@ -199,13 +235,13 @@ export const MLAnalysis: React.FC = () => {
           <StatCard
             label="Precision"
             value={(primary.precision * 100).toFixed(1) + '%'}
-            subtext="Fraud Class (87.5%)"
+            subtext="Positive class: fraud"
             icon={ShieldCheck}
           />
           <StatCard
             label="Recall"
             value={(primary.recall * 100).toFixed(1) + '%'}
-            subtext="Fraud Detection (75.7%)"
+            subtext="Share of labelled fraud cases detected"
             icon={CheckCircle2}
           />
           <StatCard
@@ -230,7 +266,7 @@ export const MLAnalysis: React.FC = () => {
           <div>
             <h3 className="text-base font-bold text-slate-900">Held-Out Confusion Matrix</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Performance breakdown on 42,722 test samples at threshold {primary.threshold_used.toFixed(2)}.
+              Performance breakdown on {evaluation.test_size.toLocaleString()} held-out samples at threshold {primary.threshold_used.toFixed(2)}.
             </p>
           </div>
 
@@ -255,7 +291,7 @@ export const MLAnalysis: React.FC = () => {
                 {cm.false_positives}
               </span>
               <span className="text-[11px] text-amber-700 mt-1 block">
-                Legit falsely alerted (Low rate: 0.019%)
+                Legitimate transactions incorrectly flagged
               </span>
             </div>
 
@@ -291,7 +327,7 @@ export const MLAnalysis: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <span className="font-medium text-slate-500">Test Fraud Cases (Class 1):</span>
-              <span className="font-mono font-semibold text-rose-700">{cm.true_positives + cm.false_negatives} (0.173%)</span>
+              <span className="font-mono font-semibold text-rose-700">{cm.true_positives + cm.false_negatives} ({evaluation.test_size ? (((cm.true_positives + cm.false_negatives) / evaluation.test_size) * 100).toFixed(3) : "n/a"}% of test set)</span>
             </div>
             <div className="flex justify-between">
               <span className="font-medium text-slate-500">Threshold Rationale:</span>
@@ -341,7 +377,7 @@ export const MLAnalysis: React.FC = () => {
                   <td className="py-2.5 px-3 font-mono font-bold text-teal-700">{(primary.recall * 100).toFixed(2)}%</td>
                   <td className="py-2.5 px-3 font-mono text-slate-600">{(baseline.recall * 100).toFixed(2)}%</td>
                   <td className="py-2.5 px-3 text-right text-slate-400">
-                    -8.1% (Fewer FPs)
+                    {((primary.recall - baseline.recall) * 100 >= 0 ? '+' : '') + ((primary.recall - baseline.recall) * 100).toFixed(1) + ' percentage points'}
                   </td>
                 </tr>
                 <tr>
@@ -376,8 +412,7 @@ export const MLAnalysis: React.FC = () => {
               Evaluation Insights
             </h4>
             <p>
-              Under extreme class imbalance (0.173%), accuracy alone is misleading ({baseline.accuracy.toFixed(3)}% vs {primary.accuracy.toFixed(3)}%). 
-              The <strong>Random Forest model</strong> achieves substantially superior precision (87.5% vs 42.8%), drastically cutting false alerts while maintaining high recall (75.7%) and an F1 score of 81.2%.
+              The held-out fraud prevalence is {evaluation.test_size ? (((cm.true_positives + cm.false_negatives) / evaluation.test_size) * 100).toFixed(3) : 'not available'}%. Accuracy alone can hide poor minority-class performance. Accuracy was {(baseline.accuracy * 100).toFixed(2)}% for the baseline and {(primary.accuracy * 100).toFixed(2)}% for the selected model; compare precision, recall and PR-AUC alongside it.
             </p>
           </div>
         </div>
