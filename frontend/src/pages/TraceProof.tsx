@@ -37,7 +37,7 @@ import { Badge } from '../components/common/Badge';
 
 export const TraceProof: React.FC = () => {
   const [scenarios, setScenarios] = useState<TraceProofScenario[]>([]);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('SCENARIO_1_COMPLETE');
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
   const [traceResult, setTraceResult] = useState<TraceProofResponse | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<TraceProofEdge | null>(null);
   const [activeEnvelope, setActiveEnvelope] = useState<SignedEvidenceEnvelope | null>(null);
@@ -55,8 +55,13 @@ export const TraceProof: React.FC = () => {
         const scList = await getTraceProofScenarios();
         setScenarios(scList);
         if (scList.length > 0) {
-          // Auto-run first scenario
+          // Run the first scenario actually returned for this identity.
+          setSelectedScenarioId(scList[0].scenario_id);
           await runTrace(scList[0].scenario_id, scList[0].case_id);
+        } else {
+          setSelectedScenarioId('');
+          setTraceResult(null);
+          setError('No TraceProof scenarios are available to this identity.');
         }
       } catch (err: any) {
         console.error('Failed to load TraceProof scenarios:', err);
@@ -75,6 +80,7 @@ export const TraceProof: React.FC = () => {
   }, []);
 
   const runTrace = async (scenarioId: string, caseId: string) => {
+    setSelectedScenarioId(scenarioId);
     setIsTracing(true);
     setError(null);
     setSelectedEdge(null);
