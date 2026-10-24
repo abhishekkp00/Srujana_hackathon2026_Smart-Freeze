@@ -143,10 +143,9 @@ const AuthGate: React.FC = () => {
   const selectPersona = useCallback(async (personaId: string) => {
     setBusyPersona(personaId);
     setError(null);
+    const previousToken = window.localStorage.getItem(DEMO_TOKEN_KEY);
     try {
       // Session issuance is explicitly limited to local demo mode by the backend.
-      window.localStorage.removeItem(DEMO_TOKEN_KEY);
-      setSession(null);
       const result = await apiClient.post<{ token: string; user: Session['user']; mode: string }>(
         '/api/auth/demo-session',
         { persona_id: personaId },
@@ -156,8 +155,8 @@ const AuthGate: React.FC = () => {
       setSession(confirmed.data);
       window.dispatchEvent(new Event('auth-changed'));
     } catch (cause) {
-      window.localStorage.removeItem(DEMO_TOKEN_KEY);
-      setSession(null);
+      if (previousToken) window.localStorage.setItem(DEMO_TOKEN_KEY, previousToken);
+      else window.localStorage.removeItem(DEMO_TOKEN_KEY);
       setError(cause instanceof Error ? cause.message : 'Could not start the selected demonstration session.');
     } finally {
       setBusyPersona(null);
