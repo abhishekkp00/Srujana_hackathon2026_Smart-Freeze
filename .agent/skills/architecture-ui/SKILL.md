@@ -1,87 +1,43 @@
 ---
-description: Keep Smart-Freeze modular, auditable, secure, and usable, with
-  evidence-backed explanations and a functional Streamlit dashboard.
+description: Keep FairHold modular, auditable, secure, and usable with evidence-backed explanations and a data-driven React interface.
 name: architecture-explainability-and-ui
 ---
 
-# Smart-Freeze Architecture, Explainability and UI
+# FairHold Architecture, Explainability and UI
 
 ## Purpose
-
-Build a coherent Smart-Freeze application in which every displayed number
-comes from the tested backend and every investigation signal is
-traceable to evidence.
+Build one coherent FairHold application. The backend is FastAPI; the frontend is React + TypeScript. Do not add a Streamlit dashboard or duplicate UI entry point.
 
 ## Architecture rules
+Keep separate: dataset adapters, validation, ledger reconstruction, transaction graph, proportional/FIFO/LIBR tracing, Evidence-Bounded Trace Range, investigation prioritization, ML training/inference, TraceProof signatures, audit, API and UI.
 
-Keep these concerns separate: - Data loaders and dataset adapters. -
-Ledger validation and balance reconstruction. - Transaction graph and
-fund-flow traversal. - Proportional, FIFO, and LIBR tracing. - Consensus
-Lien comparison and explanations. - Investigation Priority Score and
-signals. - Ground-truth evaluation and metrics. - Audit/report
-generation. - Streamlit presentation.
-
-Inspect the repository before editing. Reuse working code, avoid
-duplicate logic, and do not refactor unrelated files without a reason.
-Implement one phase at a time.
+Inspect the repository before editing. Reuse tested code, avoid duplicate logic, and change one concern at a time.
 
 ## Explainability
+For every tracing or scoring result preserve source references, dataset/ledger context, algorithm or model version, assumptions, data-quality warnings, calculation details and uncertainty. Explanations must come from structured calculation results—not invented prose.
 
-For every tracing result or investigation score, preserve: - Input and
-ledger version. - Method or scoring-rule version. - Assumptions and
-warnings. - Supporting transaction IDs and evidence provenance. -
-Calculation events and component breakdown. - Missing information and
-uncertainty.
+## Investigation priority
+- Keep behavioural anomalies, transaction-trail evidence and historical/contextual signals separate.
+- Weights and thresholds are prototype assumptions unless calibrated and validated.
+- Missing history is uncertainty, not a low-risk signal.
+- The score is investigation priority, not probability of fraud.
 
-Generate explanations from structured calculation events and triggered
-rules. Do not invent a narrative unsupported by the data.
+## React interface
+Use the existing React, TypeScript, Vite and Tailwind stack. Use Recharts for supported numerical charts and Cytoscape.js for transaction graphs where already configured.
 
-## Investigation Priority Score
+Every displayed metric must come from a backend response, a verified local file, or a calculation. Never hardcode live case rows, counts, recent activity, model metrics or service health. Static synthetic examples are allowed only when clearly labelled as fixtures/simulated institution data.
 
--   Keep behavioural anomalies, transaction-trail evidence, and
-    historical/contextual signals separate.
--   Make weights and thresholds configurable and document that initial
-    values are prototype assumptions.
--   Treat missing history as uncertainty, not proof of suspicious
-    behavior.
--   Consider legitimate explanations such as payroll, marketplace
-    settlement, and normal business activity.
--   Label the output as an investigation-priority score, never as a
-    calibrated probability of fraud unless a proper calibration study
-    has been completed.
-
-## Dashboard
-
-Use Streamlit and Plotly for a professional, functional interface.
-Prioritize: 1. Case overview and data-quality status. 2. Interactive
-transaction graph and transaction details. 3. Three-method Consensus
-Lien comparison. 4. Investigation Priority Score and evidence. 5.
-Evaluation results and audit/report export.
-
-Every displayed metric must come from backend results. Never hardcode
-live figures. Make filters, case selectors, links, and export controls
-functional. Show loading, empty, partial-result, and error states. Keep
-the interface readable, accessible, and restrained rather than adding
-decorative charts.
+Implement clear loading, empty, partial-result, unavailable, and error states. Filters, case selectors, trace actions and prediction controls must operate on API responses.
 
 ## Security and consequential actions
-
--   Keep hidden evaluation labels out of operational paths.
--   Validate uploaded files and user inputs.
--   Avoid logging secrets or unnecessary sensitive data.
--   Preserve audit records for inputs, assumptions, results, and human
-    review actions.
--   Do not implement unauthorized bank integrations, automatic account
-    freezes, or automatic case closure.
--   Consequential decisions remain with authorized human reviewers.
+- Keep hidden evaluation labels out of operational endpoints.
+- Validate requests and source evidence.
+- Do not expose secrets or unnecessary sensitive records.
+- Do not claim production authentication, immutable audit logs, or real-bank connections unless they exist and are verified.
+- No automatic account freezes or case closure.
 
 ## Definition of done
-
-A task is complete only when the relevant tests pass, the UI matches
-backend outputs, errors and limitations are visible, and the change is
-documented.
+Relevant tests pass, the frontend build succeeds, displayed outputs match backend results, and remaining limitations are visible.
 
 ## Completion report
-
-List files changed, tests and commands actually run, UI behavior
-verified, remaining risks, and the next smallest step.
+List changed files, commands actually run, test/build outputs, behaviour verified, remaining risks and exact next steps.
