@@ -1026,174 +1026,189 @@ def get_case_priority_score(
 
 @app.get("/api/data-quality", response_model=DataQualityResponse)
 def get_data_quality(auth: AuthContext = Depends(get_current_user)):
-    """Generates structural and semantic data quality audit across all supported datasets."""
+    """Inspect files currently present; external row counts and schema status come from actual CSV contents."""
     datasets: List[DataQualityDatasetItem] = []
 
-    # 1. Synthetic FairHold Ledger
-    adapter = get_adapter()
-    accs_df = pd.read_csv(adapter.accounts_path)
-    txs_df = pd.read_csv(adapter.transactions_path)
-    cases_df = pd.read_csv(adapter.cases_path)
-    synth_rows = len(accs_df) + len(txs_df) + len(cases_df)
+    account_path = SYNTHETIC_DIR / "accounts.csv"
+    transaction_path = SYNTHETIC_DIR / "transactions.csv"
+    case_path = SYNTHETIC_DIR / "cases.csv"
+    ledger_profiles = [
+        _profile_csv(account_path, CANONICAL_ACCOUNT_COLUMNS),
+        _profile_csv(transaction_path, CANONICAL_TRANSACTION_COLUMNS),
+        _profile_csv(case_path, CANONICAL_CASE_COLUMNS),
+    ]
+    ledger_present = sum(1 for item in ledger_profiles if item["exists"])
+    ledger_rows = sum(int(item["rows"]) for item in ledger_profiles)
+    ledger_schema_valid = ledger_present == 3 and all(item["parsed"] and item["columns_valid"] for item in ledger_profiles)
+    ledger_warnings: List[str] = []
+    ledger_labels = ("accounts.csv", "transactions.csv", "cases.csv")
+    for label, profile, required in zip(
+        ledger_labels,
+        ledger_profiles,
+        (CANONICAL_ACCOUNT_COLUMNS, CANONICAL_TRANSACTION_COLUMNS, CANONICAL_CASE_COLUMNS),
+    ):
+        if not profile["exists"]:
+            ledger_warnings.append("Missing required file: " + label + ".")
+        elif not profile["parsed"]:
+            ledger_warnings.append("Could not parse " + label + ".")
+        elif not profile["columns_valid"]:
+            missing = sorted(set(required) - set(profile["columns"]))
+            ledger_warnings.append(label + " is missing required columns: " + ", ".join(missing) + ".")
+    ledger_status = "SCHEMA_VALIDATED" if ledger_schema_valid else ("NOT_INSTALLED" if ledger_present == 0 else "INCOMPLETE_OR_INVALID")
+    if ledger_schema_valid:
+        try:
+            accounts = pd.read_csv(account_path, usecols=["history_complete"])
+            incomplete = int((~accounts["history_complete"].astype(bool)).sum())
+            if incomplete:
+                ledger_warnings.append(str(incomplete) + " account(s) have incomplete history.")
+        except Exception:
+            ledger_warnings.append("Could not assess statement-history completeness.")
+    datasets.append(DataQualityDatasetItem(
+        dataset_name="FairHold Synthetic Ledger",
+        category="Synthetic account-based ledger",
+        status=ledger_status,
+        file_count=ledger_present,
+        total_rows=ledger_rows,
+        columns_valid=ledger_schema_valid,
+        warnings=ledger_warnings,
+        notes="Synthetic demonstration records, not live bank transactions. Counts and schema checks reflect the files currently present.",
+    ))
 
-    warnings: List[str] = []
-    incomplete_accs = int((~accs_df["history_complete"]).sum())
-    if incomplete_accs > 0:
-        warnings.append(f"{incomplete_accs} account(s) have incomplete statement histories (history_complete=False).")
-
-    datasets.append(
-        DataQualityDatasetItem(
-            dataset_name="Smart-Freeze Synthetic Ledger",
-            category="Operational Banking Ledger",
-            status="VERIFIED_OPERATIONAL",
-            file_count=3,
-            total_rows=synth_rows,
-            columns_valid=True,
-            warnings=warnings,
-            notes="Canonical synthetic operational ledger with strict integer-paise representation and ground-truth isolation.",
-        )
-    )
-
-    # 2. Elliptic Bitcoin Dataset
     elliptic_dir = RAW_DIR / "elliptic_bitcoin_dataset"
-    if elliptic_dir.exists():
-        classes_file = elliptic_dir / "elliptic_txs_classes.csv"
-        edgelist_file = elliptic_dir / "elliptic_txs_edgelist.csv"
-        if classes_file.exists() and edgelist_file.exists():
-            datasets.append(
-                DataQualityDatasetItem(
-                    dataset_name="Elliptic Bitcoin Transaction Graph",
-                    category="Cryptocurrency UTXO Network",
-                    status="SUPPORTED_EXTERNAL",
-                    file_count=2,
-                    total_rows=203769,  # Standard Elliptic classes count
-                    columns_valid=True,
-                    warnings=["Cryptocurrency transaction graph (UTXO model); does not represent fiat bank accounts or INR balances."],
-                    notes="Public benchmark dataset mapping illicit vs licit Bitcoin transactions.",
-                )
-            )
-        else:
-            datasets.append(
-                DataQualityDatasetItem(
-                    dataset_name="Elliptic Bitcoin Transaction Graph",
-                    category="Cryptocurrency UTXO Network",
-                    status="PARTIAL_FILES_MISSING",
-                    file_count=0,
-                    total_rows=0,
-                    columns_valid=False,
-                    warnings=["Required Elliptic CSV files missing in data/raw/elliptic_bitcoin_dataset/."],
-                    notes="Optional public dataset.",
-                )
-            )
-    else:
-        datasets.append(
-            DataQualityDatasetItem(
-                dataset_name="Elliptic Bitcoin Transaction Graph",
-                category="Cryptocurrency UTXO Network",
-                status="NOT_INSTALLED",
-                file_count=0,
-                total_rows=0,
-                columns_valid=False,
-                warnings=["Directory data/raw/elliptic_bitcoin_dataset/ not present."],
-                notes="Optional external dataset.",
-            )
-        )
+    elliptic_paths = [
+        elliptic_dir / "elliptic_txs_classes.csv",
+        elliptic_dir / "elliptic_txs_edgelist.csv",
+        elliptic_dir / "elliptic_txs_features.csv",
+    ]
+    elliptic_profiles = [
+        _profile_csv(elliptic_paths[0], ELLIPTIC_CLASSES_COLUMNS),
+        _profile_csv(elliptic_paths[1], ELLIPTIC_EDGELIST_COLUMNS),
+        _profile_csv(elliptic_paths[2], header=None, expected_column_count=167),
+    ]
+    elliptic_present = sum(1 for item in elliptic_profiles if item["exists"])
+    elliptic_valid = elliptic_present == 3 and all(item["parsed"] and item["columns_valid"] for item in elliptic_profiles)
+    elliptic_rows = int(elliptic_profiles[0]["rows"]) if elliptic_profiles[0]["exists"] else 0
+    elliptic_warnings = []
+    for name, item in zip(("classes", "edgelist", "headerless features"), elliptic_profiles):
+        if not item["exists"]:
+            elliptic_warnings.append("Elliptic " + name + " file is missing.")
+        elif not item["parsed"] or not item["columns_valid"]:
+            elliptic_warnings.append("Elliptic " + name + " file failed schema validation.")
+    elliptic_warnings.append("Cryptocurrency graph data; it does not represent INR bank balances.")
+    datasets.append(DataQualityDatasetItem(
+        dataset_name="Elliptic Bitcoin Transaction Graph",
+        category="Cryptocurrency transaction graph",
+        status="SCHEMA_VALIDATED" if elliptic_valid else ("NOT_INSTALLED" if elliptic_present == 0 else "PARTIAL_OR_INVALID"),
+        file_count=elliptic_present,
+        total_rows=elliptic_rows,
+        columns_valid=elliptic_valid,
+        warnings=elliptic_warnings,
+        notes="Row count is read from the local classes file. A complete check requires class, edge and 167-column feature files.",
+    ))
 
-    # 3. SynthAML Alerts
-    synthaml_file = RAW_DIR / "synthetic_alerts.csv"
-    if synthaml_file.exists():
-        datasets.append(
-            DataQualityDatasetItem(
-                dataset_name="SynthAML Alerts",
-                category="AML Transaction Alerts",
-                status="ORPHAN_ALERTS",
-                file_count=1,
-                total_rows=20000,
-                columns_valid=True,
-                warnings=["Companion synthetic_transactions.csv is missing from data/raw/; alerts cannot be joined to transaction flows."],
-                notes="20,000 synthetic AML alerts retained without fabricating missing transactions.",
-            )
-        )
-    else:
-        datasets.append(
-            DataQualityDatasetItem(
-                dataset_name="SynthAML Alerts",
-                category="AML Transaction Alerts",
-                status="NOT_INSTALLED",
-                file_count=0,
-                total_rows=0,
-                columns_valid=False,
-                warnings=["synthetic_alerts.csv not present in data/raw/."],
-                notes="Optional external alerts dataset.",
-            )
-        )
+    alerts_path = RAW_DIR / "synthetic_alerts.csv"
+    synthaml_transactions_path = RAW_DIR / "synthetic_transactions.csv"
+    alerts_profile = _profile_csv(alerts_path, SYNTHAML_ALERTS_COLUMNS)
+    synthaml_transactions_profile = _profile_csv(synthaml_transactions_path)
+    synthaml_present = int(alerts_profile["exists"]) + int(synthaml_transactions_profile["exists"])
+    synthaml_valid = bool(alerts_profile["exists"] and alerts_profile["parsed"] and alerts_profile["columns_valid"]
+                          and synthaml_transactions_profile["exists"] and synthaml_transactions_profile["parsed"])
+    synthaml_warnings = []
+    if not alerts_profile["exists"]:
+        synthaml_warnings.append("synthetic_alerts.csv is not present.")
+    elif not alerts_profile["columns_valid"]:
+        synthaml_warnings.append("synthetic_alerts.csv does not match the configured alert schema.")
+    if not synthaml_transactions_profile["exists"]:
+        synthaml_warnings.append("Companion synthetic_transactions.csv is missing; alerts cannot be joined to transaction flows.")
+    elif not synthaml_transactions_profile["parsed"]:
+        synthaml_warnings.append("Companion transaction file could not be parsed.")
+    datasets.append(DataQualityDatasetItem(
+        dataset_name="SynthAML",
+        category="Synthetic AML alerts and transactions",
+        status="SCHEMA_VALIDATED" if synthaml_valid else ("ORPHAN_ALERTS" if alerts_profile["exists"] and not synthaml_transactions_profile["exists"] else ("NOT_INSTALLED" if synthaml_present == 0 else "PARTIAL_OR_INVALID")),
+        file_count=synthaml_present,
+        total_rows=int(alerts_profile["rows"]) if alerts_profile["exists"] else 0,
+        columns_valid=bool(alerts_profile["parsed"] and alerts_profile["columns_valid"]),
+        warnings=synthaml_warnings,
+        notes="Alert count comes from the local alerts CSV. Missing transaction records are never fabricated.",
+    ))
 
-    # 4. AMLNet
-    amlnet_file = RAW_DIR / "AMLNet_August 2025.csv"
-    if amlnet_file.exists():
-        datasets.append(
-            DataQualityDatasetItem(
-                dataset_name="AMLNet Multi-Channel Banking",
-                category="Multi-Channel Banking Typologies",
-                status="SUPPORTED_EXTERNAL",
-                file_count=1,
-                total_rows=1090000,
-                columns_valid=True,
-                warnings=["Treated as independent multi-channel dataset; payment rails and schemas are separate from synthetic ledger."],
-                notes="Australian multi-channel banking transaction dataset with structuring and layering typologies.",
-            )
-        )
-    else:
-        datasets.append(
-            DataQualityDatasetItem(
-                dataset_name="AMLNet Multi-Channel Banking",
-                category="Multi-Channel Banking Typologies",
-                status="NOT_INSTALLED",
-                file_count=0,
-                total_rows=0,
-                columns_valid=False,
-                warnings=["AMLNet_August 2025.csv not present in data/raw/."],
-                notes="Optional multi-channel benchmark dataset.",
-            )
-        )
+    amlnet_path = RAW_DIR / "AMLNet_August 2025.csv"
+    amlnet_profile = _profile_csv(amlnet_path, AMLNET_COLUMNS)
+    amlnet_valid = bool(amlnet_profile["exists"] and amlnet_profile["parsed"] and amlnet_profile["columns_valid"])
+    amlnet_warnings = []
+    if not amlnet_profile["exists"]:
+        amlnet_warnings.append("AMLNet CSV is not present.")
+    elif not amlnet_profile["parsed"]:
+        amlnet_warnings.append("AMLNet CSV could not be parsed.")
+    elif not amlnet_profile["columns_valid"]:
+        missing = sorted(set(AMLNET_COLUMNS) - set(amlnet_profile["columns"]))
+        amlnet_warnings.append("Configured AMLNet schema mismatch; missing columns: " + (", ".join(missing) if missing else "unexpected column count") + ".")
+    datasets.append(DataQualityDatasetItem(
+        dataset_name="AMLNet CSV",
+        category="External AML benchmark",
+        status="SCHEMA_VALIDATED" if amlnet_valid else ("NOT_INSTALLED" if not amlnet_profile["exists"] else "SCHEMA_MISMATCH"),
+        file_count=int(amlnet_profile["exists"]),
+        total_rows=int(amlnet_profile["rows"]),
+        columns_valid=amlnet_valid,
+        warnings=amlnet_warnings,
+        notes="Row count and columns are read from the local file; this dataset is not merged into the operational ledger.",
+    ))
 
-    # 5. European Credit Card Fraud Detection
-    creditcard_file = RAW_DIR / "creditcard.csv"
-    if creditcard_file.exists():
-        datasets.append(
-            DataQualityDatasetItem(
-                dataset_name="European Credit Card Fraud",
-                category="Real-World Card Transactions",
-                status="SUPPORTED_EXTERNAL",
-                file_count=1,
-                total_rows=284807,
-                columns_valid=True,
-                warnings=[
-                    "PCA-transformed features V1-V28 with Time and Amount.",
-                    "Isolated machine-learning evaluation dataset; not linked to bank ledger or Consensus Lien.",
-                ],
-                notes="ULB / Worldline benchmark with 492 fraud cases across 284,807 transactions (0.173% fraud rate).",
-            )
-        )
-    else:
-        datasets.append(
-            DataQualityDatasetItem(
-                dataset_name="European Credit Card Fraud",
-                category="Real-World Card Transactions",
-                status="NOT_INSTALLED",
-                file_count=0,
-                total_rows=0,
-                columns_valid=False,
-                warnings=["creditcard.csv not found in data/raw/."],
-                notes="Required for ML transaction fraud classifier.",
-            )
-        )
+    creditcard_path = RAW_DIR / "creditcard.csv"
+    creditcard_profile = _profile_csv(
+        creditcard_path,
+        FEATURE_NAMES + [TARGET_NAME],
+        target_column=TARGET_NAME,
+    )
+    class_counts = creditcard_profile["target_counts"]
+    fraud_count = int(float(class_counts.get("1", 0)))
+    non_fraud_count = int(float(class_counts.get("0", 0)))
+    creditcard_valid = bool(
+        creditcard_profile["exists"] and creditcard_profile["parsed"] and creditcard_profile["columns_valid"]
+        and fraud_count + non_fraud_count == int(creditcard_profile["rows"])
+    )
+    creditcard_warnings = []
+    if not creditcard_profile["exists"]:
+        creditcard_warnings.append("creditcard.csv is not present at data/raw/creditcard.csv.")
+    elif not creditcard_valid:
+        creditcard_warnings.append("CSV failed feature/label validation or contains unexpected label values.")
+    creditcard_warnings.append("Historical credit-card benchmark with PCA features; not an Indian bank AML dataset.")
+    creditcard_notes = (
+        "Observed rows: " + format(int(creditcard_profile["rows"]), ",")
+        + "; labelled fraud: " + format(fraud_count, ",")
+        + "; non-fraud: " + format(non_fraud_count, ",") + "."
+        if creditcard_profile["exists"] and creditcard_profile["parsed"]
+        else "Expected fields are Time, V1-V28, Amount and Class."
+    )
+    datasets.append(DataQualityDatasetItem(
+        dataset_name="European Credit Card Fraud",
+        category="Historical card-fraud benchmark",
+        status="SCHEMA_VALIDATED" if creditcard_valid else ("NOT_INSTALLED" if not creditcard_profile["exists"] else "SCHEMA_MISMATCH"),
+        file_count=int(creditcard_profile["exists"]),
+        total_rows=int(creditcard_profile["rows"]),
+        columns_valid=creditcard_valid,
+        warnings=creditcard_warnings,
+        notes=creditcard_notes,
+    ))
 
-    data = get_ledger_data()
+    ledger_valid = False
+    if ledger_present == 3 and ledger_schema_valid:
+        try:
+            ledger_valid = bool(get_ledger_data()["validation_report"].is_valid)
+        except Exception:
+            ledger_valid = False
+            ledger_warnings.append("Ledger reconstruction or semantic validation failed.")
+            datasets[0] = datasets[0].model_copy(update={
+                "warnings": ledger_warnings,
+                "status": "VALIDATION_FAILED",
+                "columns_valid": False,
+            })
+
     return DataQualityResponse(
         datasets=datasets,
-        overall_status="OPERATIONAL",
-        ledger_conservation_valid=data["validation_report"].is_valid,
+        overall_status="HEALTHY" if ledger_valid else "DEGRADED",
+        ledger_conservation_valid=ledger_valid,
     )
 
 
