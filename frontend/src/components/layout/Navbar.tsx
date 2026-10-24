@@ -1,197 +1,130 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, Sun, ChevronDown, Check, UserCheck, Shield } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ChevronDown, LogOut, ShieldCheck } from 'lucide-react';
 
-interface Persona {
-  id: string;
-  name: string;
+interface CurrentUser {
+  user_id: string;
+  display_name: string;
   role: string;
-  initials: string;
-  token: string;
-  badge: string;
-  cases: string;
+  institution_id: string;
+  assigned_case_count: number;
 }
 
-const PERSONAS: Persona[] = [
-  {
-    id: 'admin',
-    name: 'Alex Thorne',
-    role: 'Compliance Admin',
-    initials: 'AT',
-    token: 'dev_token_admin',
-    badge: 'Admin Access',
-    cases: 'All Cases (*)',
-  },
-  {
-    id: 'investigator_1',
-    name: 'Sarah Chen',
-    role: 'Lead Investigator',
-    initials: 'SC',
-    token: 'dev_token_investigator_1',
-    badge: 'Investigator',
-    cases: 'Cases 001, 002, TP-01..04',
-  },
-  {
-    id: 'investigator_2',
-    name: 'Marcus Vance',
-    role: 'Investigator',
-    initials: 'MV',
-    token: 'dev_token_investigator_2',
-    badge: 'Investigator',
-    cases: 'Case 003 Only (BOLA Demo)',
-  },
-  {
-    id: 'auditor',
-    name: 'Priya Nair',
-    role: 'External Auditor',
-    initials: 'PN',
-    token: 'dev_token_auditor',
-    badge: 'Auditor',
-    cases: 'Read-Only Audit Trail',
-  },
-  {
-    id: 'anonymous',
-    name: 'Unauthenticated User',
-    role: 'No Role / Public',
-    initials: 'AN',
-    token: '',
-    badge: '401 Unauthorized',
-    cases: 'None (Auth Enforcement)',
-  },
-];
+interface DemoPersona {
+  persona_id: string;
+  display_name: string;
+  role: string;
+  assigned_case_count: number;
+  institution_id: string;
+}
 
 interface NavbarProps {
-  title?: string;
+  title: string;
   subtitle?: string;
   section?: string;
-  selectedCaseId?: string;
-  onSelectCaseId?: (caseId: string) => void;
-  availableCases?: string[];
+  currentUser: CurrentUser;
+  personas: DemoPersona[];
+  onSelectPersona: (personaId: string) => Promise<void>;
+  onSignOut: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = () => {
-  const [activeToken, setActiveToken] = useState<string>(() => {
-    return localStorage.getItem('smart_freeze_token') ?? 'dev_token_admin';
-  });
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
+const initialsFrom = (name: string): string =>
+  name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 
-  const currentPersona = PERSONAS.find((p) => p.token === activeToken) ?? PERSONAS[0];
+export const Navbar: React.FC<NavbarProps> = ({
+  title,
+  subtitle,
+  section = 'Workspace',
+  currentUser,
+  personas,
+  onSelectPersona,
+  onSignOut,
+}) => {
+  const [open, setOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
-      }
+    const closeOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', closeOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
   }, []);
 
-  const handleSelectPersona = (persona: Persona) => {
-    if (persona.token) {
-      localStorage.setItem('smart_freeze_token', persona.token);
-    } else {
-      localStorage.removeItem('smart_freeze_token');
+  const choosePersona = async (personaId: string) => {
+    setSwitching(true);
+    try {
+      await onSelectPersona(personaId);
+      setOpen(false);
+    } finally {
+      setSwitching(false);
     }
-    setActiveToken(persona.token);
-    setDropdownOpen(false);
-    window.dispatchEvent(new Event('auth-changed'));
   };
 
   return (
-    <header className="fh-header">
-      {/* Search Bar */}
-      <div className="fh-search-container">
-        <Search size={16} className="text-slate-400 fh-search-icon" />
-        <input
-          type="text"
-          className="fh-search-input"
-          placeholder="Search cases, accounts, transaction reference..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <div className="fh-search-shortcut">
-          <span>⌘</span>
-          <span>K</span>
+    <header className="fh-topbar">
+      <div className="fh-topbar-main">
+        <div className="fh-breadcrumb">
+          <span>FairHold</span><span className="fh-breadcrumb-divider">/</span><span>{section}</span>
         </div>
+        <h1 className="fh-topbar-title">{title}</h1>
+        {subtitle && <p className="fh-topbar-subtitle">{subtitle}</p>}
       </div>
 
-      {/* Right Actions */}
-      <div className="fh-header-actions">
-        {/* Notifications */}
-        <button className="fh-header-btn relative" title="Notifications" aria-label="Notifications">
-          <Bell size={18} className="text-slate-600" />
-          <span className="fh-notification-dot" />
-        </button>
-
-        {/* Theme Toggle */}
-        <button className="fh-header-btn" title="Toggle theme" aria-label="Toggle theme">
-          <Sun size={18} className="text-slate-600" />
-        </button>
-
-        {/* User Profile Pill & Persona Switcher */}
-        <div className="relative" ref={dropdownRef}>
+      <div className="fh-topbar-actions">
+        <div className="fh-env-chip"><span className="status-dot status-dot--warning" /><span>Local demo · synthetic data</span></div>
+        <div className="fh-user-menu" ref={menuRef}>
           <button
-            className="fh-profile-pill"
-            onClick={() => setDropdownOpen(!dropdownOpen)}
-            aria-expanded={dropdownOpen}
-            aria-haspopup="true"
+            className="fh-profile-trigger"
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={open}
+            onClick={() => setOpen((value) => !value)}
           >
-            <div className="fh-profile-avatar">
-              <span>{currentPersona.initials}</span>
-            </div>
-            <div className="fh-profile-info">
-              <span className="fh-profile-name">{currentPersona.name}</span>
-              <span className="fh-profile-role">{currentPersona.role}</span>
-            </div>
-            <ChevronDown size={14} className="text-slate-400 ml-1" />
+            <span className="fh-profile-avatar">{initialsFrom(currentUser.display_name)}</span>
+            <span className="fh-profile-details">
+              <span className="fh-profile-name">{currentUser.display_name}</span>
+              <span className="fh-profile-role">{currentUser.role.replace(/_/g, ' ')}</span>
+            </span>
+            <ChevronDown size={14} />
           </button>
 
-          {/* Interactive Dropdown */}
-          {dropdownOpen && (
-            <div className="fh-persona-dropdown">
-              <div className="fh-persona-header">
-                <div className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                  <Shield size={13} className="text-emerald-600" />
-                  Active Security Persona
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5">
-                  Switching personas triggers live RBAC &amp; BOLA enforcement.
-                </div>
+          {open && (
+            <div className="fh-user-dropdown" role="menu">
+              <div className="fh-user-dropdown-heading">
+                <ShieldCheck size={14} />
+                <span>Local demonstration identities</span>
               </div>
-
-              <div className="py-1">
-                {PERSONAS.map((persona) => {
-                  const isSelected = persona.token === activeToken;
-                  return (
-                    <button
-                      key={persona.id}
-                      onClick={() => handleSelectPersona(persona)}
-                      className={`fh-persona-item ${isSelected ? 'is-selected' : ''}`}
-                    >
-                      <div className="fh-persona-item-avatar">
-                        {persona.initials}
-                      </div>
-                      <div className="flex-1 min-w-0 text-left">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-slate-800">
-                            {persona.name}
-                          </span>
-                          <span className="fh-persona-badge">
-                            {persona.badge}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 truncate">
-                          {persona.role} · {persona.cases}
-                        </div>
-                      </div>
-                      {isSelected && (
-                        <Check size={14} className="text-emerald-600 ml-2 flex-shrink-0" />
-                      )}
-                    </button>
-                  );
-                })}
+              <p className="fh-user-dropdown-note">Role switching is simulated and is not production authentication.</p>
+              {personas.map((persona) => (
+                <button
+                  type="button"
+                  role="menuitem"
+                  key={persona.persona_id}
+                  disabled={switching || persona.persona_id === currentUser.user_id}
+                  onClick={() => void choosePersona(persona.persona_id)}
+                  className={"fh-user-option" + (persona.persona_id === currentUser.user_id ? " is-current" : "")}
+                >
+                  <span className="fh-profile-avatar fh-profile-avatar--small">{initialsFrom(persona.display_name)}</span>
+                  <span className="fh-user-option-copy">
+                    <span className="fh-profile-name">{persona.display_name}</span>
+                    <span className="fh-profile-role">{persona.role} · {persona.assigned_case_count} assigned cases</span>
+                  </span>
+                  {persona.persona_id === currentUser.user_id && <span className="fh-current-label">Current</span>}
+                </button>
+              ))}
+              <div className="fh-user-dropdown-footer">
+                <span className="fh-profile-role">{currentUser.institution_id}</span>
+                <button type="button" className="fh-signout-button" onClick={() => { setOpen(false); onSignOut(); }}>
+                  <LogOut size={13} /> End session
+                </button>
               </div>
             </div>
           )}
