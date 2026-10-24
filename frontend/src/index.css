@@ -56,13 +56,14 @@ a { color: inherit; text-decoration: none; }
 /* Legacy page components share a quiet, paper-like visual system. These rules intentionally
    avoid changing data, loading logic or the semantics of individual views. */
 .workspace-main .max-w-7xl { max-width: none; margin-left: 0; margin-right: 0; }
-.workspace-main .p-8 { padding: 0; }
 .workspace-main .bg-white { background-color: var(--paper); }
 .workspace-main .border-slate-200 { border-color: var(--line); }
 .workspace-main .rounded-xl { border-radius: 9px; }
 .workspace-main .rounded-2xl { border-radius: 10px; }
 .workspace-main .shadow-sm { box-shadow: 0 1px 2px rgba(30, 45, 36, .035); }
-.workspace-main .shadow-lg { box-shadow: none; }
+.workspace-main .shadow-lg, .workspace-main .shadow-xl { box-shadow: none; }
+.workspace-main .bg-gradient-to-r { background-image: none !important; background-color: #263e34; }
+.workspace-main .blur-3xl { display: none; }
 .workspace-main .text-slate-900 { color: var(--ink); }
 .workspace-main .text-slate-800 { color: #2c3734; }
 .workspace-main .text-slate-500 { color: var(--muted); }
@@ -188,3 +189,20 @@ a { color: inherit; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* Quiet enterprise defaults for existing page controls. */
+.workspace-main input:not([type="checkbox"]), .workspace-main select, .workspace-main textarea {
+  border-color: #dfe2d8;
+  border-radius: 6px;
+}
+.workspace-main input:not([type="checkbox"]):focus, .workspace-main select:focus, .workspace-main textarea:focus {
+  outline: none;
+  border-color: #7b9a84;
+  box-shadow: 0 0 0 3px rgba(83, 123, 95, .10);
+}
+.workspace-main table { border-collapse: separate; border-spacing: 0; }
+.workspace-main thead { background: #f0f1e9; }
+.workspace-main th { font: 500 9px/1.4 var(--mono); letter-spacing: .08em; color: #778176; }
+.workspace-main td { border-color: #e9ebe3; }
+.workspace-main button { transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease; }
+.workspace-main button:disabled { cursor: not-allowed; }
