@@ -353,13 +353,56 @@ The generator uses a seedable Pseudo-Random Number Generator (`random.Random(see
 | **Elliptic Bitcoin** | `data/raw/elliptic_bitcoin_dataset/` | Supported | Cryptocurrency transaction graph (`elliptic_txs_classes.csv`, `elliptic_txs_edgelist.csv`, `elliptic_txs_features.csv`). Labels: illicit (1), licit (2), unknown. Preserves directed UTXO flows; does NOT represent bank accounts or INR balances. |
 | **SynthAML Alerts** | `data/raw/synthetic_alerts.csv` | Partially Supported (Orphan) | Contains 20,000 alerts with Outcome (`Report`, `Dismiss`). Companion `synthetic_transactions.csv` is missing from `data/raw/`. Retained as orphan alerts; companion is not fabricated. |
 | **AMLNet** | `data/raw/AMLNet_August 2025.csv` | Supported (Separate) | Australian multi-channel banking transaction dataset (1.09M rows) with 17 features including typologies (`structuring`, `layering`, `integration`). Treated as independent dataset; NOT conflated with SynthAML. |
+| **European Credit Card Fraud** | `data/raw/creditcard.csv` | Supported (Real Historical) | ULB / Worldline benchmark (284,807 transactions, 492 fraud cases, 0.173% fraud rate) with PCA features `V1`–`V28`, `Time`, and `Amount`. Used strictly for isolated ML transaction fraud classification. |
 
 ### Supplying Optional Public Datasets
+- **European Credit Card Fraud**: Place `creditcard.csv` in `data/raw/` (or download via Kaggle: `https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud`).
 - **Elliptic**: Place `elliptic_txs_classes.csv`, `elliptic_txs_edgelist.csv`, and optionally `elliptic_txs_features.csv` in `data/raw/elliptic_bitcoin_dataset/`.
 - **SynthAML**: Place `synthetic_alerts.csv` and `synthetic_transactions.csv` in `data/raw/`.
 - **AMLNet**: Place `AMLNet_August 2025.csv` in `data/raw/`.
 
 Raw datasets remain immutable under `data/raw/` and are never committed if exceeding repository limits.
+
+---
+
+## 8. Machine Learning Transaction Fraud Classifier
+
+### Dataset Provenance
+- Source: European Credit Card Fraud Detection (ULB Machine Learning Group & Worldline, Kaggle).
+- Dimensions: 284,807 rows, 30 features (`Time`, `V1`..`V28`, `Amount`), target `Class` (492 fraud cases, 0.173% class imbalance).
+- Splitting: Stratified 70% Train (199,364 rows), 15% Validation (42,721 rows), and 15% Held-Out Test (42,722 rows) with fixed random seed (`42`). The test set is strictly held out.
+- Preprocessing: `RobustScaler` fitted strictly on training data for `Time` and `Amount`; PCA features passed through. Target weighting applied strictly in training.
+
+### Model Comparison & Held-Out Test Metrics
+Operating threshold selected on validation data ($\tau = 0.63$) to optimize F1 score for minority fraud class:
+
+| Model | Operating Threshold | Precision | Recall | F1-Score | PR-AUC | ROC-AUC | Accuracy (Suppl.) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Random Forest (Primary)** | **0.63** | **87.50%** | **75.68%** | **0.8116** | **0.8079** | **0.9706** | **99.94%** |
+| Logistic Regression (Baseline) | 0.95 | 42.76% | 83.78% | 0.5662 | 0.7923 | 0.9677 | 99.88% |
+
+- **Held-Out Confusion Matrix (Random Forest on 42,722 test samples)**:
+  - True Positives (TP): 56
+  - False Positives (FP): 8 (False positive rate: 0.019%)
+  - False Negatives (FN): 18
+  - True Negatives (TN): 42,640
+
+### Training CLI Command
+```bash
+python scripts/train_ml_model.py
+```
+Outputs versioned pipeline `models/fraud_detector_v1.joblib`, evaluation report `models/model_metadata.json`, and 10 real demo samples `models/demo_samples.json`.
+
+### ML Endpoints
+- `GET /api/ml/status` — Model load status, version, operating threshold, and feature schema.
+- `GET /api/ml/evaluation` — Full held-out test evaluation report comparing Random Forest and Baseline Logistic Regression.
+- `GET /api/ml/demo-samples` — Verified real test samples for interactive UI prediction demos.
+- `POST /api/ml/predict` — Evaluates fraud risk score for a 30-dimensional feature vector, returning score, threshold, predicted label, and governance disclaimer.
+
+### Architectural Boundary & Governance
+- **Strict Isolation**: The ML classifier evaluates credit card PCA features and operates as an independent transaction fraud risk signal.
+- **No Alteration of Tracing**: It does NOT alter or influence Proportional tracing, FIFO tracing, LIBR tracing, or Consensus Lien recovery estimates.
+- **Decision Support**: The output is an uncalibrated heuristic risk score and does NOT constitute legal proof of guilt or automatic account freeze justification.
 
 ---
 

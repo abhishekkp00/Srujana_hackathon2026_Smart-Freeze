@@ -46,3 +46,9 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+
+# Trained Model Artifacts
+models/*.joblib
+models/*.pkl
+!models/.gitkeep
+!models/*.json

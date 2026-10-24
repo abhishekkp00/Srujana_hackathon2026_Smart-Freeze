@@ -9,6 +9,10 @@ import {
   ConsensusLienData,
   PriorityScoreData,
   DataQualityData,
+  MLStatusData,
+  MLEvaluationReport,
+  MLDemoSample,
+  MLPredictResponse,
 } from '../types';
 
 export const getOverview = async (): Promise<OverviewData> => {
@@ -78,5 +82,29 @@ export const getCasePriorityScore = async (caseId: string): Promise<PriorityScor
 
 export const getDataQuality = async (): Promise<DataQualityData> => {
   const { data } = await apiClient.get<DataQualityData>('/api/data-quality');
+  return data;
+};
+
+// ==============================================================================
+// ML Fraud Classifier Endpoints
+// ==============================================================================
+
+export const getMLStatus = async (): Promise<MLStatusData> => {
+  const { data } = await apiClient.get<MLStatusData>('/api/ml/status');
+  return data;
+};
+
+export const getMLEvaluation = async (): Promise<MLEvaluationReport> => {
+  const { data } = await apiClient.get<MLEvaluationReport>('/api/ml/evaluation');
+  return data;
+};
+
+export const getMLDemoSamples = async (): Promise<MLDemoSample[]> => {
+  const { data } = await apiClient.get<MLDemoSample[]>('/api/ml/demo-samples');
+  return data;
+};
+
+export const predictFraud = async (features: Record<string, number>): Promise<MLPredictResponse> => {
+  const { data } = await apiClient.post<MLPredictResponse>('/api/ml/predict', { features });
   return data;
 };

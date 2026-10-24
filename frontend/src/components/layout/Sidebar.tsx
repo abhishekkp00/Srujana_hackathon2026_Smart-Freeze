@@ -8,6 +8,7 @@ import {
   Database,
   ShieldCheck,
   AlertTriangle,
+  Cpu,
 } from 'lucide-react';
 
 const navItems = [
@@ -15,6 +16,7 @@ const navItems = [
   { to: '/explorer', label: 'Transaction Explorer', icon: GitFork },
   { to: '/consensus-lien', label: 'Consensus Lien', icon: Scale },
   { to: '/investigation', label: 'Investigation Review', icon: ShieldAlert },
+  { to: '/ml-analysis', label: 'ML Fraud Classifier', icon: Cpu },
   { to: '/data-quality', label: 'Data Quality & Audit', icon: Database },
 ];
 

@@ -193,3 +193,74 @@ export interface DataQualityData {
   overall_status: string;
   ledger_conservation_valid: boolean;
 }
+
+export interface MLStatusData {
+  status: string;
+  model_version?: string;
+  algorithm?: string;
+  selected_threshold?: number;
+  feature_count: number;
+  features: string[];
+  training_timestamp?: string;
+  dataset_source?: string;
+  held_out_test_f1?: number;
+  held_out_test_pr_auc?: number;
+}
+
+export interface ConfusionMatrixData {
+  true_negatives: number;
+  false_positives: number;
+  false_negatives: number;
+  true_positives: number;
+}
+
+export interface ModelMetricsData {
+  model_name: string;
+  precision: number;
+  recall: number;
+  f1_score: number;
+  pr_auc: number;
+  roc_auc: number;
+  accuracy: number;
+  confusion_matrix: ConfusionMatrixData;
+  threshold_used: number;
+  threshold_selection_reason: string;
+}
+
+export interface MLEvaluationReport {
+  dataset_source: string;
+  dataset_rows: number;
+  fraud_count: number;
+  non_fraud_count: number;
+  train_size: number;
+  val_size: number;
+  test_size: number;
+  features: string[];
+  training_timestamp: string;
+  random_seed: number;
+  selected_model: string;
+  selected_threshold: number;
+  primary_model_metrics: ModelMetricsData;
+  baseline_model_metrics: ModelMetricsData;
+  governance_notice: string;
+}
+
+export interface MLDemoSample {
+  sample_id: string;
+  description: string;
+  ground_truth_class: number;
+  ground_truth_label: string;
+  features: Record<string, number>;
+}
+
+export interface MLPredictResponse {
+  predicted_class: number;
+  predicted_label: string;
+  model_score: number;
+  threshold_used: number;
+  model_version: string;
+  algorithm: string;
+  score_type: string;
+  explanation: string;
+  governance_notice: string;
+}

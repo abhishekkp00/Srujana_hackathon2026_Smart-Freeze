@@ -7,6 +7,7 @@ import { TransactionExplorer } from './pages/TransactionExplorer';
 import { ConsensusLien } from './pages/ConsensusLien';
 import { InvestigationReview } from './pages/InvestigationReview';
 import { DataQuality } from './pages/DataQuality';
+import { MLAnalysis } from './pages/MLAnalysis';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
@@ -32,6 +33,11 @@ const AppContent: React.FC = () => {
         return {
           title: 'Investigation Priority Review',
           subtitle: 'Explainable prioritization score and structured evidence breakdown',
+        };
+      case '/ml-analysis':
+        return {
+          title: 'ML Transaction Fraud Classifier',
+          subtitle: 'European credit card fraud benchmark model and real test vector prediction',
         };
       case '/data-quality':
         return {
@@ -65,6 +71,7 @@ const AppContent: React.FC = () => {
             <Route path="/explorer" element={<TransactionExplorer />} />
             <Route path="/consensus-lien" element={<ConsensusLien />} />
             <Route path="/investigation" element={<InvestigationReview />} />
+            <Route path="/ml-analysis" element={<MLAnalysis />} />
             <Route path="/data-quality" element={<DataQuality />} />
           </Routes>
         </main>

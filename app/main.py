@@ -32,6 +32,8 @@ from engine.transaction_graph import TransactionGraphEngine
 from pipeline.adapters.synthetic_adapter import SyntheticAdapter
 from pipeline.profiling import DatasetProfile
 from pipeline.schemas import EXTERNAL_ACCOUNT_PREFIX, DatasetType
+from ml.service import MLService, ModelArtifactError
+from ml.schemas import PredictRequest, PredictResponse
 
 # Base paths
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -948,9 +950,85 @@ def get_data_quality():
             )
         )
 
+    # 5. European Credit Card Fraud Detection
+    creditcard_file = RAW_DIR / "creditcard.csv"
+    if creditcard_file.exists():
+        datasets.append(
+            DataQualityDatasetItem(
+                dataset_name="European Credit Card Fraud",
+                category="Real-World Card Transactions",
+                status="SUPPORTED_EXTERNAL",
+                file_count=1,
+                total_rows=284807,
+                columns_valid=True,
+                warnings=[
+                    "PCA-transformed features V1-V28 with Time and Amount.",
+                    "Isolated machine-learning evaluation dataset; not linked to bank ledger or Consensus Lien.",
+                ],
+                notes="ULB / Worldline benchmark with 492 fraud cases across 284,807 transactions (0.173% fraud rate).",
+            )
+        )
+    else:
+        datasets.append(
+            DataQualityDatasetItem(
+                dataset_name="European Credit Card Fraud",
+                category="Real-World Card Transactions",
+                status="NOT_INSTALLED",
+                file_count=0,
+                total_rows=0,
+                columns_valid=False,
+                warnings=["creditcard.csv not found in data/raw/."],
+                notes="Required for ML transaction fraud classifier.",
+            )
+        )
+
     data = get_ledger_data()
     return DataQualityResponse(
         datasets=datasets,
         overall_status="OPERATIONAL",
         ledger_conservation_valid=data["validation_report"].is_valid,
     )
+
+
+# ==============================================================================
+# 9. Machine Learning Classifier Endpoints
+# ==============================================================================
+
+@app.get("/api/ml/status")
+def get_ml_status() -> Dict[str, Any]:
+    """Return model readiness, artifact version, operating threshold, and feature schema."""
+    service = MLService.get_instance()
+    return service.get_status()
+
+
+@app.get("/api/ml/evaluation")
+def get_ml_evaluation() -> Dict[str, Any]:
+    """Return held-out test evaluation report comparing Random Forest and Baseline LR."""
+    service = MLService.get_instance()
+    try:
+        return service.get_evaluation_report()
+    except ModelArtifactError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@app.get("/api/ml/demo-samples")
+def get_ml_demo_samples() -> List[Dict[str, Any]]:
+    """Return verified real test samples for interactive UI prediction demos."""
+    service = MLService.get_instance()
+    return service.get_demo_samples()
+
+
+@app.post("/api/ml/predict", response_model=PredictResponse)
+def predict_fraud(request: PredictRequest) -> PredictResponse:
+    """Evaluate fraud risk score for a 30-dimensional feature vector.
+    
+    Validates exact feature names (Time, V1..V28, Amount) and numeric types.
+    Does NOT modify financial tracing or Consensus Lien calculations.
+    """
+    service = MLService.get_instance()
+    try:
+        return service.predict(request.features)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except ModelArtifactError as e:
+        raise HTTPException(status_code=503, detail=str(e))
