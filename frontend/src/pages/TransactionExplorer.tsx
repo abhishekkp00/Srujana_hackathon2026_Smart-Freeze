@@ -150,7 +150,7 @@ export const TransactionExplorer: React.FC = () => {
       }
     };
     fetchHistory();
-  }, [selectedAccountId]);
+  }, [selectedAccountId, selectedCaseId]);
 
   // Cytoscape initialization and updates
   useEffect(() => {
@@ -317,11 +317,11 @@ export const TransactionExplorer: React.FC = () => {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => {
-                setSelectedCaseId('');
                 setSelectedAccountId('');
                 setTypeFilter('');
                 setStatusFilter('');
                 setSearchQuery('');
+                setPage(0);
               }}
               className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center"
             >
@@ -487,14 +487,18 @@ export const TransactionExplorer: React.FC = () => {
                     <div className="space-y-1.5 pt-1">
                       <div className="flex justify-between py-1 border-b border-slate-100">
                         <span className="text-slate-500">Reconstructed Final Balance:</span>
-                        <span className="font-bold text-slate-900">
-                          ₹{Number(selectedGraphElement.data.finalBalanceInr || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
+                        {selectedGraphElement.data.finalBalanceInr == null ? (
+                          <span className="font-medium text-slate-500">Unavailable in this case scope</span>
+                        ) : (
+                          <span className="font-bold text-slate-900">
+                            ₹{Number(selectedGraphElement.data.finalBalanceInr).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        )}
                       </div>
                       <div className="flex justify-between py-1 border-b border-slate-100">
                         <span className="text-slate-500">Statement Completeness:</span>
-                        <span className={selectedGraphElement.data.historyComplete ? 'text-emerald-700 font-semibold' : 'text-rose-600 font-bold'}>
-                          {selectedGraphElement.data.historyComplete ? 'Complete History' : 'Incomplete History (!)'}
+                        <span className={selectedGraphElement.data.historyComplete == null ? 'text-slate-500' : selectedGraphElement.data.historyComplete ? 'text-emerald-700 font-semibold' : 'text-rose-600 font-bold'}>
+                          {selectedGraphElement.data.historyComplete == null ? 'Unknown in this scope' : selectedGraphElement.data.historyComplete ? 'Complete History' : 'Incomplete History'}
                         </span>
                       </div>
                     </div>
