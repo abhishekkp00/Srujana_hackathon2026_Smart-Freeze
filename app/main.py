@@ -195,6 +195,21 @@ def get_ledger_data() -> Dict[str, Any]:
     return _reconstructed_ledger
 
 
+def select_case_source_transaction(case_transactions: pd.DataFrame) -> Optional[pd.Series]:
+    """Select one deterministic source transaction consistently across case, graph and tracing APIs."""
+    if case_transactions.empty:
+        return None
+    ordered = case_transactions.copy()
+    ordered["_source_sort_timestamp"] = pd.to_datetime(ordered["timestamp"], utc=True, errors="coerce")
+    ordered = ordered.sort_values(["_source_sort_timestamp", "transaction_id"], kind="stable")
+    if "evidence_status" in ordered.columns:
+        suspected = ordered[ordered["evidence_status"].astype(str).str.lower() == "suspected_fraud"]
+    else:
+        suspected = ordered.iloc[0:0]
+    selected = suspected.iloc[0] if not suspected.empty else ordered.iloc[0]
+    return selected.drop(labels=["_source_sort_timestamp"], errors="ignore")
+
+
 def get_scoring_engine() -> InvestigationScoringEngine:
     global _scoring_engine
     if _scoring_engine is None:
@@ -579,7 +594,8 @@ def list_cases(auth: AuthContext = Depends(get_current_user)):
         cid = str(row["case_id"])
         rep_amt = int(row["reported_amount_paise"])
         case_txs = txs_df[txs_df["case_id"] == cid]
-        origin_tx = case_txs.iloc[0]["transaction_id"] if not case_txs.empty else None
+        source_row = select_case_source_transaction(case_txs)
+        origin_tx = str(source_row["transaction_id"]) if source_row is not None else None
 
         sc = score_map.get(cid)
         result.append(
@@ -920,11 +936,9 @@ def get_transaction_graph(
         case_rows = transactions_df[transactions_df["case_id"].fillna("").astype(str).str.strip() == case_id].copy()
         if case_rows.empty:
             raise HTTPException(status_code=404, detail=f"No ledger transactions are linked to case '{case_id}'.")
-
-        case_rows["_flow_ts"] = pd.to_datetime(case_rows["timestamp"], utc=True, errors="coerce")
-        case_rows = case_rows.sort_values(["_flow_ts", "transaction_id"], kind="stable")
-        suspected = case_rows[case_rows["evidence_status"].astype(str).str.lower() == "suspected_fraud"]
-        origin = (suspected.iloc[0] if not suspected.empty else case_rows.iloc[0])
+        origin = select_case_source_transaction(case_rows)
+        if origin is None:
+            raise HTTPException(status_code=404, detail=f"No source transaction is available for case '{case_id}'.")
         source_transaction_id = str(origin["transaction_id"])
         source_amount_paise = int(origin["amount_paise"])
         origin_timestamp = pd.to_datetime(origin["timestamp"], utc=True, errors="coerce")
@@ -1140,7 +1154,9 @@ def get_consensus_lien(
     if case_txs.empty:
         raise HTTPException(status_code=400, detail=f"No transactions linked to case '{case_id}'.")
 
-    origin_tx = case_txs.iloc[0]
+    origin_tx = select_case_source_transaction(case_txs)
+    if origin_tx is None:
+        raise HTTPException(status_code=400, detail=f"No source transaction is available for case '{case_id}'.")
     origin_tx_id = str(origin_tx["transaction_id"])
     origin_amt = int(origin_tx["amount_paise"])
 
