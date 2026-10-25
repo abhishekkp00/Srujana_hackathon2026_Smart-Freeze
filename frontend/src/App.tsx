@@ -6,6 +6,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Navbar } from './components/layout/Navbar';
 import { Overview } from './pages/Overview';
 import { TransactionExplorer } from './pages/TransactionExplorer';
+import { MoneyFlow } from './pages/MoneyFlow';
 import { ConsensusLien } from './pages/ConsensusLien';
 import { InvestigationReview } from './pages/InvestigationReview';
 import { DataQuality } from './pages/DataQuality';
@@ -42,7 +43,8 @@ interface Session {
 
 const PAGE_META: Record<string, { title: string; subtitle: string; section: string }> = {
   '/': { title: 'Case overview', subtitle: 'Review the current analytical ledger and open investigations.', section: 'Workspace' },
-  '/explorer': { title: 'Transaction explorer', subtitle: 'Follow recorded transfers and inspect balance history.', section: 'Investigation' },
+  '/explorer': { title: 'Transaction explorer', subtitle: 'Inspect source records, filters and account balance history.', section: 'Investigation' },
+  '/money-flow': { title: 'Money flow reconstruction', subtitle: 'Follow case-linked transactions and chronologically reachable account activity.', section: 'Investigation' },
   '/consensus-lien': { title: 'Fund tracing comparison', subtitle: 'Compare proportional, FIFO and LIBR attribution assumptions.', section: 'Analysis' },
   '/traceproof': { title: 'TraceProof', subtitle: 'Inspect source-attested links across simulated financial rails.', section: 'Investigation' },
   '/investigation': { title: 'Case review', subtitle: 'Review the records supporting an investigation-priority assessment.', section: 'Investigation' },
@@ -79,6 +81,7 @@ const AppContent: React.FC<AppContentProps> = ({ session, personas, onSelectPers
             <Routes>
               <Route path="/" element={<Overview />} />
               <Route path="/explorer" element={<TransactionExplorer />} />
+              <Route path="/money-flow" element={<MoneyFlow />} />
               <Route path="/consensus-lien" element={<ConsensusLien />} />
               <Route path="/traceproof" element={<TraceProof />} />
               <Route path="/investigation" element={<InvestigationReview />} />
