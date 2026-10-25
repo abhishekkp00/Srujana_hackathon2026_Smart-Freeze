@@ -157,6 +157,8 @@ def test_api_graph_endpoint():
         assert "flagged_by_case_evidence" in node
     flagged_node_ids = {node["id"] for node in graph["nodes"] if node["flagged_by_case_evidence"]}
     assert "ACC_MULE_DIRECT_01" in flagged_node_ids
+    assert "ACC_COMMINGLED_01" in flagged_node_ids
+    assert "ACC_VICTIM_01" not in flagged_node_ids
     source_edges = [edge for edge in graph["edges"] if edge["is_source_transaction"]]
     assert len(source_edges) == 1
     assert source_edges[0]["id"] == graph["source_transaction_id"]
