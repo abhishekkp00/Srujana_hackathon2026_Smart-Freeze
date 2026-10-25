@@ -80,6 +80,7 @@ const AuthGate: React.FC = () => {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [demoPersona, setDemoPersona] = useState<DemoPersona | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [showLanding, setShowLanding] = useState(true);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +134,7 @@ const AuthGate: React.FC = () => {
       });
       window.localStorage.setItem(DEMO_TOKEN_KEY, response.data.token);
       await loadSession();
+      setShowLanding(false);
       window.dispatchEvent(new Event('auth-changed'));
     } catch (cause) {
       window.localStorage.removeItem(DEMO_TOKEN_KEY);
@@ -142,9 +144,18 @@ const AuthGate: React.FC = () => {
     }
   }, [demoPersona, loadSession]);
 
+  const enterWorkspace = useCallback(() => {
+    if (session) {
+      setShowLanding(false);
+      return;
+    }
+    void startDemoSession();
+  }, [session, startDemoSession]);
+
   const signOut = useCallback(() => {
     window.localStorage.removeItem(DEMO_TOKEN_KEY);
     setSession(null);
+    setShowLanding(true);
     setError(null);
   }, []);
 
@@ -156,7 +167,7 @@ const AuthGate: React.FC = () => {
     );
   }
 
-  if (session) {
+  if (session && !showLanding) {
     return (
       <Router>
         <AppContent session={session} onSignOut={signOut} />
@@ -164,13 +175,21 @@ const AuthGate: React.FC = () => {
     );
   }
 
+  const landingPersona = session ? {
+    persona_id: session.user.user_id,
+    display_name: session.user.display_name,
+    role: session.user.role,
+    assigned_case_count: session.user.assigned_case_count,
+    institution_id: session.user.institution_id,
+  } : demoPersona;
+
   return (
     <LandingPage
-      demoEnabled={Boolean(authStatus?.demo_auth_enabled)}
-      demoPersona={demoPersona}
+      demoEnabled={Boolean(session || authStatus?.demo_auth_enabled)}
+      demoPersona={landingPersona}
       starting={starting}
       error={error}
-      onEnterDemo={() => void startDemoSession()}
+      onEnterDemo={enterWorkspace}
     />
   );
 };
