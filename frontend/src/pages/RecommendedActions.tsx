@@ -16,9 +16,13 @@ import {
   FileCheck,
   FileQuestion,
   HelpCircle,
+  FileKey,
+  Copy,
+  Download,
+  X,
 } from 'lucide-react';
-import { getCases, getCaseRecommendations } from '../api/endpoints';
-import { CaseSummary, CaseRecommendationsData, AccountRecommendation } from '../types';
+import { getCases, getCaseRecommendations, getReceipt } from '../api/endpoints';
+import { CaseSummary, CaseRecommendationsData, AccountRecommendation, ReceiptData } from '../types';
 
 const inr = (amountPaise: number) => {
   const inrValue = (amountPaise || 0) / 100;
@@ -109,6 +113,42 @@ export const RecommendedActions: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionFilter, setActionFilter] = useState('ALL');
+
+  // Receipt Modal State
+  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
+  const [loadingReceipt, setLoadingReceipt] = useState<boolean>(false);
+  const [copied, setCopied] = useState<boolean>(false);
+
+  const handleViewReceipt = async (receiptId: string) => {
+    setLoadingReceipt(true);
+    try {
+      const rcpt = await getReceipt(receiptId);
+      setSelectedReceipt(rcpt);
+    } catch (err: any) {
+      alert(`Could not load receipt: ${err.message}`);
+    } finally {
+      setLoadingReceipt(false);
+    }
+  };
+
+  const handleDownloadReceipt = () => {
+    if (!selectedReceipt) return;
+    const jsonStr = JSON.stringify(selectedReceipt, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedReceipt.receipt_id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopyJson = () => {
+    if (!selectedReceipt) return;
+    navigator.clipboard.writeText(JSON.stringify(selectedReceipt, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -461,6 +501,7 @@ export const RecommendedActions: React.FC = () => {
                   <th className="px-4 py-3 font-semibold">Harm / Mule</th>
                   <th className="px-4 py-3 font-semibold">Approval Gate</th>
                   <th className="px-4 py-3 font-semibold">Reasons & Governance</th>
+                  <th className="px-4 py-3 font-semibold text-teal-800">Receipt</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -563,6 +604,20 @@ export const RecommendedActions: React.FC = () => {
                           })}
                         </div>
                       </td>
+
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {rec.receipt_id ? (
+                          <button
+                            onClick={() => handleViewReceipt(rec.receipt_id!)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-teal-50 text-teal-800 border border-teal-300 hover:bg-teal-100 transition-colors cursor-pointer"
+                            title="Inspect cryptographically signed Ed25519 hold receipt"
+                          >
+                            <FileKey size={11} /> {rec.receipt_id.substring(0, 9)}...
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic">—</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -571,6 +626,111 @@ export const RecommendedActions: React.FC = () => {
           </div>
         )}
       </section>
+
+      {/* Cryptographic Receipt Inspection Modal */}
+      {selectedReceipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <FileKey className="w-5 h-5 text-teal-600" />
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">
+                    Cryptographic Hold Receipt
+                  </h3>
+                  <span className="font-mono text-xs text-slate-500">
+                    {selectedReceipt.receipt_id}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedReceipt(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4 text-xs">
+              {/* Receipt Parameters Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 font-mono">
+                <div>
+                  <span className="text-[10px] text-slate-500 block">Account ID</span>
+                  <span className="font-bold text-slate-800">{selectedReceipt.account_id}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block">Action</span>
+                  <span className="font-bold text-indigo-700">{selectedReceipt.action}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block">Core Bound</span>
+                  <span className="font-bold text-emerald-700">{inr(selectedReceipt.core)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block">Margin Bound</span>
+                  <span className="font-bold text-amber-700">{inr(selectedReceipt.margin)}</span>
+                </div>
+              </div>
+
+              {/* Cryptographic Hashes & Signatures */}
+              <div className="space-y-1.5 font-mono text-[11px] bg-slate-900 text-slate-200 p-3.5 rounded-lg border border-slate-800">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                  <span className="text-teal-400 font-bold uppercase tracking-wider text-[10px]">Ed25519 Digital Signature</span>
+                  <span className="text-[10px] text-slate-400">SHA-256 Digest</span>
+                </div>
+                <div className="pt-1">
+                  <span className="text-slate-400 block text-[10px]">Ledger Slice Hash:</span>
+                  <span className="text-amber-300 break-all">{selectedReceipt.ledger_slice_hash}</span>
+                </div>
+                <div className="pt-1">
+                  <span className="text-slate-400 block text-[10px]">Ed25519 Public Key:</span>
+                  <span className="text-emerald-400 break-all">{selectedReceipt.public_key}</span>
+                </div>
+                <div className="pt-1">
+                  <span className="text-slate-400 block text-[10px]">Digital Signature (Hex):</span>
+                  <span className="text-indigo-300 break-all">{selectedReceipt.signature}</span>
+                </div>
+              </div>
+
+              {/* Standalone Verifier Instructions */}
+              <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-950">
+                <span className="font-bold block text-xs mb-1">Verify with Standalone Script:</span>
+                <p className="text-[11px] leading-relaxed mb-2 text-indigo-900">
+                  Save this JSON and run the offline engine verifier (zero web app dependencies):
+                </p>
+                <code className="block bg-indigo-900 text-indigo-200 font-mono px-3 py-1.5 rounded text-xs">
+                  python -m verifier {selectedReceipt.receipt_id}.json
+                </code>
+              </div>
+
+              {/* Governance Limitation Notice */}
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-[11px] leading-relaxed">
+                <strong>Mandatory Governance Limitation:</strong> {selectedReceipt.governance_notice}
+              </div>
+            </div>
+
+            <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500 font-mono">
+                Approver: {selectedReceipt.approver} | {selectedReceipt.timestamp.substring(0, 19)}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCopyJson}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <Copy size={13} /> {copied ? 'Copied!' : 'Copy JSON'}
+                </button>
+                <button
+                  onClick={handleDownloadReceipt}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold bg-teal-600 text-white hover:bg-teal-500 transition-colors shadow-xs cursor-pointer"
+                >
+                  <Download size={13} /> Download receipt.json
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

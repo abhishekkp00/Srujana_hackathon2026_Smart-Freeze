@@ -83,6 +83,7 @@ class AccountRecommendation:
     held_margin_paise: int = 0
     effective_lien_paise: int = 0
     margin_hold_duration_hours: Optional[int] = None
+    receipt_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

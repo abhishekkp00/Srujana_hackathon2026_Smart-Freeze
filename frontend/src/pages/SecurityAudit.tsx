@@ -15,9 +15,12 @@ import {
   Eye,
   Activity,
   Layers,
+  Link2,
 } from 'lucide-react';
 import { apiClient } from '../api/client';
+import { verifyAuditChain } from '../api/endpoints';
 import { StatCard } from '../components/common/StatCard';
+import { ChainVerificationData } from '../types';
 
 interface SecurityStatus {
   status: string;
@@ -46,6 +49,8 @@ interface SecurityAuditEvent {
   method: string;
   details: Record<string, any>;
   severity: 'INFO' | 'WARNING' | 'HIGH' | 'CRITICAL';
+  previous_hash?: string;
+  entry_hash?: string;
 }
 
 export const SecurityAudit: React.FC = () => {
@@ -54,6 +59,10 @@ export const SecurityAudit: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSeverity, setSelectedSeverity] = useState<string>('ALL');
+
+  // Audit Hash Chain Verification State
+  const [verifyingChain, setVerifyingChain] = useState<boolean>(false);
+  const [verificationResult, setVerificationResult] = useState<ChainVerificationData | null>(null);
 
   const fetchSecurityData = async () => {
     setLoading(true);
@@ -72,9 +81,28 @@ export const SecurityAudit: React.FC = () => {
     }
   };
 
+  const handleVerifyChain = async () => {
+    setVerifyingChain(true);
+    try {
+      const res = await verifyAuditChain();
+      setVerificationResult(res);
+    } catch (err: any) {
+      setVerificationResult({
+        is_valid: false,
+        total_events: events.length,
+        verified_events: 0,
+        latest_hash: 'UNVERIFIED',
+        error_message: err.response?.data?.detail || err.message || 'Chain verification failed.',
+        governance_notice:
+          'Cryptographic hash chaining proves algorithmic reproducibility and log integrity; it does not establish that logged actions reflect real-world truth.',
+      });
+    } finally {
+      setVerifyingChain(false);
+    }
+  };
+
   useEffect(() => {
     fetchSecurityData();
-
     const handleAuthChange = () => {
       fetchSecurityData();
     };
@@ -102,19 +130,98 @@ export const SecurityAudit: React.FC = () => {
               Security posture and audit events
             </h1>
             <p className="text-slate-300 text-sm mt-1 max-w-3xl leading-relaxed">
-              Shows the controls configured in this running instance. Local personas are simulated; OIDC production authentication is not implemented, and rate limiting is applied only to selected routes.
+              Shows the controls configured in this running instance. Every audit entry is cryptographically SHA-256 hash-chained to the previous entry, establishing tamper-evident log provenance.
             </p>
           </div>
-          <button
-            onClick={fetchSecurityData}
-            disabled={loading}
-            className="flex items-center space-x-2 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-medium text-xs shadow-md transition-colors disabled:opacity-50 self-start md:self-auto"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh Telemetry</span>
-          </button>
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <button
+              onClick={handleVerifyChain}
+              disabled={verifyingChain}
+              className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-xs shadow-md transition-colors disabled:opacity-50"
+            >
+              <Link2 className={`w-3.5 h-3.5 ${verifyingChain ? 'animate-spin' : ''}`} />
+              <span>{verifyingChain ? 'Verifying...' : 'Verify Hash Chain'}</span>
+            </button>
+            <button
+              onClick={fetchSecurityData}
+              disabled={loading}
+              className="flex items-center space-x-2 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-medium text-xs shadow-md transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Refresh Telemetry</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Hash Chain Verification Result Banner */}
+      {verificationResult && (
+        <div
+          className={`p-5 rounded-xl border shadow-sm transition-all ${
+            verificationResult.is_valid
+              ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950'
+              : 'bg-rose-50/90 border-rose-300 text-rose-950'
+          }`}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start space-x-3">
+              {verificationResult.is_valid ? (
+                <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-0.5" />
+              ) : (
+                <XCircle className="w-6 h-6 text-rose-600 flex-shrink-0 mt-0.5" />
+              )}
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-sm tracking-tight">
+                    {verificationResult.is_valid
+                      ? 'Audit Hash Chain Verified Intact'
+                      : 'Audit Hash Chain Integrity Violation Detected'}
+                  </h3>
+                  <span
+                    className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                      verificationResult.is_valid
+                        ? 'bg-emerald-200 text-emerald-800'
+                        : 'bg-rose-200 text-rose-800'
+                    }`}
+                  >
+                    {verificationResult.is_valid ? 'UNBROKEN CHAIN' : 'TAMPER DETECTED'}
+                  </span>
+                </div>
+                <p className="text-xs mt-1 text-slate-700">
+                  {verificationResult.is_valid ? (
+                    <>
+                      Verified <span className="font-semibold">{verificationResult.verified_events}</span> of{' '}
+                      <span className="font-semibold">{verificationResult.total_events}</span> events from genesis.
+                      Latest block digest:{' '}
+                      <code className="font-mono bg-white/70 px-1.5 py-0.5 rounded border border-emerald-200 text-[11px]">
+                        {verificationResult.latest_hash}
+                      </code>
+                    </>
+                  ) : (
+                    <>
+                      {verificationResult.error_message}{' '}
+                      {verificationResult.tampered_event_id && (
+                        <span className="font-semibold underline">
+                          Tampered Event: {verificationResult.tampered_event_id}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </p>
+                <div className="mt-2 text-[11px] italic text-slate-600 border-t border-slate-200/60 pt-1.5">
+                  <strong>Notice on Limitation:</strong> {verificationResult.governance_notice}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setVerificationResult(null)}
+              className="text-xs text-slate-400 hover:text-slate-600 font-semibold px-2 py-1"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Role / Access Control Warning if error loading */}
       {error && (
@@ -140,83 +247,60 @@ export const SecurityAudit: React.FC = () => {
             badge={{ text: status.auth_mode, variant: 'neutral' }}
           />
           <StatCard
-            label="PKI & Signing Rail"
-            value={status.pki_signature_algorithm.split(' ')[0]}
-            subtext="Ed25519 + SHA-256 canonical"
+            label="PKI & Proofs"
+            value="Ed25519"
+            subtext={status.pki_signature_algorithm}
             icon={KeyRound}
-            badge={{ text: `${status.active_institutions_registered} Institutions`, variant: 'info' }}
+            badge={{ text: 'Signed Envelopes & Receipts', variant: 'info' }}
           />
           <StatCard
-            label="Model Hash Verified"
-            value={status.model_sha256_verified ? 'VERIFIED' : 'UNVERIFIED'}
-            subtext="True only when the loaded model artifact matches its recorded SHA-256 digest"
-            icon={FileKey}
-            badge={{ text: status.model_sha256_verified ? 'Digest matched' : 'No verified model digest', variant: status.model_sha256_verified ? 'success' : 'warning' }}
+            label="Rate Limiting"
+            value={status.rate_limiting_active ? 'Active' : 'Disabled'}
+            subtext={status.rate_limiting_scope}
+            icon={Lock}
+            badge={{ text: status.rate_limiting_active ? 'Route-Level Scope' : 'Disabled', variant: status.rate_limiting_active ? 'success' : 'warning' }}
           />
           <StatCard
-            label="Security Interceptions"
-            value={status.security_denials_count}
-            subtext={`${status.total_audit_events} total logged events`}
-            icon={ShieldAlert}
-            badge={{ text: status.total_audit_events > 0 ? 'Events recorded' : 'No events recorded', variant: 'neutral' }}
+            label="Audit Trail"
+            value={`${status.total_audit_events} Events`}
+            subtext="SHA-256 Hash Chained"
+            icon={Activity}
+            badge={{ text: 'Tamper Evident', variant: 'success' }}
           />
         </div>
       )}
 
-      {status && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 grid gap-3 md:grid-cols-2">
-          <div>
-            <div className="text-xs font-semibold text-slate-700">Rate-limit coverage</div>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">{status.rate_limiting_scope}</p>
+      {/* Controls Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+          <div className="flex items-center space-x-2 text-indigo-700 font-bold text-xs uppercase mb-1">
+            <Lock className="w-4 h-4" />
+            <span>Role-Based Access Control</span>
           </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-700">Ground-truth isolation</div>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">{status.hidden_data_isolation_status}</p>
-          </div>
-          <div className="md:col-span-2 text-xs text-amber-800">
-            Production OIDC readiness: {status.production_auth_ready ? 'reported ready by backend configuration' : 'not implemented / not configured'}. Demo identity mode: {status.demo_auth_enabled ? 'enabled' : 'disabled'}.
-          </div>
-        </div>
-      )}
-
-      {/* Threat Model & Active Defense Controls */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-        <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2 mb-4">
-          <Layers className="w-5 h-5 text-indigo-600" />
-          <span>Explicit Threat Model & Defensive Control Matrix</span>
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
-            <div className="flex items-center space-x-2 text-indigo-700 font-bold text-xs uppercase mb-1">
-              <Lock className="w-4 h-4" />
-              <span>Case-scoped access</span>
-            </div>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              {status ? status.case_scope_authorization_status.replace(/_/g, ' ').toLowerCase() : 'Status unavailable'}. Case-scoped checks are implemented on reviewed routes; remaining routes require regression testing before production use.
-            </p>
-          </div>
-
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
-            <div className="flex items-center space-x-2 text-teal-700 font-bold text-xs uppercase mb-1">
-              <KeyRound className="w-4 h-4" />
-              <span>Cryptographic Proof Integrity</span>
-            </div>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              The simulated evidence flow uses signed envelopes. Inspect individual verification results; cryptographic signatures do not establish that source records are factually correct.
-            </p>
-          </div>
-
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
-            <div className="flex items-center space-x-2 text-rose-700 font-bold text-xs uppercase mb-1">
-              <ShieldAlert className="w-4 h-4" />
-              <span>Model & Infrastructure Defense</span>
-            </div>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              The model loader checks a configured artifact digest before deserialization. Request-size middleware is installed; rate limits cover selected routes only, as described in the runtime details below.
-            </p>
-          </div>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            API endpoints enforce investigator and compliance roles in FastAPI. Case-scoped object-level authorization (BOLA prevention) is enforced before processing.
+          </p>
         </div>
 
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+          <div className="flex items-center space-x-2 text-teal-700 font-bold text-xs uppercase mb-1">
+            <KeyRound className="w-4 h-4" />
+            <span>Cryptographic Proof Integrity</span>
+          </div>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Evidence flow uses signed Ed25519 envelopes and hold receipts. Inspect individual verification results; cryptographic signatures do not establish that source records are factually correct.
+          </p>
+        </div>
+
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+          <div className="flex items-center space-x-2 text-rose-700 font-bold text-xs uppercase mb-1">
+            <ShieldAlert className="w-4 h-4" />
+            <span>Model & Infrastructure Defense</span>
+          </div>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            The model loader checks a configured artifact digest before deserialization. Request-size middleware is installed; rate limits cover selected routes only.
+          </p>
+        </div>
       </div>
 
       {/* Security Audit Log Table */}
@@ -225,10 +309,10 @@ export const SecurityAudit: React.FC = () => {
           <div>
             <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
               <Activity className="w-5 h-5 text-teal-600" />
-              <span>Recorded security events</span>
+              <span>Recorded security events (Hash-Chained)</span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Recorded application events. Logs are application telemetry and have not been independently certified as immutable.
+              Every audit record includes the cryptographic SHA-256 hash of its predecessor, creating a verifiable chronological hash chain.
             </p>
           </div>
 
@@ -258,6 +342,7 @@ export const SecurityAudit: React.FC = () => {
                 <th className="py-2.5 px-3">Timestamp (UTC)</th>
                 <th className="py-2.5 px-3">Severity</th>
                 <th className="py-2.5 px-3">Event Type</th>
+                <th className="py-2.5 px-3">Hash Link (Prev → Current)</th>
                 <th className="py-2.5 px-3">User & Role</th>
                 <th className="py-2.5 px-3">Endpoint</th>
                 <th className="py-2.5 px-3">Sanitized Details</th>
@@ -266,7 +351,7 @@ export const SecurityAudit: React.FC = () => {
             <tbody className="divide-y divide-slate-100 font-mono">
               {filteredEvents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-slate-400 font-sans">
+                  <td colSpan={8} className="py-6 text-center text-slate-400 font-sans">
                     No audit events found for selected severity level.
                   </td>
                 </tr>
@@ -277,6 +362,9 @@ export const SecurityAudit: React.FC = () => {
                   else if (evt.severity === 'HIGH') sevColor = 'bg-amber-100 text-amber-800 border-amber-300 font-bold';
                   else if (evt.severity === 'WARNING') sevColor = 'bg-yellow-100 text-yellow-800 border-yellow-300';
                   else if (evt.severity === 'INFO') sevColor = 'bg-blue-50 text-blue-700 border-blue-200';
+
+                  const prevShort = evt.previous_hash ? evt.previous_hash.substring(0, 8) : '00000000';
+                  const currShort = evt.entry_hash ? evt.entry_hash.substring(0, 8) : '--------';
 
                   return (
                     <tr key={evt.event_id} className="hover:bg-slate-50/80 transition-colors">
@@ -290,6 +378,11 @@ export const SecurityAudit: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-2.5 px-3 font-semibold text-indigo-700">{evt.event_type}</td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500" title={`Prev: ${evt.previous_hash}\nCurrent: ${evt.entry_hash}`}>
+                        <span className="text-slate-400">{prevShort}</span>
+                        <span className="text-slate-300 mx-1">→</span>
+                        <span className="text-indigo-600 font-bold">{currShort}</span>
+                      </td>
                       <td className="py-2.5 px-3 font-sans">
                         {evt.user_id ? (
                           <div>

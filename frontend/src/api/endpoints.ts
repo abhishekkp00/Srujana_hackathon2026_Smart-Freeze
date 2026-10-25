@@ -24,6 +24,8 @@ import {
   CaseRecommendationsData,
   AccountRecommendation,
   AttackLabReportData,
+  ChainVerificationData,
+  ReceiptData,
 } from '../types';
 
 export const getOverview = async (): Promise<OverviewData> => {
@@ -188,4 +190,20 @@ export const getAttackLabReport = async (params?: {
   const { data } = await apiClient.get<AttackLabReportData>('/api/attacklab/run', { params });
   return data;
 };
+
+export const verifyAuditChain = async (): Promise<ChainVerificationData> => {
+  const { data } = await apiClient.post<ChainVerificationData>('/api/admin/audit/verify-chain');
+  return data;
+};
+
+export const getReceipt = async (receiptId: string): Promise<ReceiptData> => {
+  const { data } = await apiClient.get<ReceiptData>(`/api/receipts/${receiptId}`);
+  return data;
+};
+
+export const getCaseReceipts = async (caseId: string): Promise<ReceiptData[]> => {
+  const { data } = await apiClient.get<ReceiptData[]>(`/api/cases/${caseId}/receipts`);
+  return data;
+};
+
 

@@ -460,6 +460,7 @@ export interface AccountRecommendation {
   held_margin_paise: number;
   effective_lien_paise: number;
   margin_hold_duration_hours?: number | null;
+  receipt_id?: string | null;
 }
 
 export interface CaseRecommendationsData {
@@ -523,6 +524,40 @@ export interface AttackLabReportData {
     policy_v1: PolicyEvaluationSummaryData;
     policy_v2: PolicyEvaluationSummaryData;
   };
+  governance_notice: string;
+}
+
+export interface ChainVerificationData {
+  is_valid: boolean;
+  total_events: number;
+  verified_events: number;
+  latest_hash: string;
+  tampered_event_id?: string | null;
+  error_message?: string | null;
+  governance_notice: string;
+}
+
+export interface ReceiptData {
+  receipt_id: string;
+  case_id: string;
+  account_id: string;
+  source_transaction_id: string;
+  action: string;
+  core: number;
+  margin: number;
+  policy_name: string;
+  policy_version: string;
+  rules_fired: string[];
+  approver: string;
+  timestamp: string;
+  per_method_results: Record<string, { lower_paise: number; upper_paise: number }>;
+  ledger_slice_hash: string;
+  ledger_slice: {
+    accounts: any[];
+    transactions: any[];
+  };
+  signature: string;
+  public_key: string;
   governance_notice: string;
 }
 

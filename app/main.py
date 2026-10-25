@@ -56,7 +56,9 @@ from security.models import (
     SecurityStatusResponse,
     AuditSeverity,
     User,
+    ChainVerificationResponse,
 )
+from security.receipt import ReceiptRegistry, create_hold_receipt
 from security.auth import (
     get_current_user,
     require_role,
@@ -466,6 +468,7 @@ class DemoHoldProposalResponse(BaseModel):
     status: str
     execution_status: str
     message: str
+    receipt_id: Optional[str] = None
 
 
 class PriorityScoreResponse(BaseModel):
@@ -522,6 +525,7 @@ class AccountRecommendationModel(BaseModel):
     held_margin_paise: int = 0
     effective_lien_paise: int = 0
     margin_hold_duration_hours: Optional[int] = None
+    receipt_id: Optional[str] = None
 
 
 class CaseRecommendationsResponse(BaseModel):
@@ -1419,6 +1423,47 @@ def get_case_recommendations(
         override_de_minimis=de_minimis_paise,
     )
 
+    # Build minimal ledger slice for this case's recommendations
+    case_tx_records = case_txs.to_dict(orient="records")
+    connected_acc_ids = {str(t.get("from_account")) for t in case_tx_records} | {str(t.get("to_account")) for t in case_tx_records}
+    slice_accounts = [dict(a) for a in accs_df.to_dict(orient="records") if str(a.get("account_id")) in connected_acc_ids]
+    ledger_slice = {
+        "accounts": slice_accounts,
+        "transactions": case_tx_records,
+    }
+
+    # Fetch consensus bounds for per-method breakdown
+    consensus_res = ConsensusLienEngine.run_all_methods(
+        accounts=accs_df,
+        transactions=txs_df,
+        source_transaction_id=origin_tx_id,
+        source_case_id=case_id,
+    )
+
+    for rec in result.recommendations:
+        if rec.action != "none" or rec.core > 0 or rec.held_margin_paise > 0:
+            lien = consensus_res.account_liens.get(rec.account_id)
+            per_method = {
+                "proportional": {"lower_paise": lien.proportional_paise if lien else 0, "upper_paise": lien.proportional_paise if lien else 0},
+                "fifo": {"lower_paise": lien.fifo_paise if lien else 0, "upper_paise": lien.fifo_paise if lien else 0},
+                "libr": {"lower_paise": lien.libr_paise if lien else 0, "upper_paise": lien.libr_paise if lien else 0},
+            }
+            receipt = create_hold_receipt(
+                case_id=case_id,
+                account_id=rec.account_id,
+                source_transaction_id=origin_tx_id,
+                action=rec.action,
+                core_paise=rec.core,
+                margin_paise=rec.margin,
+                policy_name=policy,
+                policy_version=result.policy_version,
+                rules_fired=rec.reasons,
+                approver=auth.user.user_id,
+                per_method_results=per_method,
+                ledger_slice=ledger_slice,
+            )
+            rec.receipt_id = receipt["receipt_id"]
+
     return CaseRecommendationsResponse(**result.to_dict())
 
 
@@ -1564,6 +1609,39 @@ def create_demo_hold_proposal(
         "execution_status": "SIMULATION_ONLY_NOT_SENT_TO_BANK",
         "message": "Proposal recorded for demonstration. No bank API was called and no funds were frozen.",
     }
+
+    # Generate cryptographic approval receipt
+    ledger = get_ledger_data()
+    accounts_df = ledger["accounts_df"]
+    prop_txs = ledger["transactions_df"][ledger["transactions_df"]["case_id"] == payload.case_id]
+    prop_tx_records = prop_txs.to_dict(orient="records")
+    prop_acc_ids = {str(t.get("from_account")) for t in prop_tx_records} | {str(t.get("to_account")) for t in prop_tx_records}
+    prop_acc_records = [dict(a) for a in accounts_df.to_dict(orient="records") if str(a.get("account_id")) in prop_acc_ids]
+    prop_slice = {
+        "accounts": prop_acc_records,
+        "transactions": prop_tx_records,
+    }
+    prop_per_method = {
+        "proportional": {"lower_paise": candidate.lower_bound_paise, "upper_paise": candidate.upper_bound_paise},
+        "fifo": {"lower_paise": candidate.lower_bound_paise, "upper_paise": candidate.upper_bound_paise},
+        "libr": {"lower_paise": candidate.lower_bound_paise, "upper_paise": candidate.upper_bound_paise},
+    }
+    prop_receipt = create_hold_receipt(
+        case_id=payload.case_id,
+        account_id=payload.account_id,
+        source_transaction_id=preview.source_transaction_id,
+        action="hold_approval",
+        core_paise=candidate.proposed_hold_paise,
+        margin_paise=0,
+        policy_name="balanced",
+        policy_version="1.0.0",
+        rules_fired=["authorized_investigator_hold_proposal"],
+        approver=auth.user.user_id,
+        per_method_results=prop_per_method,
+        ledger_slice=prop_slice,
+    )
+    record["receipt_id"] = prop_receipt["receipt_id"]
+
     DEMO_HOLD_PROPOSALS.append(record)
     del DEMO_HOLD_PROPOSALS[:-200]
     return DemoHoldProposalResponse(**record)
@@ -2200,3 +2278,41 @@ def get_security_status(
         security_denials_count=telemetry["denials_count"],
         active_institutions_registered=registered_keys,
     )
+
+
+@app.post("/api/admin/audit/verify-chain", response_model=ChainVerificationResponse)
+@app.get("/api/admin/audit/verify-chain", response_model=ChainVerificationResponse)
+def verify_audit_chain(
+    auth: AuthContext = Depends(require_role(Role.COMPLIANCE_ADMIN, Role.AUDITOR)),
+) -> ChainVerificationResponse:
+    """Verify cryptographic SHA-256 hash-chain integrity of the security audit log from genesis."""
+    audit = SecurityAuditLogger.get_instance()
+    res = audit.verify_chain()
+    return ChainVerificationResponse(**res)
+
+
+@app.get("/api/receipts/{receipt_id}")
+def get_receipt_by_id(
+    receipt_id: str,
+    auth: AuthContext = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Retrieve canonical signed JSON receipt for offline verification with python -m verifier."""
+    receipt = ReceiptRegistry.get_instance().get(receipt_id)
+    if not receipt:
+        raise HTTPException(status_code=404, detail=f"Receipt '{receipt_id}' not found.")
+    if not auth.can_access_case(str(receipt.get("case_id", ""))):
+        raise HTTPException(status_code=403, detail="Not authorized to access receipt for this case.")
+    return receipt
+
+
+@app.get("/api/cases/{case_id}/receipts")
+def list_case_receipts(
+    case_id: str,
+    request: Request,
+    auth: AuthContext = Depends(get_current_user),
+) -> List[Dict[str, Any]]:
+    """List all cryptographic hold receipts generated for a case."""
+    client_ip = request.client.host if request.client else "unknown"
+    check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
+    return ReceiptRegistry.get_instance().list_by_case(case_id)
+

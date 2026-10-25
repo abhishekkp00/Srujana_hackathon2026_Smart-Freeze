@@ -63,7 +63,7 @@ class AuditSeverity(str, Enum):
 
 
 class SecurityAuditEvent(BaseModel):
-    """Structured, immutable security audit event."""
+    """Structured, hash-chained, immutable security audit event."""
     event_id: str
     timestamp: str
     event_type: str
@@ -74,6 +74,28 @@ class SecurityAuditEvent(BaseModel):
     method: str
     details: Dict[str, Any] = Field(default_factory=dict)
     severity: AuditSeverity = AuditSeverity.INFO
+    previous_hash: str = Field(
+        default="0" * 64,
+        description="SHA-256 hash of the previous event in the chain ('0'*64 for genesis)",
+    )
+    entry_hash: str = Field(
+        default="",
+        description="SHA-256 hash of this event's canonical fields and previous_hash",
+    )
+
+
+class ChainVerificationResponse(BaseModel):
+    """Outcome of verifying cryptographic integrity of the audit hash chain."""
+    is_valid: bool
+    total_events: int
+    verified_events: int
+    latest_hash: str
+    tampered_event_id: Optional[str] = None
+    error_message: Optional[str] = None
+    governance_notice: str = (
+        "Cryptographic hash chaining proves algorithmic reproducibility and log integrity; "
+        "it does not establish that logged actions reflect real-world truth."
+    )
 
 
 class SecurityStatusResponse(BaseModel):

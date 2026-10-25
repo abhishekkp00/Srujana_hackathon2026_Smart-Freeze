@@ -23,8 +23,9 @@ Smart-Freeze is a prototype for reconstructing financial transaction trails, com
 | **TraceProof Evidence Reconstruction** (`traceproof.coordinator`, `traceproof.crypto`) | Complete | 100% verified (`tests/test_traceproof.py`) | Real engine runs on verified envelope ledger; zero numeric multipliers; unresolved/tampered hops widen range to `[0, hop amount]`; simulated fixtures only. |
 | **Investigation Priority Scoring** (`engine.investigation_score`, `engine.behavioural_features`) | Complete | 100% verified (`tests/test_investigation_score.py`, `tests/test_behavioural_features.py`) | Explainable decision-support heuristic; ranks cases for authorized review; not a probability of guilt. |
 | **Machine Learning Classifier** (`ml.train`, `ml.service`) | Complete | 100% verified (`tests/test_ml.py`) | Trained on European credit-card benchmark; sha256 artifact verification; uncalibrated score; isolated from tracing engines. |
-| **FastAPI Backend & Security Telemetry** (`app.main`, `pipeline.security_audit`) | Complete | 100% verified (`tests/test_api.py`, `tests/test_security.py`) | Prototype auth with mock demo identities; fail-closed in production; tamper-evident security audit log. |
-| **React + TypeScript UI** (`frontend/src/`) | Complete | Production build verified (`tsc -b && vite build`) | 3-screen investigator workflow (Overview, Money Flow, Consensus Lien); honest simulation labels; no auto-freeze. |
+| **FastAPI Backend & Security Telemetry** (`app.main`, `security.audit`, `security.receipt`) | Complete | 100% verified (`tests/test_api.py`, `tests/test_security.py`, `tests/test_audit_chain_and_receipt.py`) | SHA-256 hash-chained tamper-evident audit trail from genesis (`verify_chain()`); canonical Ed25519 hold receipts; fail-closed in production. |
+| **Standalone Offline Verifier** (`verifier.__main__`) | Complete | 100% verified (`tests/test_audit_chain_and_receipt.py`) | Standalone CLI (`python -m verifier receipt.json`) recomputing core/margin with ZERO web-app imports; detects tampered numbers, slices, and signatures. |
+| **React + TypeScript UI** (`frontend/src/`) | Complete | Production build verified (`tsc -b && vite build`) | Case Overview, Money Flow, Consensus Lien, Recommended Actions, Attack Lab, Security Audit; hash-chain verification button; receipt download. |
 
 ## Main application screens
 
@@ -47,6 +48,29 @@ The Money Flow screen has a four-phase walkthrough:
 4. **Simulate a hold request** — `POST /api/hold-proposals` creates a local demonstration record and a security audit event ID. `GET /api/hold-preview/{case_id}` supplies the account-level inputs; `GET /api/hold-proposals?case_id=...` reads proposals in the current process.
 
 This **does not freeze funds**. No bank API is called, no balance is reserved or changed, and the proposal/audit lists are in memory for the current backend process only. A real hold would require an authorized institution integration, identity controls, legal/policy checks, and human approval. The current UI deliberately calls this a simulated hold proposal.
+
+## Cryptographic Audit Trail, Receipts & Offline Verifier
+
+Smart-Freeze enforces continuous cryptographic verification of investigator recommendations and security telemetry:
+
+1. **Hash-Chained Security Audit Trail (`security.audit`):**
+   - Each audit entry links to its predecessor via SHA-256 (`previous_hash` & `entry_hash`), starting from a known genesis hash (`0` * 64).
+   - `verify_chain()` walks the entire sequence from genesis, detecting any broken linkage, dropped records, or modified payloads.
+   - Interactive verification is accessible via `POST /api/admin/audit/verify-chain` and the "Verify Hash Chain" button in the Security Audit UI.
+
+2. **Hold Recommendation & Approval Receipts (`security.receipt`):**
+   - Whenever an account hold recommendation or proposal is generated, Smart-Freeze produces an immutable, canonical JSON **Receipt**.
+   - Contains: `account_id`, `core`, `margin`, `action`, `policy_version`, `rules_fired`, `approver`, `timestamp`, `per_method_results`, and a minimal `ledger_slice` with its SHA-256 digest (`ledger_slice_hash`).
+   - Digitally signed with **Ed25519** and appended as an event to the audit hash chain.
+
+3. **Standalone Offline Verifier (`python -m verifier <receipt.json>`):**
+   - An independent verification utility with **ZERO imports from the web application** (`app`, `fastapi`, `starlette`).
+   - Recomputes Proportional, FIFO, LIBR, and Consensus Lien core and margin directly from the embedded ledger slice.
+   - Verifies the Ed25519 digital signature and ledger slice hash.
+   - Reliably detects tampered numbers, altered transactions, forged signatures, or broken policy bounds.
+
+> **CRITICAL GOVERNANCE LIMITATION NOTICE:**
+> Cryptographic verification and hash-chaining **prove algorithmic reproducibility and mathematical integrity** under Smart-Freeze decision rules. They **do NOT prove that the underlying input ledger records, transaction events, or external banking claims are objectively true in the real world**.
 
 ## Architecture
 
