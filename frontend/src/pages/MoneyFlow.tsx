@@ -74,6 +74,7 @@ export const MoneyFlow: React.FC = () => {
   const [holdAccountId, setHoldAccountId] = useState('');
   const [activePhase, setActivePhase] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playingEdgeIndex, setPlayingEdgeIndex] = useState(0);
   const [loadingCases, setLoadingCases] = useState(true);
   const [loading, setLoading] = useState(false);
   const [creatingHold, setCreatingHold] = useState(false);
@@ -157,17 +158,23 @@ export const MoneyFlow: React.FC = () => {
 
   useEffect(() => {
     if (!isPlaying) return;
+    const shouldAnimatePath = activePhase === 0 && edges.length > 1 && playingEdgeIndex < edges.length - 1;
     const timer = window.setTimeout(() => {
+      if (shouldAnimatePath) {
+        setPlayingEdgeIndex((current) => Math.min(current + 1, edges.length - 1));
+        return;
+      }
       setActivePhase((current) => {
         if (current >= phases.length - 1) {
           setIsPlaying(false);
           return current;
         }
+        setPlayingEdgeIndex(0);
         return current + 1;
       });
-    }, 1800);
+    }, shouldAnimatePath ? 750 : 1800);
     return () => window.clearTimeout(timer);
-  }, [isPlaying, activePhase]);
+  }, [isPlaying, activePhase, playingEdgeIndex, edges.length]);
 
   const selectedCase = cases.find((item) => item.case_id === caseId) ?? null;
   const edges = useMemo(
@@ -197,6 +204,7 @@ export const MoneyFlow: React.FC = () => {
   };
   const selectPhase = (index: number) => {
     setIsPlaying(false);
+    setPlayingEdgeIndex(0);
     setActivePhase(index);
   };
 
@@ -351,7 +359,8 @@ export const MoneyFlow: React.FC = () => {
     cy.edges().removeClass('phase-focus phase-secondary');
 
     if (activePhase === 0 && sourceEdge) {
-      const edge = cy.getElementById(sourceEdge.id);
+      const focusedEdge = isPlaying ? (edges[playingEdgeIndex] ?? sourceEdge) : sourceEdge;
+      const edge = cy.getElementById(focusedEdge.id);
       edge.addClass('phase-focus');
       edge.connectedNodes().addClass('phase-focus');
     } else if (activePhase === 1) {
@@ -361,7 +370,7 @@ export const MoneyFlow: React.FC = () => {
       cy.getElementById(holdAccountId).addClass('hold-target');
       cy.getElementById(holdAccountId).neighborhood('edge').addClass('phase-focus');
     }
-  }, [activePhase, graph, holdAccountId, sourceEdge]);
+  }, [activePhase, graph, holdAccountId, sourceEdge, edges, isPlaying, playingEdgeIndex]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -374,6 +383,7 @@ export const MoneyFlow: React.FC = () => {
   const fitGraph = () => { cyRef.current?.fit(undefined, 42); cyRef.current?.center(); };
   const startWalkthrough = () => {
     setActivePhase(0);
+    setPlayingEdgeIndex(0);
     setIsPlaying(true);
   };
   const selectedPhaseEdge = activePhase === 0
