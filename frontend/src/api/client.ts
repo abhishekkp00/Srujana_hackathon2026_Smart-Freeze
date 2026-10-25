@@ -7,7 +7,7 @@ export const DEMO_TOKEN_KEY = 'smart_freeze_token';
 export const apiClient = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
+  timeout: 120000,
 });
 
 // Never choose an identity implicitly. A token is attached only after an explicit
