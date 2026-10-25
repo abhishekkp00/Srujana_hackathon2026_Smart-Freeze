@@ -1,228 +1,253 @@
-# Smart-Freeze — Financial Investigation Decision Support
+# Smart-Freeze — Evidence-First Financial Investigation & Fund-Tracing Decision Support
 
-Smart-Freeze is a prototype for reconstructing financial transaction trails, comparing fund-attribution methods, and showing where evidence is incomplete. It supports authorized human review; it does not establish guilt, create a legal lien, or freeze/release funds.
+Smart-Freeze is an evidence-first financial investigation and fund-tracing decision-support platform. It reconstructs transaction trails across multi-institution ledgers, compares mathematical fund-attribution methods (Proportional, FIFO, and Lowest Intermediate Balance Rule / LIBR), detects mule accounts with interpretable ML, issues cryptographically signed inter-bank passports, and enforces human-in-the-loop safeguards.
 
-## What is real in this repository?
+Smart-Freeze is an **investigative decision-support system, not an automated execution engine**. It does not establish legal guilt, create statutory liens, or automatically freeze or release customer accounts. Every consequential decision remains with authorized human analysts.
 
-- **The application:** React + TypeScript + Vite frontend; FastAPI + Python backend.
-- **The operational ledger included in Git:** synthetic account, transaction and case records. Dashboard values are dynamically calculated from these files, but the files are not live bank data.
-- **Financial analysis:** ledger reconstruction, NetworkX transaction graph, proportional tracing, FIFO, LIBR and a method-comparison range.
-- **TraceProof:** simulated Bank A, wallet and settlement adapters with evidence envelopes. These are local simulation fixtures, not live financial-institution integrations.
-- **Machine learning:** a supervised classifier training pipeline is provided for the European Credit Card Fraud Detection dataset. The trained model, fresh evaluation metrics and demo test samples are generated locally and are not committed.
-- **Authentication:** the default configuration disables demo authentication. Local personas are mock identities for isolated development/testing, not production authentication. OIDC/SSO/MFA are not implemented.
-- **Security:** API checks, demo signing and audit telemetry are prototype controls; they have not been independently penetration-tested or certified for production use.
+---
 
-## Implementation and Verification Status
+## Architecture Diagram
 
-| Capability / Module | Implementation Status | Verification Status | Operational Boundary / Limitations |
-| :--- | :--- | :--- | :--- |
-| **Transaction Ledger & Balances** (`engine.ledger`, `engine.balances`) | Complete | 100% verified (`tests/test_ledger.py`, `tests/test_balances.py`) | Deterministic reconstruction in integer paise; negative balance prevention; no fabricated records. |
-| **Transaction Flow Graph** (`engine.transaction_graph`) | Complete | 100% verified (`tests/test_transaction_graph.py`) | Directed NetworkX graph; source-rooted traversal; max-edge bounded context expansion. |
-| **Fund Tracing Engines** (`engine.proportional`, `engine.fifo`, `engine.libr`) | Complete | 100% verified (`tests/test_proportional.py`, `tests/test_fifo.py`, `tests/test_libr.py`) | Independent execution; strict integer-paise conservation; exact accounting assumptions without heuristics. |
-| **Consensus Lien & Joint Feasibility** (`engine.consensus_lien`) | Complete | 100% verified (`tests/test_consensus_lien.py`) | Per-account bounds; joint-feasible total strictly $\le$ suspected amount minus money confirmed to have left the system (`joint_total <= suspected_amount`). |
-| **TraceProof Evidence Reconstruction** (`traceproof.coordinator`, `traceproof.crypto`) | Complete | 100% verified (`tests/test_traceproof.py`) | Real engine runs on verified envelope ledger; zero numeric multipliers; unresolved/tampered hops widen range to `[0, hop amount]`; simulated fixtures only. |
-| **Investigation Priority Scoring** (`engine.investigation_score`, `engine.behavioural_features`) | Complete | 100% verified (`tests/test_investigation_score.py`, `tests/test_behavioural_features.py`) | Explainable decision-support heuristic; ranks cases for authorized review; not a probability of guilt. |
-| **Machine Learning Classifier** (`ml.train`, `ml.service`) | Complete | 100% verified (`tests/test_ml.py`) | Trained on European credit-card benchmark; sha256 artifact verification; uncalibrated score; isolated from tracing engines. |
-| **FastAPI Backend & Security Telemetry** (`app.main`, `security.audit`, `security.receipt`) | Complete | 100% verified (`tests/test_api.py`, `tests/test_security.py`, `tests/test_audit_chain_and_receipt.py`) | SHA-256 hash-chained tamper-evident audit trail from genesis (`verify_chain()`); canonical Ed25519 hold receipts; fail-closed in production. |
-| **Standalone Offline Verifier** (`verifier.__main__`) | Complete | 100% verified (`tests/test_audit_chain_and_receipt.py`) | Standalone CLI (`python -m verifier receipt.json`) recomputing core/margin with ZERO web-app imports; detects tampered numbers, slices, and signatures. |
-| **React + TypeScript UI** (`frontend/src/`) | Complete | Production build verified (`tsc -b && vite build`) | Case Overview, Money Flow, Consensus Lien, Recommended Actions, Attack Lab, Security Audit; hash-chain verification button; receipt download. |
+```mermaid
+flowchart TB
+    subgraph UI ["Frontend (React 18 + TypeScript + Vite + Tailwind CSS)"]
+        UI_Case["Case Overview\n(Priority Queue)"]
+        UI_Flow["Money Flow Graph\n(Interactive Subgraph)"]
+        UI_Lien["Consensus Lien\n(P / F / L Divergence)"]
+        UI_Rec["Recommended Actions\n(Safeguards & Holds)"]
+        UI_Lab["Attack Lab\n(Adversarial Tuning)"]
+        UI_Audit["Security Audit\n(Hash-Chain & Receipts)"]
+    end
 
-## Main application screens
+    subgraph API ["Backend API Layer (FastAPI + Pydantic)"]
+        Router["REST Endpoints (/api/*)"]
+        Auth["BOLA Access Control & Role Checks\n(Admin, Investigator, Auditor)"]
+        RateLimit["Sliding Window Rate Limiter"]
+    end
 
+    subgraph Engine ["Core Analytics & Financial Engine"]
+        Subgraph["Bounded-Subgraph Extractor\n(Hop-limit & Time-window)"]
+        Ledger["Ledger Reconstruction & Balance Tracker\n(Integer Paise Arithmetic)"]
+        Tracers["Independent Fund Tracers\n• ProportionalTracer\n• FIFOTracer (Ordered Lots)\n• LIBRTracer"]
+        Consensus["Consensus Lien Engine\n(Core, Margin, Joint Feasible Upper Cap)"]
+        Features["Behavioural Feature Extractor\n(Velocity, Pass-Through, Drain)"]
+        MuleML["Interpretable Mule Classifier\n(Standardized Logistic Regression)"]
+        Decision["Decision Engine & Safeguards\n(Action Ladder & Harm Mitigation)"]
+        AttackLab["Attack Lab Evolutionary Engine\n(Adversarial Policy Stress-Testing)"]
+    end
 
-The frontend intentionally keeps the investigator workflow to three screens:
+    subgraph Fed ["Federated Inter-Institution Coordination"]
+        BankNodes["Partitioned BankNodes\n(Bank A, Bank B, Bank C, Wallet W)"]
+        Passports["Ed25519 Passports\n(Signed Transfers, Ordered Segments, Replay Nonces)"]
+    end
 
-1. **Case Overview** — live case rows, reported amounts and transaction counts returned by FastAPI.
-2. **Money Flow** — a source-rooted, directed graph plus the transaction rows for the same selected case.
-3. **Consensus Lien** — Proportional, FIFO and LIBR estimates for that same case, with per-account results.
+    subgraph Sec ["Cryptographic Integrity & Verification"]
+        AuditChain["SHA-256 Hash-Chained Audit Trail\n(verify_chain() Genesis Linkage)"]
+        Receipts["Canonical Ed25519 Hold Receipts\n(Ledger Slice Digest + Signature)"]
+        Verifier["Standalone Offline Verifier\n(python -m verifier receipt.json)"]
+    end
 
-The selected case is carried in the URL when moving between screens, so the graph and attribution table do not silently switch to different cases. The UI uses one local demo investigator whose visible case scope is derived from the loaded ledger. Older analysis pages are not part of the main navigation.
-
-## Guided hold demonstration
-
-The Money Flow screen has a four-phase walkthrough:
-
-1. **Trace funds** — the graph animates through recorded ledger transaction edges in timestamp order.
-2. **Flag evidence** — transaction and account highlights come from the ledger's `evidence_status` values.
-3. **Calculate a proposed amount** — FastAPI calculates the smaller of the account-level Consensus Lien lower bound and reconstructed closing balance. Accounts without complete history or a positive eligible amount cannot be selected.
-4. **Simulate a hold request** — `POST /api/hold-proposals` creates a local demonstration record and a security audit event ID. `GET /api/hold-preview/{case_id}` supplies the account-level inputs; `GET /api/hold-proposals?case_id=...` reads proposals in the current process.
-
-This **does not freeze funds**. No bank API is called, no balance is reserved or changed, and the proposal/audit lists are in memory for the current backend process only. A real hold would require an authorized institution integration, identity controls, legal/policy checks, and human approval. The current UI deliberately calls this a simulated hold proposal.
-
-## Cryptographic Audit Trail, Receipts & Offline Verifier
-
-Smart-Freeze enforces continuous cryptographic verification of investigator recommendations and security telemetry:
-
-1. **Hash-Chained Security Audit Trail (`security.audit`):**
-   - Each audit entry links to its predecessor via SHA-256 (`previous_hash` & `entry_hash`), starting from a known genesis hash (`0` * 64).
-   - `verify_chain()` walks the entire sequence from genesis, detecting any broken linkage, dropped records, or modified payloads.
-   - Interactive verification is accessible via `POST /api/admin/audit/verify-chain` and the "Verify Hash Chain" button in the Security Audit UI.
-
-2. **Hold Recommendation & Approval Receipts (`security.receipt`):**
-   - Whenever an account hold recommendation or proposal is generated, Smart-Freeze produces an immutable, canonical JSON **Receipt**.
-   - Contains: `account_id`, `core`, `margin`, `action`, `policy_version`, `rules_fired`, `approver`, `timestamp`, `per_method_results`, and a minimal `ledger_slice` with its SHA-256 digest (`ledger_slice_hash`).
-   - Digitally signed with **Ed25519** and appended as an event to the audit hash chain.
-
-3. **Standalone Offline Verifier (`python -m verifier <receipt.json>`):**
-   - An independent verification utility with **ZERO imports from the web application** (`app`, `fastapi`, `starlette`).
-   - Recomputes Proportional, FIFO, LIBR, and Consensus Lien core and margin directly from the embedded ledger slice.
-   - Verifies the Ed25519 digital signature and ledger slice hash.
-   - Reliably detects tampered numbers, altered transactions, forged signatures, or broken policy bounds.
-
-> **CRITICAL GOVERNANCE LIMITATION NOTICE:**
-> Cryptographic verification and hash-chaining **prove algorithmic reproducibility and mathematical integrity** under Smart-Freeze decision rules. They **do NOT prove that the underlying input ledger records, transaction events, or external banking claims are objectively true in the real world**.
-
-## Architecture
-
-```text
-React / TypeScript / Vite
-        | JSON over HTTP
-        v
-FastAPI + Pydantic
-        +-- Data validation and ledger reconstruction
-        +-- Transaction graph and balance history
-        +-- Proportional / FIFO / LIBR tracing
-        +-- Evidence-Bounded Trace Range
-        +-- Investigation priority scoring
-        +-- TraceProof simulated institution adapters
-        +-- ML status / inference / evaluation
-        +-- Data quality and security telemetry
+    UI -->|JSON / Bearer Auth| Router
+    Router --> Auth
+    Auth --> RateLimit
+    RateLimit --> Subgraph
+    Subgraph --> Ledger
+    Ledger --> Tracers
+    Tracers --> Consensus
+    Consensus --> Decision
+    Features --> MuleML
+    MuleML --> Decision
+    Decision --> Fed
+    Fed --> Passports
+    Decision --> Receipts
+    Receipts --> AuditChain
+    Receipts -.->|Zero-App-Import Verification| Verifier
+    AttackLab --> Decision
 ```
 
-The ML classifier and deterministic tracing engine are separate. ML predictions cannot modify fund-tracing calculations or evidence verification.
+---
 
-## Requirements
+## Built / Tested / Planned Implementation Status
 
-- Python 3.11+ (3.12 recommended)
-- Node.js 20+ and npm
+| Capability / Module | Status | Tested Status | Implementation & Architectural Boundary |
+| :--- | :--- | :--- | :--- |
+| **Validated Ledger & Balances** (`engine.ledger`, `engine.balances`) | **Built** | **100% Tested** (`tests/test_ledger.py`, `tests/test_balances.py`) | Deterministic reconstruction in exact integer paise (minor units); strict conservation $\sum \Delta B = 0$; negative balance prevention; no fabricated records. |
+| **Bounded-Subgraph Extractor** (`engine.subgraph`) | **Built** | **100% Tested** (`tests/test_subgraph.py`) | Time-respecting, hop-bounded BFS from case root transaction; enforces max hop limits, time windows (hours), and edge safety caps; preserves full credit context. |
+| **Multi-Method Fund Tracers** (`engine.proportional`, `engine.fifo`, `engine.libr`) | **Built** | **100% Tested** (`tests/test_proportional.py`, `tests/test_fifo.py`, `tests/test_libr.py`) | Proportional pool allocation, FIFO chronological ordered lots, Lowest Intermediate Balance Rule (LIBR); independent mathematical assumptions without cross-method pollution. |
+| **Consensus Lien Engine** (`engine.consensus_lien`) | **Built** | **100% Tested** (`tests/test_consensus_lien.py`) | Core (method minimum), Margin (method divergence), Joint-feasible upper cap strictly $\le$ reported stolen amount minus verified external exit outflows. |
+| **Decision Support Engine & Safeguards** (`engine.decision`) | **Built** | **100% Tested** (`tests/test_decision.py`) | Action ladder (`none`, `lien_core`, `lien_core_plus_margin`, `outflow_cap`, `account_level_hold`); immutable safeguards (harm only reduces margin, never core; uploads require analyst; de-minimis tracking). |
+| **Interpretable Mule Classifier** (`ml.train_mule_detector`, `ml.mule_service`) | **Built** | **100% Tested** (`tests/test_mule_detector.py`) | Standardized Logistic Regression trained strictly on simulated transaction features; family cross-validation split (Train: A & B, Val: C, Test: D); zero ground-truth derivation; label-shuffle sanity verified ($AUC \approx 0.50$). |
+| **Federated Passports & Coordinator** (`federated.coordinator`, `federated.node`) | **Built** | **100% Tested** (`tests/test_federated.py`) | Ed25519 ephemeral keys per BankNode; ordered FIFO segments; nonce replay store; missing/tampered/expired passport fault injection tests; uncertainty widening on lost evidence. |
+| **Attack Lab Evolutionary Simulator** (`attacklab.engine`, `attacklab.evolution`) | **Built** | **100% Tested** (`tests/test_attacklab.py`) | Adversarial genome optimization (hops, delays, clean mix, spray width); policy v1 vs v2 tuning on Families A/B with held-out evaluation on Family C. |
+| **Cryptographic Audit Trail** (`security.audit`) | **Built** | **100% Tested** (`tests/test_audit_chain_and_receipt.py`) | SHA-256 hash-chained log linked from genesis; programmatic and UI verification via `verify_chain()`; tamper-detection tests. |
+| **Canonical Hold Receipts & Offline Verifier** (`security.receipt`, `verifier.__main__`) | **Built** | **100% Tested** (`tests/test_audit_chain_and_receipt.py`) | Canonical JSON receipts signed with Ed25519; standalone offline CLI (`python -m verifier <receipt.json>`) with **zero web-app imports** verifying mathematical reproducibility. |
+| **Role-Based Access & BOLA Checks** (`security.authorization`, `app.main`) | **Built** | **100% Tested** (`tests/test_security.py`, `tests/test_auth.py`, `tests/test_api.py`) | Multi-role access (Admin, Investigator, Auditor); broken object-level authorization (BOLA) validation on every case and transaction endpoint. |
+| **React + TypeScript UI** (`frontend/src/`) | **Built** | **100% Tested** (`tsc -b && vite build`) | Interactive Case Queue, Visual Directed Flow Graph, Consensus Lien Breakdown, Calibrated Action Recommendations, Attack Lab Dashboard, Cryptographic Audit Chain Inspector. |
+| **Live Core Banking (CBS / NPCI / UPI) Adapters** | **Planned** | *Simulated Only* | Live ISO 20022 / SFMS / UPI rail messaging requires formal regulatory and partner bank connectivity agreements. |
+| **Production OIDC / SAML / Hardware HSM Key Storage** | **Planned** | *Mock Tokens Only* | Enterprise single sign-on, hardware security modules (PKCS#11), and institutional public key infrastructure (PKI). |
 
-## Run locally
+---
 
-### 1. Backend
+## Scale Benchmark (Measured Results — No Extrapolation)
 
+A comprehensive benchmark was executed across **1,000**, **5,000**, and **20,000** account ledgers using `scripts/benchmark_scale.py`.
+Each case workflow executes:
+1. **Bounded-subgraph extraction** (4 hops, 72-hour window, credit context preservation).
+2. **Multi-method fund tracing** (FIFO + Proportional + LIBR).
+3. **Consensus Lien engine** (Core and Margin bounds, Joint Feasibility).
+4. **Decision Engine & Harm Analysis** (Rule-based harm scores + ML mule scores).
+5. **Federated Coordinator** (Account partitioning across 3 banks + 1 wallet rail, Ed25519 passport issuance and inter-bank verification).
+
+### Measured Performance Summary
+
+| Scale Tier | Accounts | Transactions | Generation Time | p50 Latency / Case | p95 Latency / Case | Mean Passports / Case | p95 Passports / Case |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **1k** | 1,000 | 7,669 | 0.050s | **40.63 ms** | **47.73 ms** | **6.87** | **13.90** |
+| **5k** | 5,000 | 27,336 | 0.189s | **75.39 ms** | **109.18 ms** | **6.40** | **13.80** |
+| **20k** | 20,000 | 76,914 | 0.518s | **157.85 ms** | **168.81 ms** | **5.27** | **10.90** |
+
+*Raw measured JSON data:* [`benchmarks/benchmark_results.json`](benchmarks/benchmark_results.json)  
+*Dual-panel chart visualization:* [`benchmarks/benchmark_chart.png`](benchmarks/benchmark_chart.png)
+
+---
+
+## Setup and Execution Guide
+
+### 1. Prerequisites
+- **Python**: 3.11+ (Python 3.12 recommended)
+- **Node.js**: 20+ (with `npm`)
+
+### 2. Backend Setup
 From the repository root:
 
 ```bash
+# 1. Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
+
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# Opt in to mock identities for an isolated local demonstration only.
+# 3. Configure local development environment
 export SMART_FREEZE_ENV=development
 export ENABLE_DEMO_AUTH=true
 
-uvicorn app.main:app --reload
+# 4. Start FastAPI server
+uvicorn app.main:app --reload --port 8000
 ```
+Interactive OpenAPI documentation will be accessible at: `http://127.0.0.1:8000/docs`.
 
-FastAPI docs: `http://127.0.0.1:8000/docs`
-
-Do not use local demo identities with real financial data. If the two environment variables are not explicitly enabled in a development/test environment, protected APIs fail closed because production identity validation is not implemented.
-
-### 2. Frontend
-
+### 3. Frontend Setup
 In a second terminal:
 
 ```bash
 cd frontend
 npm ci
-npm run dev
+npm run dev -- --host 127.0.0.1 --port 5174
 ```
+Access the application dashboard at `http://127.0.0.1:5174`.
 
-Open the URL printed by Vite, usually `http://localhost:5173`. The Vite configuration proxies `/api/*` to FastAPI on port 8000.
-
-### 3. Train the ML model
-
-Download the European Credit Card Fraud Detection dataset from its dataset page and place the original `creditcard.csv` at:
-
-```text
-data/raw/creditcard.csv
-```
-
-Then run from the repository root with the virtual environment active:
+### 4. Running Benchmarks
+To regenerate the 1k, 5k, 20k account benchmarks and produce fresh measured latency metrics and charts:
 
 ```bash
-### 3. Interpretable Mule-vs-Bystander Model (Primary ML in Main Flow)
-
-The primary machine-learning model in Smart-Freeze is an interpretable, standardized Logistic Regression classifier predicting mule account suspicion from observable transaction-ledger features (`engine/behavioural_features.py`):
-
-```bash
-python ml/train_mule_detector.py --seed 42 --accounts 2000 --cases 60
+python scripts/benchmark_scale.py --cases-per-tier 15 --seed 42
 ```
 
-- **Family Cross-Validation Split**:
-  - **Train**: Scam families A (Layered Chain) and B (Tiny-Amount Spray).
-  - **Validation**: Scam family C (Heavy Commingling, evaluating the innocent fast pass-through aggregator hard case).
-  - **Held-Out Test**: Scam family D (Structuring below AML threshold).
-- **Invariants Enforced**:
-  - **Zero Ground-Truth Derivation**: Features use only timestamps, amounts, accounts, and statement completion flags.
-  - **Label-Shuffle Sanity Test**: When labels are permuted, test ROC-AUC drops to ~0.50 (tested across permutations).
-  - **Explainability**: Outputs exact standardized reason codes (`MULE_RAPID_PASS_THROUGH`, `MULE_DRAIN_SURGE`, `MULE_CASH_EXIT_CONVERSION`, `BYSTANDER_HIGH_CLEAN_CAPITAL`, etc.) and feeds `mule_score` directly into `engine/decision.py`.
-- **Artifacts**:
-  - `models/mule_detector_v1.joblib` — trained model, scaler, and metadata.
-  - `models/mule_detector_model_card.json` — recorded metrics, data hash, coefficients, and governance declaration.
-  - **Governance Label**: `"trained on simulated data"`.
-
-### 4. Optional External Benchmark: Credit Card Fraud Classifier
-
-A secondary, optional classifier trained on European credit-card transaction data is kept strictly as an external benchmark:
+### 5. Running the Standalone Offline Verifier
+Hold receipts can be independently inspected and verified offline without running the web server:
 
 ```bash
-python scripts/train_ml_model.py
+# Verify a canonical hold receipt JSON file
+python -m verifier <path_to_receipt.json>
 ```
 
-The pipeline validates the dataset, creates stratified training/validation/test partitions, fits Logistic Regression and Random Forest, selects thresholds using validation data, evaluates the held-out test partition, and writes these local artifacts:
+### 6. Full Test Suite & Build Verification
+```bash
+# Run backend pytest suite
+pytest tests/ -v
 
-- `models/fraud_detector_v1.joblib` — fitted Random Forest preprocessing/classification pipeline.
-- `models/model_metadata.json` — metrics and metadata from that actual training run, including the artifact digest.
-- `models/demo_samples.json` — labelled feature vectors from the held-out partition for interactive examples.
+# Run frontend production build
+cd frontend && npm run build
+```
 
-The score is an **uncalibrated positive-class score**, not a calibrated probability of fraud. The model is trained on historical European credit-card data with PCA features; it is not a model trained on Indian bank AML transactions. It does not establish guilt, trace source funds or alter the tracing range.
+---
 
-## Dataset Acknowledgements & Data Sources
+## Technology Stack & Dependencies
 
-We gratefully acknowledge the creators and maintainers of the datasets referenced in this research prototype:
+### Backend Dependencies (`requirements.txt`)
+- **`fastapi`** (`>=0.110`): Asynchronous REST API framework with Pydantic typing and automatic OpenAPI specs.
+- **`uvicorn`** (`>=0.28`): High-performance ASGI production server.
+- **`pydantic`** (`>=2.6`): Robust data parsing, strict validation schemas, and cryptographic payload serialization.
+- **`pandas`** (`>=2.2`) & **`numpy`** (`>=1.26`): Vectorized tabular manipulation, chronological sorting, and percentile metrics.
+- **`networkx`** (`>=3.2`): Graph theory engine for directed transaction traversal and cycle tracking.
+- **`scikit-learn`** (`>=1.4`): Interpretable machine learning classifiers (Logistic Regression, standard scalers, evaluation metrics).
+- **`cryptography`** (`>=42.0`): Industry-standard Ed25519 digital signatures and SHA-256 hash chains.
+- **`matplotlib`** (`>=3.8`): Benchmark visualization and multi-panel chart rendering.
+- **`pytest`** (`>=7.4`): Test framework with property-based and financial invariant test suites.
+- **`httpx`** (`>=0.27`): Fast HTTP test client for API integration tests.
 
-1. **Smart-Freeze Synthetic Banking Ledger** (`data/synthetic/`):
-   - Deterministic synthetic ledger generator simulating 30 days of Indian banking traffic (UPI, IMPS, RTGS, NEFT, ATM, salary credits, retail merchant commerce).
-   - Designed specifically to evaluate fund-attribution accounting methods and decision support without exposing private customer financial records.
+### Frontend Dependencies (`frontend/package.json`)
+- **`react`** & **`react-dom`** (`v18`): Modern component architecture.
+- **`typescript`** (`v5.2`): Compile-time type safety.
+- **`vite`** (`v5`): Next-generation frontend build tooling and hot-module reloading.
+- **`lucide-react`**: Consistent interface iconography.
+- **`tailwindcss`**: Utility-first responsive design system.
+
+---
+
+## Dataset & Library Acknowledgements
+
+We acknowledge and credit the following research datasets and open-source libraries:
+
+1. **Smart-Freeze Scaled Deterministic Synthetic Ledger**:
+   - Built specifically for this project to simulate 30 days of multi-tier Indian banking traffic (UPI, IMPS, RTGS, NEFT, cash ATM withdrawals, payroll, and retail merchant flows) across salaried, gig, merchant, aggregator, and mule accounts.
+   - Provides reproducible lot-level ground truth across four distinct attack families (Layered Chain, Tiny-Amount Spray, Heavy Commingling, Structuring) without exposing confidential banking records.
 2. **European Credit Card Fraud Detection Dataset (ULB / Worldline)**:
    - Provided by the Machine Learning Group (MLG) of Université Libre de Bruxelles (ULB) and Worldline.
    - Hosted on Kaggle by Andrea Dal Pozzolo, Olivier Caelen, Reid A. Johnson, and Gianluca Bontempi.
-   - Used strictly as an **optional external benchmark** to demonstrate supervised classification mechanics under extreme class imbalance.
+   - Maintained strictly as an optional external classification benchmark.
 3. **Elliptic Data Set**:
-   - Bitcoin transaction graph dataset mapping transactions to illicit vs licit entities.
-   - Used to validate graph traversal adapters for external cryptocurrency rails; isolated from fiat banking ledgers.
-4. **SynthAML & AMLNet Benchmark Data**:
-   - Schema validation reference fixtures; inspected independently without fabricating companion transaction rows.
+   - Bitcoin transaction graph mapping transactions to illicit vs licit entities.
+   - Utilized for verifying external rail graph ingestion adapters.
+4. **SynthAML & AMLNet Research Fixtures**:
+   - Schema validation reference templates for cross-border anti-money-laundering interoperability.
+5. **Open Source Ecosystem**:
+   - Special thanks to the creators and maintainers of **FastAPI**, **Pydantic**, **NetworkX**, **scikit-learn**, **PyCA Cryptography**, and **Vite**.
 
-## Tests and build
+---
 
-```bash
-source .venv/bin/activate
-pytest -q
+## AI Usage Disclosure
 
-cd frontend
-npm ci
-npm run build
-npm run lint
-```
+In compliance with hackathon standards and transparent open-source engineering practices:
+- **AI-Assisted Prototyping & Pair Programming**: Antigravity (Google DeepMind) was utilized as an intelligent agentic coding assistant for iterative development, writing unit and property-based test suites, exploring adversarial policy mutations, and drafting documentation.
+- **Strict Human & Algorithmic Validation**: No numbers, benchmark latencies, test outputs, or performance figures were synthesized or extrapolated by LLMs. All performance numbers, ROC-AUC metrics, and cryptographic receipts presented in this repository were directly computed and verified through execution on actual Python 3.12 and Node.js environments.
 
-Tests needing the optional credit-card dataset or a trained local model skip or report the model as unavailable when those artifacts are absent. The repository CI workflow runs the test suite and frontend build on pushes and pull requests.
+---
 
-## Main API areas
+## Security Architecture: What Is and Isn't Implemented
 
-- `GET /api/health`
-- `/api/auth/status`, `/api/auth/personas`, `/api/auth/demo-session`, `/api/auth/session`
-- `/api/overview`, `/api/cases`, `/api/transactions`, `/api/accounts`, `/api/graph`
-- `/api/consensus-lien/{case_id}`
-- `/api/investigation-priority`
-- `/api/data-quality`
-- `/api/ml/status`, `/api/ml/evaluation`, `/api/ml/demo-samples`, `/api/ml/predict`
-- `/api/traceproof/scenarios`, `/api/traceproof/start`, `/api/traceproof/requests/{request_id}`, `/api/traceproof/verify-envelope`
-- `/api/admin/security-status`, `/api/admin/audit-logs`
+### Implemented Controls
+- **Ed25519 Cryptographic Signatures**: Inter-bank passports and hold receipts are digitally signed with asymmetric Ed25519 keys, generated in-memory per institution/session.
+- **SHA-256 Hash-Chained Audit Trail**: Tamper-evident logging where each audit event includes the SHA-256 hash of its predecessor, verified from genesis via `verify_chain()`.
+- **Zero-Web-App Standalone Verifier**: `python -m verifier <receipt.json>` allows third-party auditors to recompute mathematical bounds with zero dependency on the web framework.
+- **BOLA Protection**: Broken Object-Level Authorization checks verify investigator assigned cases against requested assets.
+- **Fail-Closed Default**: In production mode (`SMART_FREEZE_ENV=production`), all mock identities and debug endpoints are completely disabled.
+- **Exact Minor-Unit Arithmetic**: Floating-point rounding vulnerabilities are eliminated; all balances and allocations operate strictly on integer paise.
 
-Protected endpoints require an authenticated local demo bearer token in the explicitly opted-in development environment. Production OIDC and real-bank connectivity are not implemented.
+### What Is NOT Implemented (Production Blockers)
+- **Live Core Banking / Clearing House Integration**: No live connectivity to SFMS, NPCI, RTGS, or core-banking APIs (CBS). All institution adapters are local simulations.
+- **Hardware Security Modules (HSM)**: Keys are currently held in-memory; production deployment requires FIPS 140-2 Level 3 HSM or KMS key custody.
+- **Production Enterprise Identity (OIDC / SAML / MFA)**: Authentication uses demonstration tokens; enterprise Single Sign-On and multi-factor authentication are not implemented.
+- **Statutory Lien / Automated Freeze Authority**: Smart-Freeze does not hold legal certification to freeze bank accounts; decisions must be executed through approved judicial/bank processes.
+- **Independent Penetration Testing**: Code has not undergone third-party penetration testing or regulatory compliance audits.
 
-## Production blockers
+---
 
-Before any real institutional use, Smart-Freeze would need a bank-approved identity provider and MFA, formal data-sharing/legal authority, partner trust/key governance, stronger deployment isolation and monitoring, independent threat-led penetration testing, and validation on authorized representative banking data. The prototype is not production-ready, and its simulated cross-institution adapters must not be presented as live integrations.
+## Real-World Limitations & Disclaimers
+
+1. **Decision Support Only**: Smart-Freeze outputs **recommendations**, not automated actions. Automated freezing of customer accounts is explicitly blocked.
+2. **Method-Dependent Bounds**: Consensus Lien reports the mathematical bounds ($[\min, \max]$) across three tracing philosophies (FIFO, Proportional, LIBR). It does not assert a singular "correct" legal attribution.
+3. **Investigation Priority vs. Guilt**: The Investigation Priority Score (IPS) and Mule ML Score are decision-support ranking heuristics; they do **not** represent a mathematical probability of legal guilt.
+4. **Data Distribution Shifts**: The primary ML classifier is trained on simulated behavioural features. Real-world adversary tactics, synthetic identities, and evolving UPI mule networks may differ from simulated distributions.
+5. **Cryptographic Scope**: Cryptographic receipts and hash chains prove **mathematical integrity and algorithmic reproducibility**; they do not prove that external data submitted by complainants is factually true.

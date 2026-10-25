@@ -32,6 +32,7 @@ from engine.investigation_score import (
 from engine.ledger import LedgerReconstructionEngine
 from engine.libr import LIBRTracer
 from engine.proportional import ProportionalTracer
+from engine.subgraph import BoundedSubgraphExtractor, BoundedSubgraphResult
 from engine.transaction_graph import TransactionGraphEngine
 from pipeline.adapters.synthetic_adapter import SyntheticAdapter
 from pipeline.profiling import DatasetProfile
@@ -789,6 +790,54 @@ def get_case_detail(
             for _, tx in case_txs.iterrows()
         ],
     }
+
+
+@app.get("/api/cases/{case_id}/subgraph")
+def get_case_subgraph(
+    case_id: str,
+    request: Request,
+    max_hops: int = Query(4, ge=1, le=20),
+    time_window_hours: Optional[float] = Query(None, ge=0.1, le=720.0),
+    max_edges: int = Query(500, ge=1, le=5000),
+    include_account_context: bool = Query(False),
+    auth: AuthContext = Depends(get_current_user),
+):
+    """Extract a time-respecting, hop-bounded subgraph rooted at the case source event."""
+    client_ip = request.client.host if request.client else "unknown"
+    check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
+
+    data = get_ledger_data()
+    cases_df = data["cases_df"]
+    txs_df = data["transactions_df"]
+    accs_df = data["accounts_df"]
+
+    matched = cases_df[cases_df["case_id"] == case_id]
+    if matched.empty:
+        raise HTTPException(status_code=404, detail=f"Case '{case_id}' not found.")
+
+    case_txs = txs_df[txs_df["case_id"] == case_id]
+    source_row = select_case_source_transaction(case_txs)
+    if source_row is None:
+        raise HTTPException(status_code=404, detail=f"No source transaction found for case '{case_id}'.")
+
+    source_tx_id = str(source_row["transaction_id"])
+
+    # Role-based filtering if needed
+    visible_txs = txs_df
+    if auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
+        visible_txs = txs_df[txs_df["case_id"].fillna("").isin(set(auth.user.assigned_cases) | {""})]
+
+    result = BoundedSubgraphExtractor.extract(
+        accounts=accs_df,
+        transactions=visible_txs,
+        source_transaction_id=source_tx_id,
+        max_hops=max_hops,
+        time_window_hours=time_window_hours,
+        max_edges=max_edges,
+        include_account_context=include_account_context,
+    )
+
+    return result.to_dict()
 
 
 @app.get("/api/transactions", response_model=PaginatedTransactions)

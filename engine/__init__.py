@@ -58,6 +58,11 @@ from engine.investigation_score import (
     ScoringConfig,
 )
 
+from engine.subgraph import (
+    BoundedSubgraphExtractor,
+    BoundedSubgraphResult,
+)
+
 __all__ = [
     "AccountState",
     "BalanceEvent",
@@ -97,7 +102,10 @@ __all__ = [
     "CasePriorityScore",
     "InvestigationScoringEngine",
     "GOVERNANCE_DISCLAIMER",
+    "BoundedSubgraphExtractor",
+    "BoundedSubgraphResult",
 ]
+
 
 
 

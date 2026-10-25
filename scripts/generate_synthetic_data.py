@@ -1035,8 +1035,12 @@ def generate_scaled_dataset(
         elif family == "family_d":
             # Family D: Structuring Below a Threshold (< 5,000,000 paise / ₹50,000 INR)
             threshold_paise = 5_000_000
-            mule_d1 = f"ACC_MULE_{min(n_mule, 180 + (case_num % max(1, n_mule - 180))):04d}"
-            mule_d2 = f"ACC_MULE_{min(n_mule, 220 + (case_num % max(1, n_mule - 220))):04d}"
+            m_idx1 = 1 + (case_num * 2) % n_mule
+            m_idx2 = 1 + (case_num * 2 + 1) % n_mule
+            if m_idx2 == m_idx1:
+                m_idx2 = 1 + (m_idx1 % n_mule)
+            mule_d1 = f"ACC_MULE_{m_idx1:04d}"
+            mule_d2 = f"ACC_MULE_{m_idx2:04d}"
 
             # Partition into chunks strictly < 5,000,000 paise
             chunk_amts: List[int] = []
