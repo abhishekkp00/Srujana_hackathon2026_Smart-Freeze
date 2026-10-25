@@ -542,7 +542,7 @@ def get_auth_session(auth: AuthContext = Depends(get_current_user)) -> Dict[str,
 @app.get("/api/health")
 def health_check():
     """Health check endpoint (public liveness probe)."""
-    return {"status": "healthy", "service": "fairhold-api", "version": app.version}
+    return {"status": "healthy", "service": "smart-freeze-api", "version": app.version}
 
 
 @app.get("/api/overview", response_model=OverviewResponse)
@@ -1395,7 +1395,7 @@ def get_data_quality(auth: AuthContext = Depends(get_current_user)):
         except Exception:
             ledger_warnings.append("Could not assess statement-history completeness.")
     datasets.append(DataQualityDatasetItem(
-        dataset_name="FairHold Synthetic Ledger",
+        dataset_name="Smart-Freeze Synthetic Ledger",
         category="Synthetic account-based ledger",
         status=ledger_status,
         file_count=ledger_present,
