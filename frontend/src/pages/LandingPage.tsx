@@ -10,7 +10,6 @@ import {
   ScanSearch,
   Scale,
   ShieldCheck,
-  Workflow,
 } from 'lucide-react';
 import './LandingPage.css';
 
