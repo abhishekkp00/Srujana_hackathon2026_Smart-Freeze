@@ -52,6 +52,7 @@ from security.models import (
     SecurityAuditEvent,
     SecurityStatusResponse,
     AuditSeverity,
+    User,
 )
 from security.auth import (
     get_current_user,
@@ -460,23 +461,35 @@ def get_auth_status() -> Dict[str, Any]:
     }
 
 
+def build_local_demo_user() -> User:
+    """Create one clearly-labelled demo investigator whose access scope follows the loaded case file."""
+    data = get_ledger_data()
+    assigned_case_ids = sorted(data["cases_df"]["case_id"].astype(str).unique().tolist())
+    return User(
+        user_id="LOCAL_DEMO_INVESTIGATOR",
+        email="demo-investigator@localhost.invalid",
+        display_name="Local demo investigator",
+        role=Role.INVESTIGATOR,
+        assigned_cases=assigned_case_ids,
+        institution_id="LOCAL_SYNTHETIC_LEDGER",
+    )
+
+
 @app.get("/api/auth/personas")
 def get_auth_personas() -> Dict[str, Any]:
-    """Return safe local demo persona metadata only; never return bearer tokens."""
+    """Expose one local demonstration identity, not a fabricated directory of bank employees."""
     if not DEMO_AUTH_ENABLED:
         raise HTTPException(status_code=404, detail="Local demonstration identities are disabled.")
+    user = build_local_demo_user()
     return {
         "mode": "LOCAL_DEMO_ONLY",
-        "personas": [
-            {
-                "persona_id": user.user_id,
-                "display_name": user.display_name,
-                "role": user.role.value,
-                "assigned_case_count": len(user.assigned_cases),
-                "institution_id": user.institution_id,
-            }
-            for user in DEMO_PERSONAS.values()
-        ],
+        "personas": [{
+            "persona_id": user.user_id,
+            "display_name": user.display_name,
+            "role": user.role.value,
+            "assigned_case_count": len(user.assigned_cases),
+            "institution_id": user.institution_id,
+        }],
     }
 
 
@@ -486,25 +499,25 @@ class DemoSessionRequest(BaseModel):
 
 @app.post("/api/auth/demo-session")
 def create_demo_session(req: DemoSessionRequest) -> Dict[str, Any]:
-    """Issue a random, short-lived bearer token only for isolated local demonstration mode."""
+    """Issue a short-lived token for the single local demo investigator."""
     if not DEMO_AUTH_ENABLED:
         raise HTTPException(status_code=404, detail="Local demonstration identities are disabled.")
-    for user in DEMO_PERSONAS.values():
-        if user.user_id == req.persona_id:
-            token, expires_at = issue_demo_token(user)
-            return {
-                "mode": "LOCAL_DEMO_ONLY",
-                "token": token,
-                "expires_at": expires_at.isoformat(),
-                "user": {
-                    "user_id": user.user_id,
-                    "display_name": user.display_name,
-                    "role": user.role.value,
-                    "institution_id": user.institution_id,
-                },
-                "warning": "This is a short-lived mock identity for local testing, not production authentication.",
-            }
-    raise HTTPException(status_code=404, detail="Unknown demonstration persona.")
+    user = build_local_demo_user()
+    if req.persona_id != user.user_id:
+        raise HTTPException(status_code=404, detail="Unknown demonstration identity.")
+    token, expires_at = issue_demo_token(user)
+    return {
+        "mode": "LOCAL_DEMO_ONLY",
+        "token": token,
+        "expires_at": expires_at.isoformat(),
+        "user": {
+            "user_id": user.user_id,
+            "display_name": user.display_name,
+            "role": user.role.value,
+            "institution_id": user.institution_id,
+        },
+        "warning": "This short-lived identity is for isolated synthetic-data demos only.",
+    }
 
 
 @app.get("/api/auth/session")
