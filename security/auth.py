@@ -1,4 +1,4 @@
-"""Authentication and Authorization Provider for FairHold.
+"""Authentication and Authorization Provider for Smart-Freeze.
 
 Defines the enterprise OIDC / OAuth 2.0 interface and an isolated development
 identity provider with preconfigured demonstration personas.
@@ -32,7 +32,7 @@ DEMO_AUTH_ENABLED = ENV_MODE in {"development", "test"} and os.getenv("ENABLE_DE
 DEMO_PERSONAS: Dict[str, User] = {
     "dev_token_investigator_1": User(
         user_id="USR_INV_CHEN",
-        email="sarah.chen@fairhold.internal",
+        email="sarah.chen@smart-freeze.internal",
         display_name="Sarah Chen (Investigator)",
         role=Role.INVESTIGATOR,
         assigned_cases=[
@@ -47,7 +47,7 @@ DEMO_PERSONAS: Dict[str, User] = {
     ),
     "dev_token_investigator_2": User(
         user_id="USR_INV_VANCE",
-        email="marcus.vance@fairhold.internal",
+        email="marcus.vance@smart-freeze.internal",
         display_name="Marcus Vance (Investigator)",
         role=Role.INVESTIGATOR,
         assigned_cases=["CASE-2026-003"],
@@ -55,7 +55,7 @@ DEMO_PERSONAS: Dict[str, User] = {
     ),
     "dev_token_admin": User(
         user_id="USR_ADM_THORNE",
-        email="alex.thorne@fairhold.internal",
+        email="alex.thorne@smart-freeze.internal",
         display_name="Alex Thorne (Lead Compliance Admin)",
         role=Role.COMPLIANCE_ADMIN,
         assigned_cases=["*"],
@@ -63,7 +63,7 @@ DEMO_PERSONAS: Dict[str, User] = {
     ),
     "dev_token_auditor": User(
         user_id="USR_AUD_NAIR",
-        email="priya.nair@fairhold.internal",
+        email="priya.nair@smart-freeze.internal",
         display_name="Priya Nair (External Auditor)",
         role=Role.AUDITOR,
         assigned_cases=["*"],
