@@ -46,6 +46,8 @@ from traceproof.schemas import (
     VerifyEnvelopeRequest,
     EnvelopeVerificationResult,
 )
+from federated.coordinator import FederatedCoordinator
+from federated.schemas import FederatedComparisonResponse
 from security.models import (
     Role,
     AuthContext,
@@ -1927,6 +1929,65 @@ def verify_envelope(
 
     key_manager = InstitutionKeyManager.get_instance()
     return key_manager.verify_envelope(req.envelope)
+
+
+@app.get("/api/v1/federated/compare/{case_id}", response_model=FederatedComparisonResponse)
+@app.get("/api/federated/compare/{case_id}", response_model=FederatedComparisonResponse)
+def compare_federated_vs_centralized(
+    case_id: str,
+    request: Request,
+    auth: AuthContext = Depends(get_current_user),
+    simulate_missing: bool = Query(False, description="Simulate missing passports in transit"),
+    simulate_tamper: bool = Query(False, description="Simulate tampered passports"),
+    simulate_replay: bool = Query(False, description="Simulate passport replay attacks"),
+    simulate_expired: bool = Query(False, description="Simulate expired passports"),
+    simulate_wrong_key: bool = Query(False, description="Simulate unauthorized signature"),
+) -> FederatedComparisonResponse:
+    """Returns side-by-side comparison between federated multi-rail and centralized fund tracing.
+
+    Partitions accounts across 3 banks plus one wallet rail. For each cross-institution hop,
+    a signed Passport carries evidence with per-method segments. Demonstrates mathematical
+    equivalence under verified conditions and evidence-bounded range widening under unverified conditions.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
+
+    data = get_ledger_data()
+    cases_df = data["cases_df"]
+    txs_df = data["transactions_df"]
+    accs_df = data["accounts_df"]
+
+    matched = cases_df[cases_df["case_id"] == case_id]
+    if matched.empty:
+        raise HTTPException(status_code=404, detail=f"Case '{case_id}' not found.")
+
+    case_txs = txs_df[txs_df["case_id"] == case_id]
+    if case_txs.empty:
+        raise HTTPException(status_code=400, detail=f"No transactions linked to case '{case_id}'.")
+
+    origin_tx = select_case_source_transaction(case_txs)
+    if origin_tx is None:
+        raise HTTPException(status_code=400, detail=f"No source transaction is available for case '{case_id}'.")
+
+    fault_missing = set(case_txs["transaction_id"]) if simulate_missing else None
+    fault_tamper = set(case_txs["transaction_id"]) if simulate_tamper else None
+    fault_replay = set(case_txs["transaction_id"]) if simulate_replay else None
+    fault_expire = set(case_txs["transaction_id"]) if simulate_expired else None
+    fault_wrong_key = set(case_txs["transaction_id"]) if simulate_wrong_key else None
+
+    coordinator = FederatedCoordinator()
+    res = coordinator.run_trace(
+        accounts=accs_df,
+        transactions=txs_df,
+        source_transaction_id=str(origin_tx["transaction_id"]),
+        case_id=case_id,
+        fault_missing_transfers=fault_missing,
+        fault_tamper_transfers=fault_tamper,
+        fault_expire_transfers=fault_expire,
+        fault_replay_transfers=fault_replay,
+        fault_wrong_key_transfers=fault_wrong_key,
+    )
+    return res
 
 
 # ==============================================================================
