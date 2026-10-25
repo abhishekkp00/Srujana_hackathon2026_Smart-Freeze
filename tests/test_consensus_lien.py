@@ -279,3 +279,62 @@ def test_real_synthetic_case_1_consensus_lien():
     assert "account_id" in df_summary.columns
     assert "lower_bound_inr" in df_summary.columns
     assert "upper_bound_inr" in df_summary.columns
+
+
+# ==============================================================================
+# 11. Acceptance Test 3: Joint Total <= Suspected Amount for All Synthetic Cases
+# ==============================================================================
+
+def test_joint_total_le_suspected_amount_all_synthetic_cases():
+    """Acceptance Test 3: Joint total <= suspected amount for every case in data/synthetic.
+
+    Verifies that while per-account maximums can sum to more than the stolen amount
+    (e.g., CASE-2026-001 sum of per-account max is 15,189,076 paise / ₹151,890.76 on 10,000,000 paise / ₹100,000.00),
+    the joint-feasible total never exceeds initial suspected amount minus money confirmed to have left the system.
+    """
+    assert REAL_SYNTHETIC_DIR.exists()
+    adapter = SyntheticAdapter(REAL_SYNTHETIC_DIR)
+    accounts, txns, cases = adapter.load_dataset()
+
+    case_origins = {
+        "CASE-2026-001": "TXN_0009",
+        "CASE-2026-002": "TXN_0038",
+        "CASE-2026-003": "TXN_0067",
+    }
+
+    for case_id, origin_tx in case_origins.items():
+        res = ConsensusLienEngine.run_all_methods(
+            accounts=accounts,
+            transactions=txns,
+            source_transaction_id=origin_tx,
+            source_case_id=case_id,
+        )
+        assert res.status == "COMPARABLE"
+        suspected = res.initial_suspected_amount_paise
+        confirmed_outflows = res.confirmed_withdrawn_paise
+        joint_upper = res.joint_feasible_upper_paise
+
+        # Strict invariant: joint_upper <= suspected - confirmed_outflows <= suspected
+        assert joint_upper <= suspected - confirmed_outflows
+        assert joint_upper <= suspected
+        assert res.joint_total_paise <= suspected
+        assert res.joint_total <= suspected / 100.0
+        assert res.joint_feasible_lower_paise <= joint_upper
+
+    # Specific check for CASE-2026-001 demonstrating the exact requirement:
+    res_case1 = ConsensusLienEngine.run_all_methods(
+        accounts=accounts,
+        transactions=txns,
+        source_transaction_id="TXN_0009",
+        source_case_id="CASE-2026-001",
+    )
+    # Per-account unconstrained sum exceeds 100,000 INR (151,890.76)
+    assert res_case1.total_upper_retained_paise == 15189076
+    # Confirmed withdrawn via external ATM is 476,190 paise
+    assert res_case1.confirmed_withdrawn_paise == 476190
+    # Joint-feasible upper bound is exactly min(15,189,076, 10,000,000 - 476,190) = 9,523,810 paise (₹95,238.10)
+    assert res_case1.joint_feasible_upper_paise == 9523810
+    assert res_case1.joint_total_paise == 9523810
+    assert res_case1.joint_total_paise <= 10000000
+    assert res_case1.joint_total <= 100000.00
+

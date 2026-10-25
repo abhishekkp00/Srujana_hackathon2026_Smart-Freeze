@@ -206,3 +206,122 @@ def test_preservation_of_ml_and_financial_tracing(client: TestClient):
     ml_status_after = client.get("/api/ml/status").json()
     assert ml_status_before["status"] == ml_status_after["status"]
     assert ml_status_before["model_version"] == ml_status_after["model_version"]
+
+
+# ==============================================================================
+# Acceptance Tests for Evidence-Bounded Range and Engine Integrity
+# ==============================================================================
+
+def test_traceproof_three_values_equal_engine_values(coordinator: TraceCoordinator):
+    """Acceptance Test 1: For a complete scenario, TraceProof's three values equal the engine values on the same events."""
+    res = coordinator.execute_trace(case_id="CASE-2026-TP-01", scenario_id="SCENARIO_1_COMPLETE")
+    assert res.status == TraceStatus.COMPLETE
+    assert res.evidence_bounded_range is not None
+
+    # Reconstruct the ledger using engine.ledger from verified envelopes
+    txns = []
+    accounts = set()
+    for env, ver in zip(res.envelopes, res.verification_results):
+        if ver.is_valid:
+            p = env.approved_payload
+            txns.append({
+                "transaction_id": str(p["event_id"]),
+                "timestamp": str(p["timestamp"]),
+                "from_account": str(p["sender_token"]).strip(),
+                "to_account": str(p["recipient_token"]).strip(),
+                "amount_paise": int(p["amount_minor"]),
+                "case_id": "CASE-2026-TP-01",
+                "transaction_type": str(p.get("event_type", "transfer")),
+                "evidence_status": "verified",
+            })
+            accounts.add(str(p["sender_token"]).strip())
+            accounts.add(str(p["recipient_token"]).strip())
+
+    import pandas as pd
+    from engine.ledger import LedgerReconstructionEngine
+    from engine.proportional import ProportionalTracer
+    from engine.fifo import FIFOTracer
+    from engine.libr import LIBRTracer
+
+    sorted_txs = LedgerReconstructionEngine.sort_transactions_deterministically(txns)
+    first_tx = sorted_txs[0]
+    acc_rows = [
+        {
+            "account_id": acc_id,
+            "opening_balance_paise": first_tx["amount_paise"] if acc_id == first_tx["from_account"] else 0,
+            "history_complete": True,
+            "account_type": "INTERNAL",
+        }
+        for acc_id in sorted(accounts)
+    ]
+    accounts_df = pd.DataFrame(acc_rows)
+    transactions_df = pd.DataFrame(sorted_txs)
+
+    source_tx_id = first_tx["transaction_id"]
+    prop_res = ProportionalTracer(accounts_df, transactions_df).trace_source_transaction(source_tx_id, "CASE-2026-TP-01")
+    fifo_res = FIFOTracer(accounts_df, transactions_df).trace_source_transaction(source_tx_id, "CASE-2026-TP-01")
+    libr_res = LIBRTracer(accounts_df, transactions_df).trace_source_transaction(source_tx_id, "CASE-2026-TP-01")
+
+    # Destination hop / settlement allocation event
+    target_event_id = None
+    for e in res.edges:
+        if e.event_type == FinancialEventType.SETTLEMENT_ALLOCATION and e.link_status == LinkClassification.CONFIRMED:
+            target_event_id = e.event_id
+            break
+    assert target_event_id is not None, "Target settlement allocation event must exist in complete scenario"
+
+    prop_val = next(h.suspected_amount_paise for h in prop_res.transfer_hops if h.transaction_id == target_event_id)
+    fifo_val = next(h.suspected_amount_paise for h in fifo_res.transfer_hops if h.transaction_id == target_event_id)
+    libr_val = next(h.suspected_amount_paise for h in libr_res.transfer_hops if h.transaction_id == target_event_id)
+
+    # Compare against TraceProof range methods
+    method_map = {m.method: m.amount_paise for m in res.evidence_bounded_range.methods}
+    assert method_map["Proportional Tracing"] == prop_val
+    assert method_map["FIFO Tracing"] == fifo_val
+    assert method_map["LIBR Tracing"] == libr_val
+
+
+def test_no_numeric_multipliers_in_range_code():
+    """Acceptance Test 2: Test fails if numeric multipliers (e.g. 0.75, 1.0, 0.90) reappear in the range code."""
+    import inspect
+    import re
+    from traceproof.coordinator import TraceCoordinator
+
+    source = inspect.getsource(TraceCoordinator._build_evidence_bounded_range)
+
+    # Check for hardcoded numeric multipliers like 0.75, 0.90, * 0.x, * 1.0
+    forbidden_patterns = [
+        r"\*\s*0\.75",
+        r"\*\s*0\.90?",
+        r"\*\s*1\.0",
+        r"0\.75\s*\*",
+        r"0\.90?\s*\*",
+        r"confirmed_minor\s*\*\s*0\.",
+    ]
+    for pat in forbidden_patterns:
+        match = re.search(pat, source)
+        assert match is None, f"Found forbidden hardcoded numeric multiplier in range code matching '{pat}': {match.group(0)}"
+
+
+def test_unresolved_hop_widens_range(coordinator: TraceCoordinator):
+    """Acceptance Test 4: Unresolved hop widens the range to [0, hop amount] with disagreement equal to hop amount."""
+    res_complete = coordinator.execute_trace(case_id="CASE-2026-TP-01", scenario_id="SCENARIO_1_COMPLETE")
+    res_unresolved = coordinator.execute_trace(case_id="CASE-2026-TP-02", scenario_id="SCENARIO_2_UNRESOLVED_GAP")
+
+    assert res_unresolved.evidence_bounded_range is not None
+    rng = res_unresolved.evidence_bounded_range
+
+    # Hop amount across the unresolved settlement is 70,000 INR = 7,000,000 paise
+    hop_amount = 7000000
+    assert rng.lower_bound_paise == 0
+    assert rng.upper_bound_paise == hop_amount
+    assert rng.disagreement_paise == hop_amount
+    assert rng.disagreement_paise > res_complete.evidence_bounded_range.disagreement_paise
+
+    # All methods are marked invalid (not verified) because the link is unknown
+    for method in rng.methods:
+        assert method.valid is False
+
+    # Explanation explicitly documents unknown stolen share widened to [0, hop amount]
+    assert any("UNKNOWN" in r for r in rng.reasons)
+

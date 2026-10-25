@@ -69,6 +69,27 @@ class ConsensusLienResult:
     assumptions_and_limitations: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
+    confirmed_withdrawn_paise: int = 0
+    joint_feasible_upper_paise: int = 0
+    joint_feasible_lower_paise: int = 0
+
+    @property
+    def joint_total_paise(self) -> int:
+        """Joint-feasible total upper bound that never exceeds suspected amount minus confirmed outflows."""
+        return self.joint_feasible_upper_paise
+
+    @property
+    def joint_total(self) -> float:
+        """Joint-feasible total in INR."""
+        return self.joint_feasible_upper_paise / 100.0
+
+    @property
+    def joint_feasible_total_paise(self) -> int:
+        return self.joint_feasible_upper_paise
+
+    @property
+    def joint_feasible_total(self) -> float:
+        return self.joint_feasible_upper_paise / 100.0
 
     def summary_dataframe(self) -> pd.DataFrame:
         """Render a tabular summary of consensus lien bounds per internal account."""
@@ -102,6 +123,11 @@ class ConsensusLienResult:
             "total_lower_retained_paise": self.total_lower_retained_paise,
             "total_upper_retained_paise": self.total_upper_retained_paise,
             "overall_disagreement_paise": self.overall_disagreement_paise,
+            "confirmed_withdrawn_paise": self.confirmed_withdrawn_paise,
+            "joint_feasible_upper_paise": self.joint_feasible_upper_paise,
+            "joint_feasible_lower_paise": self.joint_feasible_lower_paise,
+            "joint_total_paise": self.joint_total_paise,
+            "joint_total": self.joint_total,
             "account_liens": {k: v.to_dict() for k, v in self.account_liens.items()},
             "withdrawn_liens": {k: v.to_dict() for k, v in self.withdrawn_liens.items()},
             "assumptions_and_limitations": self.assumptions_and_limitations,
@@ -332,10 +358,21 @@ class ConsensusLienEngine:
         total_upper = sum(l.upper_estimate_paise for l in account_liens.values())
         overall_disagreement = sum(l.disagreement_paise for l in account_liens.values())
 
+        # Joint-feasible total:
+        # Sum of per-account maximums can exceed the stolen amount when methods disagree on where
+        # funds reside (e.g., CASE-2026-001 shows 151,890.76 on 100,000.00).
+        # We preserve per-account ranges, but add a joint-feasible total that never exceeds the
+        # suspected amount minus money confirmed to have left the system.
+        confirmed_withdrawn = sum(l.lower_estimate_paise for l in withdrawn_liens.values())
+        max_retained_feasible = max(0, init_amt - confirmed_withdrawn)
+        joint_feasible_upper = min(total_upper, max_retained_feasible)
+        joint_feasible_lower = min(total_lower, joint_feasible_upper)
+
         assumptions = [
             "Consensus Lien Rule: Compares three independent fund-tracing methods (Proportional, FIFO, LIBR).",
-            "Lower Estimate: Represents the minimum traced amount across the configured methods. Not a guaranteed floor or judicial liability.",
-            "Upper Estimate: Represents the maximum traced amount across the configured methods. Not an authorized freeze maximum.",
+            "Lower Estimate: Represents the minimum traced amount across the configured methods per account. Not a guaranteed floor or judicial liability.",
+            "Upper Estimate: Represents the maximum traced amount across the configured methods per account. Not an authorized freeze maximum.",
+            "Joint-Feasible Total: Constrains the total upper bound so it never exceeds the suspected amount minus money confirmed to have left the system via external outflows.",
             "Disagreement Quantification: Disagreement = Upper - Lower. Non-zero disagreement reflects differing legal and accounting assumptions regarding commingled fund fungibility.",
             "Human-in-the-Loop Governance: Automated freezes are prohibited. Authorized judicial or investigative review is strictly required.",
         ]
@@ -356,4 +393,7 @@ class ConsensusLienEngine:
             assumptions_and_limitations=assumptions,
             errors=errors,
             warnings=warnings,
+            confirmed_withdrawn_paise=confirmed_withdrawn,
+            joint_feasible_upper_paise=joint_feasible_upper,
+            joint_feasible_lower_paise=joint_feasible_lower,
         )

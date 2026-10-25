@@ -400,6 +400,12 @@ class ConsensusLienResponse(BaseModel):
     total_upper_bound_inr: float
     total_disagreement_paise: int
     total_disagreement_inr: float
+    joint_feasible_upper_paise: Optional[int] = None
+    joint_feasible_upper_inr: Optional[float] = None
+    confirmed_withdrawn_paise: Optional[int] = None
+    confirmed_withdrawn_inr: Optional[float] = None
+    unconstrained_upper_bound_paise: Optional[int] = None
+    unconstrained_upper_bound_inr: Optional[float] = None
     account_liens: List[AccountLienItem]
     method_details: Dict[str, Any]
     explanation: Dict[str, Any]
@@ -1253,8 +1259,10 @@ def get_consensus_lien(
         "summary": (
             f"Case {case_id} Consensus Lien evaluated across {len(lien_res.account_liens)} accounts. "
             f"Total lower bound: ₹{lien_res.total_lower_retained_paise / 100:,.2f}, "
-            f"total upper bound: ₹{lien_res.total_upper_retained_paise / 100:,.2f}, "
-            f"overall disagreement: ₹{lien_res.overall_disagreement_paise / 100:,.2f}."
+            f"joint-feasible upper bound: ₹{lien_res.joint_feasible_upper_paise / 100:,.2f} "
+            f"(unconstrained per-account sum: ₹{lien_res.total_upper_retained_paise / 100:,.2f}, "
+            f"confirmed external outflows: ₹{lien_res.confirmed_withdrawn_paise / 100:,.2f}), "
+            f"joint disagreement: ₹{(lien_res.joint_feasible_upper_paise - lien_res.total_lower_retained_paise) / 100:,.2f}."
         ),
         "account_explanations": {
             aid: acl.explanation_text for aid, acl in lien_res.account_liens.items()
@@ -1292,18 +1300,28 @@ def get_consensus_lien(
     # Sort account liens by lower bound descending
     account_liens.sort(key=lambda x: x.lower_bound_paise, reverse=True)
 
+    joint_upper_paise = lien_res.joint_feasible_upper_paise
+    joint_lower_paise = lien_res.total_lower_retained_paise
+    joint_disagree_paise = max(0, joint_upper_paise - joint_lower_paise)
+
     return ConsensusLienResponse(
         case_id=case_id,
         source_transaction_id=origin_tx_id,
         source_amount_paise=origin_amt,
         source_amount_inr=origin_amt / 100.0,
         consensus_status=lien_res.status,
-        total_lower_bound_paise=lien_res.total_lower_retained_paise,
-        total_lower_bound_inr=lien_res.total_lower_retained_paise / 100.0,
-        total_upper_bound_paise=lien_res.total_upper_retained_paise,
-        total_upper_bound_inr=lien_res.total_upper_retained_paise / 100.0,
-        total_disagreement_paise=lien_res.overall_disagreement_paise,
-        total_disagreement_inr=lien_res.overall_disagreement_paise / 100.0,
+        total_lower_bound_paise=joint_lower_paise,
+        total_lower_bound_inr=joint_lower_paise / 100.0,
+        total_upper_bound_paise=joint_upper_paise,
+        total_upper_bound_inr=joint_upper_paise / 100.0,
+        total_disagreement_paise=joint_disagree_paise,
+        total_disagreement_inr=joint_disagree_paise / 100.0,
+        joint_feasible_upper_paise=joint_upper_paise,
+        joint_feasible_upper_inr=joint_upper_paise / 100.0,
+        confirmed_withdrawn_paise=lien_res.confirmed_withdrawn_paise,
+        confirmed_withdrawn_inr=lien_res.confirmed_withdrawn_paise / 100.0,
+        unconstrained_upper_bound_paise=lien_res.total_upper_retained_paise,
+        unconstrained_upper_bound_inr=lien_res.total_upper_retained_paise / 100.0,
         account_liens=account_liens,
         method_details={
             "proportional": {"status": "COMPLETED", "assumption": "Fungible commingling across concurrent balance"},

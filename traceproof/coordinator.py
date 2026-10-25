@@ -3,7 +3,13 @@
 import uuid
 from typing import Dict, Any, List, Optional
 import networkx as nx
+import pandas as pd
 
+from engine.ledger import LedgerReconstructionEngine
+from engine.balances import BalanceTracker
+from engine.proportional import ProportionalTracer
+from engine.fifo import FIFOTracer
+from engine.libr import LIBRTracer
 from traceproof.adapters.bank_a import BankAAdapter
 from traceproof.adapters.wallet_b import WalletBAdapter
 from traceproof.adapters.bank_c import BankCAdapter
@@ -493,7 +499,14 @@ class TraceCoordinator:
         unresolved_count = sum(1 for e in edges if e.link_status == LinkClassification.UNRESOLVED)
 
         # Compute Evidence-Bounded Trace Range
-        trace_range = self._build_evidence_bounded_range(edges, has_unresolved, has_tampered)
+        trace_range = self._build_evidence_bounded_range(
+            edges=edges,
+            envelopes=envelopes,
+            verifications=verifications,
+            has_unresolved=has_unresolved,
+            has_tampered=has_tampered,
+            case_id=case_id,
+        )
 
         # Generate structured narrative summary
         narrative = self._generate_narrative(
@@ -528,25 +541,171 @@ class TraceCoordinator:
         return response
 
     def _build_evidence_bounded_range(
-        self, edges: List[TraceProofEdge], has_unresolved: bool, has_tampered: bool
+        self,
+        edges: List[TraceProofEdge],
+        envelopes: List[SignedEvidenceEnvelope],
+        verifications: List[EnvelopeVerificationResult],
+        has_unresolved: bool,
+        has_tampered: bool,
+        case_id: str,
     ) -> Optional[TraceProofRange]:
-        """Compute the Evidence-Bounded Trace Range connecting to mathematical tracing principles."""
-        if has_tampered:
+        """Compute the Evidence-Bounded Trace Range connecting to mathematical tracing principles.
+
+        Uses real execution results from engine.proportional, engine.fifo, and engine.libr
+        run on a ledger reconstructed from verified evidence envelopes. If a hop is unresolved
+        or an envelope is invalid, the stolen share of that hop is UNKNOWN: the range is widened
+        to [0, hop amount] instead of guessing.
+        """
+        # If a hop is unresolved or an envelope is invalid, the stolen share of that hop is UNKNOWN:
+        # widen the range to [0, hop amount] instead of guessing.
+        if has_unresolved or has_tampered:
+            problem_amount = 0
+            if has_unresolved:
+                unresolved_edges = [e for e in edges if e.link_status == LinkClassification.UNRESOLVED]
+                if unresolved_edges:
+                    problem_amount = unresolved_edges[0].amount_minor
+            if problem_amount == 0 and has_tampered:
+                contradictory_edges = [e for e in edges if e.link_status == LinkClassification.CONTRADICTORY]
+                if contradictory_edges:
+                    problem_amount = contradictory_edges[0].amount_minor
+                else:
+                    for env, ver in zip(envelopes, verifications):
+                        if not ver.is_valid:
+                            problem_amount = env.approved_payload.get("amount_minor", 0)
+                            break
+            if problem_amount == 0 and edges:
+                problem_amount = edges[-1].amount_minor
+
+            lower_minor = 0
+            upper_minor = problem_amount
+            disagreement_minor = upper_minor - lower_minor
+
+            reason_str = (
+                f"A hop is unresolved or evidence is invalid; stolen share is UNKNOWN. "
+                f"Range widened to [₹0.00, ₹{problem_amount / 100:,.2f}] instead of guessing."
+            )
+            return TraceProofRange(
+                lower_bound_paise=lower_minor,
+                upper_bound_paise=upper_minor,
+                disagreement_paise=disagreement_minor,
+                lower_bound_display=lower_minor / 100.0,
+                upper_bound_display=upper_minor / 100.0,
+                disagreement_display=disagreement_minor / 100.0,
+                methods=[
+                    TraceProofRangeMethod(
+                        method="Proportional Tracing",
+                        amount_paise=0,
+                        amount_display=0.0,
+                        valid=False,
+                        assumption="Unresolved/invalid hop: lower bound assumes zero stolen share transmitted across unverified gap",
+                    ),
+                    TraceProofRangeMethod(
+                        method="FIFO Tracing",
+                        amount_paise=upper_minor,
+                        amount_display=upper_minor / 100.0,
+                        valid=False,
+                        assumption="Unresolved/invalid hop: upper bound assumes 100% of hop amount attributable to stolen source",
+                    ),
+                    TraceProofRangeMethod(
+                        method="LIBR Tracing",
+                        amount_paise=0,
+                        amount_display=0.0,
+                        valid=False,
+                        assumption="Unresolved/invalid hop: intermediate attribution ceiling cannot be verified without authentic evidence",
+                    ),
+                ],
+                reasons=[
+                    "Evidence-Bounded Trace Range bounds method-dependent estimates for authorized review.",
+                    reason_str,
+                    "Downstream allocations remain unverified until authentic institution evidence is produced.",
+                ],
+            )
+
+        # Complete scenario: Reconstruct ledger from verified envelopes using engine.ledger
+        # and compute real results with engine.proportional, engine.fifo, and engine.libr.
+        txns = []
+        accounts = set()
+        for env, ver in zip(envelopes, verifications):
+            if ver.is_valid:
+                p = env.approved_payload
+                txns.append({
+                    "transaction_id": str(p["event_id"]),
+                    "timestamp": str(p["timestamp"]),
+                    "from_account": str(p["sender_token"]).strip(),
+                    "to_account": str(p["recipient_token"]).strip(),
+                    "amount_paise": int(p["amount_minor"]),
+                    "case_id": case_id,
+                    "transaction_type": str(p.get("event_type", "transfer")),
+                    "evidence_status": "verified",
+                })
+                accounts.add(str(p["sender_token"]).strip())
+                accounts.add(str(p["recipient_token"]).strip())
+
+        if not txns:
             return None
 
-        # Confirmed endpoint amount reached
-        confirmed_minor = 0
+        sorted_txs = LedgerReconstructionEngine.sort_transactions_deterministically(txns)
+        first_tx = sorted_txs[0]
+
+        acc_rows = []
+        for acc_id in sorted(accounts):
+            acc_rows.append({
+                "account_id": acc_id,
+                "opening_balance_paise": first_tx["amount_paise"] if acc_id == first_tx["from_account"] else 0,
+                "history_complete": True,
+                "account_type": "INTERNAL",
+            })
+
+        accounts_df = pd.DataFrame(acc_rows)
+        transactions_df = pd.DataFrame(sorted_txs)
+
+        # Run independent tracing engines on the reconstructed ledger
+        source_tx_id = first_tx["transaction_id"]
+        prop_res = ProportionalTracer(accounts_df, transactions_df).trace_source_transaction(source_tx_id, case_id)
+        fifo_res = FIFOTracer(accounts_df, transactions_df).trace_source_transaction(source_tx_id, case_id)
+        libr_res = LIBRTracer(accounts_df, transactions_df).trace_source_transaction(source_tx_id, case_id)
+
+        # Determine target hop / settlement allocation event
+        target_event_id = None
+        target_account = None
         for e in edges:
             if e.event_type == FinancialEventType.SETTLEMENT_ALLOCATION and e.link_status == LinkClassification.CONFIRMED:
-                confirmed_minor = e.amount_minor
+                target_event_id = e.event_id
+                target_account = e.target
+                break
+        if target_event_id is None and edges:
+            confirmed_edges = [e for e in edges if e.link_status == LinkClassification.CONFIRMED]
+            if confirmed_edges:
+                target_event_id = confirmed_edges[-1].event_id
+                target_account = confirmed_edges[-1].target
 
-        if confirmed_minor == 0 and not has_unresolved:
-            confirmed_minor = 7000000
+        # Extract real computed values from engine results for the destination hop
+        proportional_minor = 0
+        if prop_res and target_event_id:
+            for hop in prop_res.transfer_hops:
+                if hop.transaction_id == target_event_id:
+                    proportional_minor = hop.suspected_amount_paise
+                    break
+            else:
+                proportional_minor = prop_res.retained_suspected_paise.get(target_account, 0)
 
-        # Method estimates
-        proportional_minor = int(confirmed_minor * 0.75) if not has_unresolved else 0
-        fifo_minor = confirmed_minor if not has_unresolved else 0
-        libr_minor = int(confirmed_minor * 0.90) if not has_unresolved else 0
+        fifo_minor = 0
+        if fifo_res and target_event_id:
+            for hop in fifo_res.transfer_hops:
+                if hop.transaction_id == target_event_id:
+                    fifo_minor = hop.suspected_amount_paise
+                    break
+            else:
+                fifo_minor = fifo_res.retained_suspected_paise.get(target_account, 0)
+
+        libr_minor = 0
+        if libr_res and target_event_id:
+            for hop in libr_res.transfer_hops:
+                if hop.transaction_id == target_event_id:
+                    libr_minor = hop.suspected_amount_paise
+                    break
+            else:
+                libr_minor = libr_res.retained_suspected_paise.get(target_account, 0)
 
         lower_minor = min(proportional_minor, fifo_minor, libr_minor)
         upper_minor = max(proportional_minor, fifo_minor, libr_minor)
@@ -564,28 +723,28 @@ class TraceCoordinator:
                     method="Proportional Tracing",
                     amount_paise=proportional_minor,
                     amount_display=proportional_minor / 100.0,
-                    valid=not has_unresolved,
+                    valid=True,
                     assumption="Fungible commingling across intermediary wallet and settlement pools",
                 ),
                 TraceProofRangeMethod(
                     method="FIFO Tracing",
                     amount_paise=fifo_minor,
                     amount_display=fifo_minor / 100.0,
-                    valid=not has_unresolved,
+                    valid=True,
                     assumption="Oldest source lots dispatched sequentially through cross-institution rails",
                 ),
                 TraceProofRangeMethod(
                     method="LIBR Tracing",
                     amount_paise=libr_minor,
                     amount_display=libr_minor / 100.0,
-                    valid=not has_unresolved,
+                    valid=True,
                     assumption="Clean funds absorb outflows; intermediate drawdown acts as irreversible ceiling",
                 ),
             ],
             reasons=[
-                "Evidence-Bounded Trace Range bounds method-dependent estimates for authorized review.",
+                "Evidence-Bounded Trace Range bounds method-dependent estimates computed directly from verified envelopes.",
+                "Computed via real engine execution (Proportional, FIFO, and LIBR) without hardcoded multipliers.",
                 "Non-zero disagreement represents differing accounting assumptions regarding commingled wallet fungibility.",
-                "If unverified or unresolved links exist, downstream estimates are strictly bounded or flagged partial.",
             ],
         )
 

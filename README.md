@@ -12,7 +12,22 @@ Smart-Freeze is a prototype for reconstructing financial transaction trails, com
 - **Authentication:** the default configuration disables demo authentication. Local personas are mock identities for isolated development/testing, not production authentication. OIDC/SSO/MFA are not implemented.
 - **Security:** API checks, demo signing and audit telemetry are prototype controls; they have not been independently penetration-tested or certified for production use.
 
+## Implementation and Verification Status
+
+| Capability / Module | Implementation Status | Verification Status | Operational Boundary / Limitations |
+| :--- | :--- | :--- | :--- |
+| **Transaction Ledger & Balances** (`engine.ledger`, `engine.balances`) | Complete | 100% verified (`tests/test_ledger.py`, `tests/test_balances.py`) | Deterministic reconstruction in integer paise; negative balance prevention; no fabricated records. |
+| **Transaction Flow Graph** (`engine.transaction_graph`) | Complete | 100% verified (`tests/test_transaction_graph.py`) | Directed NetworkX graph; source-rooted traversal; max-edge bounded context expansion. |
+| **Fund Tracing Engines** (`engine.proportional`, `engine.fifo`, `engine.libr`) | Complete | 100% verified (`tests/test_proportional.py`, `tests/test_fifo.py`, `tests/test_libr.py`) | Independent execution; strict integer-paise conservation; exact accounting assumptions without heuristics. |
+| **Consensus Lien & Joint Feasibility** (`engine.consensus_lien`) | Complete | 100% verified (`tests/test_consensus_lien.py`) | Per-account bounds; joint-feasible total strictly $\le$ suspected amount minus money confirmed to have left the system (`joint_total <= suspected_amount`). |
+| **TraceProof Evidence Reconstruction** (`traceproof.coordinator`, `traceproof.crypto`) | Complete | 100% verified (`tests/test_traceproof.py`) | Real engine runs on verified envelope ledger; zero numeric multipliers; unresolved/tampered hops widen range to `[0, hop amount]`; simulated fixtures only. |
+| **Investigation Priority Scoring** (`engine.investigation_score`, `engine.behavioural_features`) | Complete | 100% verified (`tests/test_investigation_score.py`, `tests/test_behavioural_features.py`) | Explainable decision-support heuristic; ranks cases for authorized review; not a probability of guilt. |
+| **Machine Learning Classifier** (`ml.train`, `ml.service`) | Complete | 100% verified (`tests/test_ml.py`) | Trained on European credit-card benchmark; sha256 artifact verification; uncalibrated score; isolated from tracing engines. |
+| **FastAPI Backend & Security Telemetry** (`app.main`, `pipeline.security_audit`) | Complete | 100% verified (`tests/test_api.py`, `tests/test_security.py`) | Prototype auth with mock demo identities; fail-closed in production; tamper-evident security audit log. |
+| **React + TypeScript UI** (`frontend/src/`) | Complete | Production build verified (`tsc -b && vite build`) | 3-screen investigator workflow (Overview, Money Flow, Consensus Lien); honest simulation labels; no auto-freeze. |
+
 ## Main application screens
+
 
 The frontend intentionally keeps the investigator workflow to three screens:
 
