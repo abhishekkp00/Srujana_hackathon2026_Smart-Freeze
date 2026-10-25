@@ -145,6 +145,15 @@ const AuthGate: React.FC = () => {
     return () => { active = false; };
   }, [loadSession]);
 
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setSession(null);
+      setShowLanding(true);
+    };
+    window.addEventListener('auth-expired', handleAuthExpired);
+    return () => window.removeEventListener('auth-expired', handleAuthExpired);
+  }, []);
+
   const startDemoSession = useCallback(async () => {
     if (!demoPersona) return;
     setStarting(true);

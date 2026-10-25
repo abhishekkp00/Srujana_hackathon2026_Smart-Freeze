@@ -27,7 +27,9 @@ apiClient.interceptors.response.use(
   (error) => {
     const detail = error.response?.data?.detail;
     if (error.response?.status === 401) {
-      error.message = detail || 'Authentication required. Start an explicitly labelled local demo session.';
+      window.localStorage.removeItem(DEMO_TOKEN_KEY);
+      window.dispatchEvent(new CustomEvent('auth-expired'));
+      error.message = detail || 'Authentication credentials expired or invalid. Please renew session.';
     } else if (error.response?.status === 403) {
       error.message = detail || 'Access denied for this case or operation.';
     } else if (detail) {

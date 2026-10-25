@@ -12,7 +12,9 @@ Enforces role and case checks for the local prototype.
 
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 import secrets
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
@@ -71,10 +73,53 @@ DEMO_PERSONAS: Dict[str, User] = {
     ),
 }
 
-# Random, expiring sessions are used only in explicitly enabled local demo mode.
 DEMO_SESSION_TTL_SECONDS = 3600
 DEMO_SESSIONS: Dict[str, Tuple[User, datetime]] = {}
 _DEMO_SESSIONS_LOCK = Lock()
+_SESSION_FILE = Path(__file__).resolve().parent.parent / "data" / ".demo_sessions.json"
+
+
+def _save_sessions_to_disk() -> None:
+    if not DEMO_AUTH_ENABLED:
+        return
+    try:
+        data = {}
+        for tok, (usr, exp) in DEMO_SESSIONS.items():
+            data[tok] = {
+                "user_id": usr.user_id,
+                "display_name": usr.display_name,
+                "role": usr.role.value if hasattr(usr.role, "value") else str(usr.role),
+                "institution_id": usr.institution_id,
+                "assigned_cases": usr.assigned_cases,
+                "expires_at": exp.isoformat(),
+            }
+        _SESSION_FILE.write_text(json.dumps(data))
+    except Exception:
+        pass
+
+
+def _load_sessions_from_disk() -> None:
+    if not DEMO_AUTH_ENABLED or not _SESSION_FILE.exists():
+        return
+    try:
+        data = json.loads(_SESSION_FILE.read_text())
+        now = datetime.now(timezone.utc)
+        for tok, payload in data.items():
+            exp = datetime.fromisoformat(payload["expires_at"])
+            if exp > now:
+                usr = User(
+                    user_id=payload["user_id"],
+                    display_name=payload["display_name"],
+                    role=Role(payload["role"]),
+                    institution_id=payload["institution_id"],
+                    assigned_cases=payload.get("assigned_cases", []),
+                )
+                DEMO_SESSIONS[tok] = (usr, exp)
+    except Exception:
+        pass
+
+
+_load_sessions_from_disk()
 
 
 def issue_demo_token(user: User) -> Tuple[str, datetime]:
@@ -83,6 +128,7 @@ def issue_demo_token(user: User) -> Tuple[str, datetime]:
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=DEMO_SESSION_TTL_SECONDS)
     with _DEMO_SESSIONS_LOCK:
         DEMO_SESSIONS[token] = (user, expires_at)
+        _save_sessions_to_disk()
     return token, expires_at
 
 

@@ -59,3 +59,4 @@ models/*.json
 *.pem
 *.key
 *.cert
+data/.demo_sessions.json

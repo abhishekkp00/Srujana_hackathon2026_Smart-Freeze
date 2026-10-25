@@ -355,15 +355,42 @@ export const Overview: React.FC = () => {
   }
 
   if (error || !data || !overview) {
+    const isAuthError = Boolean(
+      error &&
+        (error.toLowerCase().includes('credential') ||
+          error.toLowerCase().includes('auth') ||
+          error.toLowerCase().includes('token') ||
+          error.toLowerCase().includes('session'))
+    );
+
     return (
       <section className="sf-dashboard-error">
         <AlertCircle size={19} />
         <div className="sf-dashboard-error-copy">
           <strong>Dashboard data unavailable</strong>
           <p>{error || 'FastAPI returned no operational dashboard records.'}</p>
-          <button type="button" onClick={() => void load(true)} disabled={refreshing}>
-            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> Retry
-          </button>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+            {isAuthError && (
+              <button
+                type="button"
+                onClick={() => {
+                  window.localStorage.removeItem('smart_freeze_token');
+                  window.location.reload();
+                }}
+                style={{
+                  backgroundColor: '#625ee8',
+                  color: '#ffffff',
+                  borderColor: '#625ee8',
+                  fontWeight: 600,
+                }}
+              >
+                Renew demo session
+              </button>
+            )}
+            <button type="button" onClick={() => void load(true)} disabled={refreshing}>
+              <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> Retry
+            </button>
+          </div>
         </div>
       </section>
     );
