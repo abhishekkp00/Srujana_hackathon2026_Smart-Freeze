@@ -18,6 +18,9 @@ import {
   EnvelopeVerificationResult,
   TraceProofResponse,
   StartTraceRequest,
+  HoldPreview,
+  DemoHoldProposal,
+  DemoHoldProposalRequest,
 } from '../types';
 
 export const getOverview = async (): Promise<OverviewData> => {
@@ -76,6 +79,21 @@ export const getGraphData = async (caseId?: string): Promise<GraphData> => {
 
 export const getConsensusLien = async (caseId: string): Promise<ConsensusLienData> => {
   const { data } = await apiClient.get<ConsensusLienData>(`/api/consensus-lien/${caseId}`);
+  return data;
+};
+
+export const getHoldPreview = async (caseId: string): Promise<HoldPreview> => {
+  const { data } = await apiClient.get<HoldPreview>(`/api/hold-preview/${encodeURIComponent(caseId)}`);
+  return data;
+};
+
+export const createDemoHoldProposal = async (request: DemoHoldProposalRequest): Promise<DemoHoldProposal> => {
+  const { data } = await apiClient.post<DemoHoldProposal>('/api/hold-proposals', request);
+  return data;
+};
+
+export const getDemoHoldProposals = async (caseId: string): Promise<DemoHoldProposal[]> => {
+  const { data } = await apiClient.get<DemoHoldProposal[]>('/api/hold-proposals', { params: { case_id: caseId } });
   return data;
 };
 
