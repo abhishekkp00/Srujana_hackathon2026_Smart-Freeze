@@ -266,6 +266,28 @@ def _profile_csv(path: Path, required_columns: Optional[List[str]] = None, heade
 # Pydantic Response Models
 # ==============================================================================
 
+class DailyActivityPoint(BaseModel):
+    date: str
+    total_transactions: int
+    suspected_transactions: int
+    legitimate_transactions: int
+    cases_reported: int
+    volume_paise: int
+    volume_inr: float
+
+
+class FullLedgerBreakdown(BaseModel):
+    total_transactions: int
+    legitimate_transactions: int
+    suspected_transactions: int
+    case_linked_transactions: int
+    unlinked_transactions: int
+    suspected_pct: float
+    legitimate_pct: float
+    earliest_date: Optional[str] = None
+    latest_date: Optional[str] = None
+
+
 class OverviewResponse(BaseModel):
     accounts_analyzed: int
     transactions_processed: int
@@ -277,6 +299,12 @@ class OverviewResponse(BaseModel):
     total_volume_inr: float
     system_version: str
     governance_disclaimer: str
+    generator_seed: int = 42
+    is_simulated: bool = True
+    full_ledger: FullLedgerBreakdown
+    daily_activity: List[DailyActivityPoint]
+    earliest_transaction_date: Optional[str] = None
+    latest_transaction_date: Optional[str] = None
 
 
 class CaseSummary(BaseModel):
@@ -648,30 +676,91 @@ def health_check():
 
 
 @app.get("/api/overview", response_model=OverviewResponse)
-def get_overview(auth: AuthContext = Depends(get_current_user)):
-    """Returns top-level operational statistics and data health status."""
+def get_overview(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    auth: AuthContext = Depends(get_current_user),
+):
+    """Returns top-level operational statistics, truthful full-ledger breakdown, and daily activity."""
     data = get_ledger_data()
     all_accs = data["accounts_df"]
     all_txs = data["transactions_df"]
     all_cases = data["cases_df"]
     report = data["validation_report"]
 
+    # 1. Full ledger metrics (always computed across the entire ledger)
+    full_total_txs = len(all_txs)
+    is_suspected = all_txs["evidence_status"].astype(str).str.lower() == "suspected_fraud"
+    full_suspected_txs = int(is_suspected.sum())
+    full_legitimate_txs = full_total_txs - full_suspected_txs
+    full_case_linked_txs = int((all_txs["case_id"].fillna("").astype(str).str.strip() != "").sum())
+    full_unlinked_txs = full_total_txs - full_case_linked_txs
+
+    full_suspected_pct = round((full_suspected_txs / full_total_txs * 100.0), 2) if full_total_txs > 0 else 0.0
+    full_legitimate_pct = round((full_legitimate_txs / full_total_txs * 100.0), 2) if full_total_txs > 0 else 0.0
+
+    tx_dates = pd.to_datetime(all_txs["timestamp"], utc=True, errors="coerce")
+    earliest_date_str = tx_dates.min().strftime("%Y-%m-%d") if not tx_dates.isna().all() else None
+    latest_date_str = tx_dates.max().strftime("%Y-%m-%d") if not tx_dates.isna().all() else None
+
+    # Generator seed for synthetic dataset provenance
+    gen_seed = int(os.getenv("SMART_FREEZE_DATASET_SEED", "42"))
+
+    # 2. Daily timeseries computation across full ledger
+    all_txs_working = all_txs.copy()
+    all_txs_working["_day"] = tx_dates.dt.strftime("%Y-%m-%d")
+
+    all_cases_working = all_cases.copy()
+    case_dates = pd.to_datetime(all_cases_working["reported_date"], utc=True, errors="coerce")
+    all_cases_working["_day"] = case_dates.dt.strftime("%Y-%m-%d")
+
+    tx_by_day = all_txs_working.groupby("_day").size()
+    sus_by_day = all_txs_working[all_txs_working["evidence_status"].astype(str).str.lower() == "suspected_fraud"].groupby("_day").size()
+    legit_by_day = all_txs_working[all_txs_working["evidence_status"].astype(str).str.lower() != "suspected_fraud"].groupby("_day").size()
+    vol_by_day = all_txs_working.groupby("_day")["amount_paise"].sum()
+    cases_by_day = all_cases_working.groupby("_day").size()
+
+    all_days = sorted(set(tx_by_day.index).union(set(cases_by_day.index)))
+
+    daily_points: List[DailyActivityPoint] = []
+    for d in all_days:
+        if not d or d == "NaT":
+            continue
+        if start_date and d < start_date:
+            continue
+        if end_date and d > end_date:
+            continue
+
+        tot_t = int(tx_by_day.get(d, 0))
+        sus_t = int(sus_by_day.get(d, 0))
+        leg_t = int(legit_by_day.get(d, 0))
+        cas_c = int(cases_by_day.get(d, 0))
+        v_paise = int(vol_by_day.get(d, 0))
+        daily_points.append(
+            DailyActivityPoint(
+                date=d,
+                total_transactions=tot_t,
+                suspected_transactions=sus_t,
+                legitimate_transactions=leg_t,
+                cases_reported=cas_c,
+                volume_paise=v_paise,
+                volume_inr=v_paise / 100.0,
+            )
+        )
+
+    # 3. Overall totals
+    accs, cases = all_accs, all_cases
     if auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
         cases = all_cases[all_cases["case_id"].isin(auth.user.assigned_cases)]
-        txs = all_txs[all_txs["case_id"].isin(auth.user.assigned_cases)]
-        account_ids = set(txs["from_account"]).union(set(txs["to_account"]))
-        accs = all_accs[all_accs["account_id"].isin(account_ids)]
-    else:
-        accs, txs, cases = all_accs, all_txs, all_cases
 
     incomplete_accs = int((~accs["history_complete"].astype(bool)).sum()) if "history_complete" in accs.columns else 0
-    total_vol_paise = int(txs["amount_paise"].sum())
+    total_vol_paise = int(all_txs["amount_paise"].sum())
     closed_statuses = {"CLOSED", "RESOLVED", "COMPLETED", "DISMISSED"}
     cases_requiring_review = int((~cases["status"].astype(str).str.upper().isin(closed_statuses)).sum()) if not cases.empty else 0
 
     return OverviewResponse(
         accounts_analyzed=len(accs),
-        transactions_processed=len(txs),
+        transactions_processed=full_total_txs,
         cases_available=len(cases),
         ledger_valid=report.is_valid,
         validation_status="VERIFIED" if report.is_valid else "VALIDATION_FAILED",
@@ -680,6 +769,22 @@ def get_overview(auth: AuthContext = Depends(get_current_user)):
         total_volume_inr=total_vol_paise / 100.0,
         system_version=app.version,
         governance_disclaimer=GOVERNANCE_DISCLAIMER,
+        generator_seed=gen_seed,
+        is_simulated=True,
+        full_ledger=FullLedgerBreakdown(
+            total_transactions=full_total_txs,
+            legitimate_transactions=full_legitimate_txs,
+            suspected_transactions=full_suspected_txs,
+            case_linked_transactions=full_case_linked_txs,
+            unlinked_transactions=full_unlinked_txs,
+            suspected_pct=full_suspected_pct,
+            legitimate_pct=full_legitimate_pct,
+            earliest_date=earliest_date_str,
+            latest_date=latest_date_str,
+        ),
+        daily_activity=daily_points,
+        earliest_transaction_date=earliest_date_str,
+        latest_transaction_date=latest_date_str,
     )
 
 

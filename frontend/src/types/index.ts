@@ -2,6 +2,28 @@
  * Canonical TypeScript interfaces for Smart-Freeze Frontend.
  */
 
+export interface DailyActivityPoint {
+  date: string;
+  total_transactions: number;
+  suspected_transactions: number;
+  legitimate_transactions: number;
+  cases_reported: number;
+  volume_paise: number;
+  volume_inr: number;
+}
+
+export interface FullLedgerBreakdown {
+  total_transactions: number;
+  legitimate_transactions: number;
+  suspected_transactions: number;
+  case_linked_transactions: number;
+  unlinked_transactions: number;
+  suspected_pct: number;
+  legitimate_pct: number;
+  earliest_date?: string | null;
+  latest_date?: string | null;
+}
+
 export interface OverviewData {
   accounts_analyzed: number;
   transactions_processed: number;
@@ -13,6 +35,12 @@ export interface OverviewData {
   total_volume_inr: number;
   system_version: string;
   governance_disclaimer: string;
+  generator_seed: number;
+  is_simulated: boolean;
+  full_ledger: FullLedgerBreakdown;
+  daily_activity: DailyActivityPoint[];
+  earliest_transaction_date?: string | null;
+  latest_transaction_date?: string | null;
 }
 
 export interface CaseSummary {

@@ -28,8 +28,8 @@ import {
   ReceiptData,
 } from '../types';
 
-export const getOverview = async (): Promise<OverviewData> => {
-  const { data } = await apiClient.get<OverviewData>('/api/overview');
+export const getOverview = async (params?: { start_date?: string; end_date?: string }): Promise<OverviewData> => {
+  const { data } = await apiClient.get<OverviewData>('/api/overview', { params });
   return data;
 };
 
