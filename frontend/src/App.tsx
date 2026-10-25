@@ -37,7 +37,7 @@ interface Session {
 }
 
 const PAGE_META: Record<string, { title: string; subtitle: string; section: string }> = {
-  '/': { title: 'Case overview', subtitle: 'Choose a case and follow the recorded money movement.', section: 'Workspace' },
+  '/': { title: 'Dashboard', subtitle: 'Case exposure, transaction activity and evidence status.', section: 'Workspace' },
   '/money-flow': { title: 'Money flow', subtitle: 'See where transactions move and where commingling may occur.', section: 'Investigation' },
   '/consensus-lien': { title: 'Consensus Lien', subtitle: 'Compare three tracing methods for the same selected case.', section: 'Analysis' },
 };
