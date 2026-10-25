@@ -142,6 +142,8 @@ _adapter: Optional[SyntheticAdapter] = None
 _reconstructed_ledger: Optional[Dict[str, Any]] = None
 _ledger_cache_signature: Optional[Tuple[Tuple[int, int], ...]] = None
 _scoring_engine: Optional[InvestigationScoringEngine] = None
+# Demo-only hold proposals live in process memory and are never sent to a bank.
+DEMO_HOLD_PROPOSALS: List[Dict[str, Any]] = []
 
 
 def get_adapter() -> SyntheticAdapter:
@@ -340,6 +342,7 @@ class GraphNode(BaseModel):
     history_complete: Optional[bool] = None
     flow_level: Optional[int] = None
     is_origin_account: bool = False
+    flagged_by_case_evidence: bool = False
 
 
 class GraphEdge(BaseModel):
@@ -401,6 +404,59 @@ class ConsensusLienResponse(BaseModel):
     method_details: Dict[str, Any]
     explanation: Dict[str, Any]
     governance_notice: str
+
+
+class HoldCandidateResponse(BaseModel):
+    account_id: str
+    account_type: str
+    current_balance_paise: Optional[int] = None
+    current_balance_inr: Optional[float] = None
+    lower_bound_paise: int
+    lower_bound_inr: float
+    upper_bound_paise: int
+    upper_bound_inr: float
+    proposed_hold_paise: int
+    proposed_hold_inr: float
+    history_complete: Optional[bool] = None
+    is_eligible: bool
+    eligibility_reason: str
+    linked_suspicious_transaction_ids: List[str]
+
+
+class HoldPreviewResponse(BaseModel):
+    case_id: str
+    source_transaction_id: str
+    source_amount_paise: int
+    source_amount_inr: float
+    consensus_status: str
+    candidates: List[HoldCandidateResponse]
+    formula: str
+    execution_status: str
+    disclaimer: str
+
+
+class DemoHoldProposalRequest(BaseModel):
+    case_id: str = Field(..., min_length=1, max_length=100)
+    account_id: str = Field(..., min_length=1, max_length=150)
+
+
+class DemoHoldProposalResponse(BaseModel):
+    proposal_id: str
+    audit_event_id: str
+    created_at: str
+    case_id: str
+    source_transaction_id: str
+    account_id: str
+    current_balance_paise: int
+    current_balance_inr: float
+    consensus_lower_bound_paise: int
+    consensus_lower_bound_inr: float
+    proposed_hold_paise: int
+    proposed_hold_inr: float
+    calculation: str
+    status: str
+    execution_status: str
+    message: str
 
 
 class PriorityScoreResponse(BaseModel):
@@ -1074,9 +1130,14 @@ def get_transaction_graph(
     # Ensure chronological rendering and stable transaction IDs in the response.
     selected_rows.sort(key=lambda tx: (str(tx.get("timestamp", "")), str(tx.get("transaction_id", ""))))
     involved_account_ids = set()
+    flagged_account_ids = set()
     for tx in selected_rows:
-        involved_account_ids.add(str(tx["from_account"]))
-        involved_account_ids.add(str(tx["to_account"]))
+        from_id = str(tx["from_account"])
+        to_id = str(tx["to_account"])
+        involved_account_ids.add(from_id)
+        involved_account_ids.add(to_id)
+        if str(tx.get("evidence_status", "")).strip().lower() == "suspected_fraud":
+            flagged_account_ids.update((from_id, to_id))
 
     account_map = {str(row["account_id"]): row for _, row in accounts_df.iterrows()}
     nodes: List[GraphNode] = []
@@ -1115,6 +1176,7 @@ def get_transaction_graph(
             history_complete=history_complete,
             flow_level=node_levels.get(account_id) if case_id else None,
             is_origin_account=(account_id in source_accounts),
+            flagged_by_case_evidence=(account_id in flagged_account_ids) if case_id else False,
         ))
 
     edges: List[GraphEdge] = []
@@ -1249,6 +1311,173 @@ def get_consensus_lien(
         explanation=explanation,
         governance_notice=GOVERNANCE_DISCLAIMER,
     )
+
+
+def _build_hold_preview(case_id: str, request: Request, auth: AuthContext) -> HoldPreviewResponse:
+    if not DEMO_AUTH_ENABLED or ENV_MODE not in {"development", "test"}:
+        raise HTTPException(status_code=404, detail="Simulated hold proposals are available only in explicitly enabled local demo mode.")
+
+    client_ip = request.client.host if request.client else "unknown"
+    check_case_access(case_id, auth, endpoint=request.url.path, method=request.method, client_ip=client_ip)
+
+    graph = get_transaction_graph(request=request, case_id=case_id, auth=auth)
+    consensus = get_consensus_lien(case_id=case_id, request=request, auth=auth)
+    ledger = get_ledger_data()
+    accounts_df = ledger["accounts_df"]
+    final_balances = ledger["final_balances"]
+    account_map = {str(row["account_id"]): row for _, row in accounts_df.iterrows()}
+    graph_accounts = {node.id for node in graph.nodes}
+    linked_suspicious: Dict[str, List[str]] = {}
+    for edge in graph.edges:
+        if edge.evidence_status.strip().lower() == "suspected_fraud":
+            linked_suspicious.setdefault(edge.source, []).append(edge.id)
+            linked_suspicious.setdefault(edge.target, []).append(edge.id)
+
+    candidates: List[HoldCandidateResponse] = []
+    for lien in consensus.account_liens:
+        account_id = lien.account_id
+        if account_id not in graph_accounts or lien.is_external:
+            continue
+
+        row = account_map.get(account_id)
+        history_complete = bool(row["history_complete"]) if row is not None else None
+        current_balance = int(final_balances.get(account_id, 0)) if row is not None else None
+        proposed_hold = min(max(int(lien.lower_bound_paise), 0), max(current_balance or 0, 0))
+        reasons: List[str] = []
+        if row is None:
+            reasons.append("Account is not in the operational ledger.")
+        if history_complete is not True:
+            reasons.append("Account statement history is incomplete or unavailable.")
+        if current_balance is None or current_balance <= 0:
+            reasons.append("No positive current ledger balance is available.")
+        if lien.lower_bound_paise <= 0:
+            reasons.append("The conservative tracing lower bound is zero.")
+        if proposed_hold <= 0 and not reasons:
+            reasons.append("No positive hold amount can be calculated.")
+
+        eligible = not reasons and proposed_hold > 0
+        candidates.append(HoldCandidateResponse(
+            account_id=account_id,
+            account_type=str(row["account_type"]) if row is not None else "unknown",
+            current_balance_paise=current_balance,
+            current_balance_inr=(current_balance / 100.0) if current_balance is not None else None,
+            lower_bound_paise=int(lien.lower_bound_paise),
+            lower_bound_inr=int(lien.lower_bound_paise) / 100.0,
+            upper_bound_paise=int(lien.upper_bound_paise),
+            upper_bound_inr=int(lien.upper_bound_paise) / 100.0,
+            proposed_hold_paise=proposed_hold if eligible else 0,
+            proposed_hold_inr=(proposed_hold / 100.0) if eligible else 0.0,
+            history_complete=history_complete,
+            is_eligible=eligible,
+            eligibility_reason="Eligible for a local simulated proposal." if eligible else " ".join(reasons),
+            linked_suspicious_transaction_ids=sorted(set(linked_suspicious.get(account_id, []))),
+        ))
+
+    candidates.sort(key=lambda item: (not item.is_eligible, -item.proposed_hold_paise, item.account_id))
+    return HoldPreviewResponse(
+        case_id=case_id,
+        source_transaction_id=consensus.source_transaction_id,
+        source_amount_paise=consensus.source_amount_paise,
+        source_amount_inr=consensus.source_amount_inr,
+        consensus_status=consensus.consensus_status,
+        candidates=candidates,
+        formula="Proposed amount = min(account-level Consensus Lien lower bound, current reconstructed ledger balance); only complete-history, positive-balance accounts are eligible.",
+        execution_status="SIMULATION_ONLY_NOT_SENT_TO_BANK",
+        disclaimer="This is a local demonstration proposal, not a legal freeze or bank instruction. It does not reserve, transfer, block, or freeze real funds. Authorized review and a real institution API would be required.",
+    )
+
+
+@app.get("/api/hold-preview/{case_id}", response_model=HoldPreviewResponse)
+def get_hold_preview(
+    case_id: str,
+    request: Request,
+    auth: AuthContext = Depends(get_current_user),
+) -> HoldPreviewResponse:
+    """Calculate eligible simulated hold amounts from current ledger and consensus output."""
+    return _build_hold_preview(case_id, request, auth)
+
+
+@app.post("/api/hold-proposals", response_model=DemoHoldProposalResponse)
+def create_demo_hold_proposal(
+    payload: DemoHoldProposalRequest,
+    request: Request,
+    auth: AuthContext = Depends(get_current_user),
+) -> DemoHoldProposalResponse:
+    """Record a simulated hold proposal with audit telemetry; never communicates with a bank."""
+    if not DEMO_AUTH_ENABLED or ENV_MODE not in {"development", "test"}:
+        raise HTTPException(status_code=404, detail="Simulated hold proposals are available only in explicitly enabled local demo mode.")
+
+    preview = _build_hold_preview(payload.case_id, request, auth)
+    candidate = next((item for item in preview.candidates if item.account_id == payload.account_id), None)
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="Account is not an eligible candidate in this case's graph.")
+    if not candidate.is_eligible:
+        raise HTTPException(status_code=409, detail=candidate.eligibility_reason)
+    if candidate.proposed_hold_paise <= 0:
+        raise HTTPException(status_code=422, detail="The calculated hold proposal must be positive.")
+
+    client_ip = request.client.host if request.client else "unknown"
+    now = pd.Timestamp.now(tz="UTC").isoformat()
+    proposal_id = f"HOLD_SIM_{uuid.uuid4().hex[:10].upper()}"
+    calculation = "min(account-level Consensus Lien lower bound, reconstructed closing ledger balance)"
+    event = SecurityAuditLogger.get_instance().log_event(
+        event_type="SIMULATED_HOLD_PROPOSAL_CREATED",
+        endpoint=request.url.path,
+        method="POST",
+        severity=AuditSeverity.INFO,
+        user_id=auth.user.user_id,
+        user_role=auth.user.role.value,
+        ip_address=client_ip,
+        details={
+            "proposal_id": proposal_id,
+            "case_id": payload.case_id,
+            "account_id": payload.account_id,
+            "source_transaction_id": preview.source_transaction_id,
+            "proposed_hold_paise": candidate.proposed_hold_paise,
+            "execution_status": "SIMULATION_ONLY_NOT_SENT_TO_BANK",
+        },
+    )
+    record = {
+        "proposal_id": proposal_id,
+        "audit_event_id": event.event_id,
+        "created_at": now,
+        "case_id": payload.case_id,
+        "source_transaction_id": preview.source_transaction_id,
+        "account_id": payload.account_id,
+        "current_balance_paise": int(candidate.current_balance_paise or 0),
+        "current_balance_inr": int(candidate.current_balance_paise or 0) / 100.0,
+        "consensus_lower_bound_paise": candidate.lower_bound_paise,
+        "consensus_lower_bound_inr": candidate.lower_bound_inr,
+        "proposed_hold_paise": candidate.proposed_hold_paise,
+        "proposed_hold_inr": candidate.proposed_hold_inr,
+        "calculation": calculation,
+        "status": "SIMULATED_PENDING_AUTHORIZED_REVIEW",
+        "execution_status": "SIMULATION_ONLY_NOT_SENT_TO_BANK",
+        "message": "Proposal recorded for demonstration. No bank API was called and no funds were frozen.",
+    }
+    DEMO_HOLD_PROPOSALS.append(record)
+    del DEMO_HOLD_PROPOSALS[:-200]
+    return DemoHoldProposalResponse(**record)
+
+
+@app.get("/api/hold-proposals", response_model=List[DemoHoldProposalResponse])
+def list_demo_hold_proposals(
+    case_id: Optional[str] = None,
+    request: Request = None,
+    auth: AuthContext = Depends(get_current_user),
+) -> List[DemoHoldProposalResponse]:
+    """List in-memory demo proposals for authorized cases in this running process."""
+    if not DEMO_AUTH_ENABLED or ENV_MODE not in {"development", "test"}:
+        raise HTTPException(status_code=404, detail="Simulated hold proposals are available only in explicitly enabled local demo mode.")
+    if case_id and request is not None:
+        client_ip = request.client.host if request.client else "unknown"
+        check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
+    visible = [
+        DemoHoldProposalResponse(**item) for item in DEMO_HOLD_PROPOSALS
+        if auth.user.can_access_case(str(item["case_id"]))
+        and (not case_id or item["case_id"] == case_id)
+    ]
+    return visible
 
 
 @app.get("/api/investigation-priority", response_model=List[PriorityScoreResponse])
