@@ -257,8 +257,8 @@ export const Overview: React.FC = () => {
       <section className="sf-dashboard-toolbar">
         <div>
           <div className="sf-dashboard-overline">SMART-FREEZE / OPERATIONS</div>
-          <h2>Dashboard</h2>
-          <p>Case exposure, transaction activity and evidence status from the current ledger.</p>
+          <h2>Investigation overview</h2>
+          <p>Search the ledger or open a case to follow its recorded funds.</p>
         </div>
         <div className="sf-dashboard-tools">
           <label className="sf-global-search">
