@@ -154,6 +154,9 @@ def test_api_graph_endpoint():
         assert "label" in node
         assert "is_external" in node
         assert "flow_level" in node
+        assert "flagged_by_case_evidence" in node
+    flagged_node_ids = {node["id"] for node in graph["nodes"] if node["flagged_by_case_evidence"]}
+    assert "ACC_MULE_DIRECT_01" in flagged_node_ids
     source_edges = [edge for edge in graph["edges"] if edge["is_source_transaction"]]
     assert len(source_edges) == 1
     assert source_edges[0]["id"] == graph["source_transaction_id"]
@@ -170,6 +173,50 @@ def test_api_graph_endpoint():
         assert edge["amount_inr"] > 0
         assert edge["linkage_basis"] in {"CASE_REFERENCE", "CHRONOLOGICALLY_REACHABLE", "ACCOUNT_CONTEXT"}
 
+
+
+def test_hold_preview_uses_ledger_balance_and_consensus_lower_bound():
+    """A hold preview is derived from current balances and tracing output, not a fixed amount."""
+    response = client.get("/api/hold-preview/CASE-2026-001")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["case_id"] == "CASE-2026-001"
+    assert data["source_transaction_id"] == "TXN_0009"
+    assert data["execution_status"] == "SIMULATION_ONLY_NOT_SENT_TO_BANK"
+    assert "min(" in data["formula"].lower()
+    eligible = [candidate for candidate in data["candidates"] if candidate["is_eligible"]]
+    assert eligible
+    candidate = eligible[0]
+    assert candidate["proposed_hold_paise"] > 0
+    assert candidate["proposed_hold_paise"] <= candidate["lower_bound_paise"]
+    assert candidate["proposed_hold_paise"] <= candidate["current_balance_paise"]
+    assert candidate["history_complete"] is True
+
+
+def test_simulated_hold_proposal_is_audited_and_never_claims_to_freeze_funds():
+    """Creating a demo request records its basis and status without claiming bank execution."""
+    preview_response = client.get("/api/hold-preview/CASE-2026-001")
+    assert preview_response.status_code == 200
+    candidate = next(item for item in preview_response.json()["candidates"] if item["is_eligible"])
+
+    response = client.post("/api/hold-proposals", json={
+        "case_id": "CASE-2026-001",
+        "account_id": candidate["account_id"],
+    })
+    assert response.status_code == 200
+    result = response.json()
+    assert result["case_id"] == "CASE-2026-001"
+    assert result["source_transaction_id"] == preview_response.json()["source_transaction_id"]
+    assert result["account_id"] == candidate["account_id"]
+    assert result["proposed_hold_paise"] == candidate["proposed_hold_paise"]
+    assert result["audit_event_id"]
+    assert result["status"] == "SIMULATED_PENDING_AUTHORIZED_REVIEW"
+    assert result["execution_status"] == "SIMULATION_ONLY_NOT_SENT_TO_BANK"
+    assert "no funds were frozen" in result["message"].lower()
+
+    history = client.get("/api/hold-proposals?case_id=CASE-2026-001")
+    assert history.status_code == 200
+    assert any(item["proposal_id"] == result["proposal_id"] for item in history.json())
 
 
 def test_api_consensus_lien_endpoint():
