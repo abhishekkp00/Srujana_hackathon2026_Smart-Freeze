@@ -166,7 +166,7 @@ const AuthGate: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#f4f4ef] px-5 py-10 flex items-center justify-center">
       <div className="w-full max-w-xl">
-        <div className="eyebrow">FAIRHOLD / LOCAL DEMO</div>
+        <div className="eyebrow">SMART-FREEZE / LOCAL DEMO</div>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#24332d]">Follow the money trail</h1>
         <p className="mt-2 text-sm leading-6 text-[#7a837a]">A single local demo identity is used to inspect the synthetic case ledger. This is not a live bank connection.</p>
         {error && <div className="fh-error mt-5">{error}</div>}
@@ -186,7 +186,7 @@ const AuthGate: React.FC = () => {
               onClick={() => void startDemoSession()}
               className="mt-5 w-full rounded-md bg-[#174b3b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0f3d2f] disabled:opacity-60"
             >
-              {starting ? 'Starting demo…' : 'Enter FairHold'}
+              {starting ? 'Starting demo…' : 'Enter Smart-Freeze'}
             </button>
           </div>
         ) : (
