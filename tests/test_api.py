@@ -113,20 +113,31 @@ def test_api_accounts_and_balance_history():
 
 
 def test_api_graph_endpoint():
-    """Verify directed transaction graph serialization for Cytoscape.js."""
+    """The case graph starts at a source event and includes explicitly labelled follow-on context."""
     graph_res = client.get("/api/graph?case_id=CASE-2026-001")
     assert graph_res.status_code == 200
-    g = graph_res.json()
-    assert g["total_nodes"] > 0
-    assert g["total_edges"] == 5
-    for node in g["nodes"]:
+    graph = graph_res.json()
+    assert graph["total_nodes"] > 0
+    assert graph["total_edges"] >= 5
+    assert graph["source_transaction_id"] == "TXN_0009"
+    assert graph["source_amount_inr"] == 100000.0
+    assert "not proof" in graph["flow_scope"].lower()
+    for node in graph["nodes"]:
         assert "id" in node
         assert "label" in node
         assert "is_external" in node
-    for edge in g["edges"]:
+        assert "flow_level" in node
+    source_edges = [edge for edge in graph["edges"] if edge["is_source_transaction"]]
+    assert len(source_edges) == 1
+    assert source_edges[0]["id"] == graph["source_transaction_id"]
+    assert source_edges[0]["linkage_basis"] == "CASE_REFERENCE"
+    assert any(edge["linkage_basis"] in {"CHRONOLOGICALLY_REACHABLE", "ACCOUNT_CONTEXT"} for edge in graph["edges"])
+    for edge in graph["edges"]:
         assert "source" in edge
         assert "target" in edge
         assert edge["amount_inr"] > 0
+        assert edge["linkage_basis"] in {"CASE_REFERENCE", "CHRONOLOGICALLY_REACHABLE", "ACCOUNT_CONTEXT"}
+
 
 
 def test_api_consensus_lien_endpoint():
