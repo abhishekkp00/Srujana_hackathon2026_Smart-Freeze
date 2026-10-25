@@ -158,8 +158,8 @@ export const MoneyFlow: React.FC = () => {
             padding: '4px',
           },
         },
-        { selector: 'node[?isOrigin]', style: { 'background-color': '#DDF6E8', 'border-color': '#087653', 'border-width': 2.5, color: '#064E3B' } },
-        { selector: 'node[?isExternal]', style: { 'background-color': '#FFF7ED', 'border-color': '#C2410C', color: '#7C2D12' } },
+        { selector: 'node[?isOrigin]', style: { 'background-color': '#e7ebe5', 'border-color': '#42594a', 'border-width': 2.5, color: '#263b2e' } },
+        { selector: 'node[?isExternal]', style: { 'background-color': '#f0f2ed', 'border-color': '#90988f', color: '#454d46' } },
         {
           selector: 'edge',
           style: {
@@ -179,11 +179,11 @@ export const MoneyFlow: React.FC = () => {
             'line-cap': 'round',
           },
         },
-        { selector: 'edge[linkageBasis = "CASE_REFERENCE"]', style: { 'line-color': '#B91C1C', 'target-arrow-color': '#B91C1C', width: 2.8 } },
-        { selector: 'edge[linkageBasis = "CHRONOLOGICALLY_REACHABLE"]', style: { 'line-color': '#0F766E', 'target-arrow-color': '#0F766E', 'line-style': 'dashed', width: 2.5 } },
-        { selector: 'edge[linkageBasis = "ACCOUNT_CONTEXT"]', style: { 'line-color': '#64748B', 'target-arrow-color': '#64748B', 'line-style': 'dotted', width: 2 } },
-        { selector: 'edge[?isSource]', style: { 'line-color': '#B91C1C', 'target-arrow-color': '#B91C1C', width: 3.5 } },
-        { selector: ':selected', style: { 'border-width': 3, 'border-color': '#D97706', 'line-color': '#D97706', 'target-arrow-color': '#D97706' } },
+        { selector: 'edge[linkageBasis = "CASE_REFERENCE"]', style: { 'line-color': '#39443c', 'target-arrow-color': '#39443c', width: 2.8 } },
+        { selector: 'edge[linkageBasis = "CHRONOLOGICALLY_REACHABLE"]', style: { 'line-color': '#68756b', 'target-arrow-color': '#68756b', 'line-style': 'dashed', width: 2.5 } },
+        { selector: 'edge[linkageBasis = "ACCOUNT_CONTEXT"]', style: { 'line-color': '#a0a79f', 'target-arrow-color': '#a0a79f', 'line-style': 'dotted', width: 2 } },
+        { selector: 'edge[?isSource]', style: { 'line-color': '#39443c', 'target-arrow-color': '#39443c', width: 3.5 } },
+        { selector: ':selected', style: { 'border-width': 3, 'border-color': '#7b806f', 'line-color': '#7b806f', 'target-arrow-color': '#7b806f' } },
       ],
       layout: { name: 'preset', positions: (id) => positions[id], fit: true, padding: 45 },
       userZoomingEnabled: true,
@@ -238,9 +238,9 @@ export const MoneyFlow: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
               <div><h2 className="text-sm font-semibold text-slate-900">Where the money moves</h2><p className="mt-1 text-xs text-slate-500">Select an arrow to inspect its ledger record.</p></div>
               <div className="flex flex-wrap items-center gap-3 text-[10px] text-slate-600">
-                <span className="flex items-center gap-1.5"><span className="h-0 w-5 border-t-2 border-[#b91c1c]" /> Case-linked</span>
-                <span className="flex items-center gap-1.5"><span className="h-0 w-5 border-t-2 border-dashed border-[#0f766e]" /> Reachable</span>
-                <span className="flex items-center gap-1.5"><span className="h-0 w-5 border-t-2 border-dotted border-[#64748b]" /> Account context</span>
+                <span className="flex items-center gap-1.5"><span className="h-0 w-5 border-t-2 border-slate-600" /> Case-linked</span>
+                <span className="flex items-center gap-1.5"><span className="h-0 w-5 border-t-2 border-dashed border-slate-500" /> Reachable</span>
+                <span className="flex items-center gap-1.5"><span className="h-0 w-5 border-t-2 border-dotted border-slate-400" /> Account context</span>
                 <button type="button" onClick={fitGraph} className="rounded border border-slate-200 px-2 py-1 hover:bg-slate-50">Fit</button>
               </div>
             </div>
@@ -251,7 +251,7 @@ export const MoneyFlow: React.FC = () => {
           <section className="surface overflow-hidden">
             <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Transaction trail</h2><p className="mt-1 text-xs text-slate-500">Real ledger rows, ordered by timestamp. Select a row to highlight its arrow.</p></div>
             {edges.length ? <div className="divide-y divide-slate-100">{edges.slice(0, 12).map((edge) => (
-              <button key={edge.id} type="button" onClick={() => { setSelectedTx(edge.id); setSelectedAccount(null); }} className={`grid w-full grid-cols-1 gap-2 px-4 py-3 text-left hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${selectedTx === edge.id ? 'bg-emerald-50/60' : ''}`}>
+              <button key={edge.id} type="button" onClick={() => { setSelectedTx(edge.id); setSelectedAccount(null); }} className={`grid w-full grid-cols-1 gap-2 px-4 py-3 text-left hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${selectedTx === edge.id ? 'bg-slate-100' : ''}`}>
                 <span className="min-w-0"><span className="flex flex-wrap items-center gap-2"><span className="font-mono text-xs font-semibold text-slate-900">{edge.id}</span><span className="rounded border border-slate-200 px-1.5 py-0.5 text-[9px] text-slate-600">{edgeLabel(edge)}</span></span><span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-700"><span className="break-all">{edge.source}</span><ArrowRight size={12} /><span className="break-all">{edge.target}</span></span><span className="mt-1 block text-[10px] text-slate-500">{dateTime(edge.timestamp)} · {titleCase(edge.transaction_type)}</span></span>
                 <span className="text-left font-mono text-sm font-semibold text-slate-900 sm:text-right">{inr(edge.amount_inr)}</span>
               </button>
