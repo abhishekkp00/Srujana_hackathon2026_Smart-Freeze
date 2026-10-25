@@ -38,7 +38,7 @@ from ml.schemas import (
 )
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-MODEL_DIR = Path(os.getenv("FAIRHOLD_MODEL_DIR", str(ROOT_DIR / "models"))).resolve()
+MODEL_DIR = Path(os.getenv("SMART_FREEZE_MODEL_DIR", str(ROOT_DIR / "models"))).resolve()
 MODEL_ARTIFACT_PATH = MODEL_DIR / "fraud_detector_v1.joblib"
 METADATA_PATH = MODEL_DIR / "model_metadata.json"
 DEMO_SAMPLES_PATH = MODEL_DIR / "demo_samples.json"
