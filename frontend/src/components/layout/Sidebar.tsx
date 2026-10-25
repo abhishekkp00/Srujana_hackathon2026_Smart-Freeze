@@ -5,7 +5,6 @@ import {
   Waypoints,
   Scale,
   ShieldCheck,
-  Fingerprint,
   TableProperties,
   Crosshair,
   Cpu,
@@ -53,10 +52,6 @@ export const Sidebar: React.FC = () => {
           <NavLink to={linkTo('/recommendations')} className={({ isActive }) => `fh-sub-link ${isActive ? 'is-active' : ''}`}>
             <ShieldCheck size={15} strokeWidth={1.8} className="fh-sub-icon" />
             <span>Recommended actions</span>
-          </NavLink>
-          <NavLink to={linkTo('/traceproof')} className={({ isActive }) => `fh-sub-link ${isActive ? 'is-active' : ''}`}>
-            <Fingerprint size={15} strokeWidth={1.8} className="fh-sub-icon" />
-            <span>TraceProof</span>
           </NavLink>
           <NavLink to={linkTo('/transactions')} className={({ isActive }) => `fh-sub-link ${isActive ? 'is-active' : ''}`}>
             <TableProperties size={15} strokeWidth={1.8} className="fh-sub-icon" />

@@ -82,7 +82,7 @@ const AppContent: React.FC<AppContentProps> = ({ session, onSignOut }) => {
               <Route path="/money-flow" element={<MoneyFlow />} />
               <Route path="/consensus-lien" element={<ConsensusLien />} />
               <Route path="/recommendations" element={<RecommendedActions />} />
-              <Route path="/traceproof" element={<TraceProof />} />
+              <Route path="/traceproof" element={<Navigate to="/" replace />} />
               <Route path="/transactions" element={<TransactionExplorer />} />
               <Route path="/attack-lab" element={<AttackLab />} />
               <Route path="/ml-analysis" element={<MLAnalysis />} />
