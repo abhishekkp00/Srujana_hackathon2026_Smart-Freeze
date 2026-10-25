@@ -1,12 +1,12 @@
 ---
-description: Keep FairHold modular, auditable, secure, and usable with evidence-backed explanations and a data-driven React interface.
+description: Keep Smart-Freeze modular, auditable, secure, and usable with evidence-backed explanations and a data-driven React interface.
 name: architecture-explainability-and-ui
 ---
 
-# FairHold Architecture, Explainability and UI
+# Smart-Freeze Architecture, Explainability and UI
 
 ## Purpose
-Build one coherent FairHold application. The backend is FastAPI; the frontend is React + TypeScript. Do not add a Streamlit dashboard or duplicate UI entry point.
+Build one coherent Smart-Freeze application. The backend is FastAPI; the frontend is React + TypeScript. Do not add a Streamlit dashboard or duplicate UI entry point.
 
 ## Architecture rules
 Keep separate: dataset adapters, validation, ledger reconstruction, transaction graph, proportional/FIFO/LIBR tracing, Evidence-Bounded Trace Range, investigation prioritization, ML training/inference, TraceProof signatures, audit, API and UI.
