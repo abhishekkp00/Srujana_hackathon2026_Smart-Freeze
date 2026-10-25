@@ -595,6 +595,8 @@ def build_local_demo_user() -> User:
     """Create one clearly-labelled demo investigator whose access scope follows the loaded case file."""
     data = get_ledger_data()
     assigned_case_ids = sorted(data["cases_df"]["case_id"].astype(str).unique().tolist())
+    tp_case_ids = [str(sc["case_id"]) for sc in get_scenario_metadata_list() if "case_id" in sc]
+    assigned_case_ids = sorted(list(set(assigned_case_ids + tp_case_ids)))
     return User(
         user_id="LOCAL_DEMO_INVESTIGATOR",
         email="demo-investigator@localhost.invalid",
@@ -1252,6 +1254,8 @@ def get_transaction_graph(
                 continue
             visited_states.add(state_key)
             if current_level >= max_hops:
+                continue
+            if account_id.startswith("EXT_"):
                 continue
 
             outbound = all_rows[
