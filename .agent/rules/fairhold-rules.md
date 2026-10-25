@@ -2,10 +2,10 @@
 trigger: always_on
 ---
 
-# FairHold — Project Rules
+# Smart-Freeze — Project Rules
 
 ## Project objective
-Build FairHold, an evidence-first financial investigation and fund-tracing decision-support MVP. The stack is FastAPI + Python on the backend and React + TypeScript on the frontend. Do not introduce Streamlit or a second web application.
+Build Smart-Freeze, an evidence-first financial investigation and fund-tracing decision-support MVP. The stack is FastAPI + Python on the backend and React + TypeScript on the frontend. Do not introduce Streamlit or a second web application.
 
 ## Development workflow
 1. Inspect the existing repository before changing code.
