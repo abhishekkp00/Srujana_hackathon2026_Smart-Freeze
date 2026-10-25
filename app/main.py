@@ -1462,14 +1462,14 @@ def create_demo_hold_proposal(
 
 @app.get("/api/hold-proposals", response_model=List[DemoHoldProposalResponse])
 def list_demo_hold_proposals(
+    request: Request,
     case_id: Optional[str] = None,
-    request: Request = None,
     auth: AuthContext = Depends(get_current_user),
 ) -> List[DemoHoldProposalResponse]:
     """List in-memory demo proposals for authorized cases in this running process."""
     if not DEMO_AUTH_ENABLED or ENV_MODE not in {"development", "test"}:
         raise HTTPException(status_code=404, detail="Simulated hold proposals are available only in explicitly enabled local demo mode.")
-    if case_id and request is not None:
+    if case_id:
         client_ip = request.client.host if request.client else "unknown"
         check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
     visible = [
