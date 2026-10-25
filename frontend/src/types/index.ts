@@ -84,6 +84,7 @@ export interface GraphNode {
   history_complete: boolean | null;
   flow_level?: number | null;
   is_origin_account?: boolean;
+  flagged_by_case_evidence?: boolean;
 }
 
 export interface GraphEdge {
@@ -153,6 +154,59 @@ export interface ConsensusLienData {
     assumptions: string[];
   };
   governance_notice: string;
+}
+
+export interface HoldCandidate {
+  account_id: string;
+  account_type: string;
+  current_balance_paise: number | null;
+  current_balance_inr: number | null;
+  lower_bound_paise: number;
+  lower_bound_inr: number;
+  upper_bound_paise: number;
+  upper_bound_inr: number;
+  proposed_hold_paise: number;
+  proposed_hold_inr: number;
+  history_complete: boolean | null;
+  is_eligible: boolean;
+  eligibility_reason: string;
+  linked_suspicious_transaction_ids: string[];
+}
+
+export interface HoldPreview {
+  case_id: string;
+  source_transaction_id: string;
+  source_amount_paise: number;
+  source_amount_inr: number;
+  consensus_status: string;
+  candidates: HoldCandidate[];
+  formula: string;
+  execution_status: string;
+  disclaimer: string;
+}
+
+export interface DemoHoldProposalRequest {
+  case_id: string;
+  account_id: string;
+}
+
+export interface DemoHoldProposal {
+  proposal_id: string;
+  audit_event_id: string;
+  created_at: string;
+  case_id: string;
+  source_transaction_id: string;
+  account_id: string;
+  current_balance_paise: number;
+  current_balance_inr: number;
+  consensus_lower_bound_paise: number;
+  consensus_lower_bound_inr: number;
+  proposed_hold_paise: number;
+  proposed_hold_inr: number;
+  calculation: string;
+  status: string;
+  execution_status: string;
+  message: string;
 }
 
 export interface ComponentScoreData {
