@@ -26,6 +26,33 @@ def test_api_health():
     assert data["version"] == app.version
 
 
+
+def test_demo_session_uses_one_dynamic_local_investigator():
+    """The application exposes one demo identity whose case scope follows the current ledger."""
+    personas_response = client.get("/api/auth/personas")
+    assert personas_response.status_code == 200
+    personas = personas_response.json()["personas"]
+    assert len(personas) == 1
+    persona = personas[0]
+    assert persona["display_name"] == "Local demo investigator"
+    assert persona["role"] == "INVESTIGATOR"
+
+    cases_response = client.get("/api/cases")
+    assert cases_response.status_code == 200
+    assert persona["assigned_case_count"] == len(cases_response.json())
+
+    login_response = client.post("/api/auth/demo-session", json={"persona_id": persona["persona_id"]})
+    assert login_response.status_code == 200
+    token = login_response.json()["token"]
+    demo_client = TestClient(app)
+    demo_client.headers["Authorization"] = f"Bearer {token}"
+    session_response = demo_client.get("/api/auth/session")
+    assert session_response.status_code == 200
+    assert session_response.json()["user"]["display_name"] == "Local demo investigator"
+    assert session_response.json()["user"]["role"] == "INVESTIGATOR"
+    assert session_response.json()["user"]["assigned_case_count"] == len(cases_response.json())
+
+
 def test_api_overview():
     """Verify overview endpoint returns real operational counts and ledger validation."""
     response = client.get("/api/overview")
