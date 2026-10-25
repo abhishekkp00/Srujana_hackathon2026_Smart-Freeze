@@ -121,7 +121,7 @@ def test_api_graph_endpoint():
     assert graph["total_edges"] >= 5
     assert graph["source_transaction_id"] == "TXN_0009"
     assert graph["source_amount_inr"] == 100000.0
-    assert "not proof" in graph["flow_scope"].lower()
+    assert "neither proves" in graph["flow_scope"].lower()
     for node in graph["nodes"]:
         assert "id" in node
         assert "label" in node
