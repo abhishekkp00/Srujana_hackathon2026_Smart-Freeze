@@ -229,7 +229,7 @@ export const Overview: React.FC = () => {
           <div className="sf-kpi-top"><span>Evidence flags</span><ShieldCheck size={16} /></div>
           <div className="sf-kpi-value">{flaggedTransactions.length.toLocaleString('en-IN')}</div>
           <div className="sf-kpi-foot">
-            {hasTransactionSample ? `In the latest ${data.transactions.length} rows returned` : 'Suspected-fraud flags in returned ledger rows'}
+            {hasTransactionSample ? `In the first ${data.transactions.length} rows returned` : 'Suspected-fraud flags in returned ledger rows'}
           </div>
         </article>
       </section>
