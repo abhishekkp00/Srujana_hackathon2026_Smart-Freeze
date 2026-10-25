@@ -44,14 +44,10 @@ htmlcov/
 # Project Raw & Large Datasets (preserve directory structure)
 data/raw/*
 !data/raw/.gitkeep
-data/processed/*
-!data/processed/.gitkeep
 
-# Trained model artifacts, generated demo vectors, training metadata, and local benchmark outputs
-models/*.joblib
-models/*.pkl
-models/*.json
-!models/.gitkeep
+# Local temporary pickles
+*.pkl
+
 
 # Secrets, Environment Files & Keys
 .env

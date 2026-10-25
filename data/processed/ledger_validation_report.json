@@ -1,0 +1,22 @@
+{
+  "is_valid": true,
+  "accounts_count": 38,
+  "transactions_count": 119,
+  "internal_transfers_count": 98,
+  "external_deposits_count": 1,
+  "external_withdrawals_count": 20,
+  "total_turnover_paise": 222750000,
+  "total_opening_balance_paise": 315735354,
+  "total_final_balance_paise": 298635354,
+  "total_external_deposits_paise": 4000000,
+  "total_external_withdrawals_paise": 21100000,
+  "conservation_verified": true,
+  "incomplete_history_accounts": [
+    "ACC_INCOMPLETE_01"
+  ],
+  "errors": [],
+  "warnings": [
+    "Ledger contains 1 accounts with incomplete statement history.",
+    "Reconstructed balances for 1 account(s) have incomplete historical context: ['ACC_INCOMPLETE_01']. Their balance histories must not be treated as complete."
+  ]
+}

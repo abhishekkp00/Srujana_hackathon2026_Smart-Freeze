@@ -1,0 +1,97 @@
+{
+  "internal_account_nodes": 38,
+  "internal_transfer_edges": 98,
+  "weakly_connected_components": 4,
+  "isolated_accounts": [],
+  "top_senders_by_volume": [
+    {
+      "account_id": "ACC_CORP_PAYROLL",
+      "outflow_paise": 80000000
+    },
+    {
+      "account_id": "ACC_VICTIM_03",
+      "outflow_paise": 20000000
+    },
+    {
+      "account_id": "ACC_VICTIM_02",
+      "outflow_paise": 15000000
+    },
+    {
+      "account_id": "ACC_SPLITTER_01",
+      "outflow_paise": 14000000
+    },
+    {
+      "account_id": "ACC_VICTIM_01",
+      "outflow_paise": 10000000
+    }
+  ],
+  "top_receivers_by_volume": [
+    {
+      "account_id": "ACC_LANDLORD_01",
+      "inflow_paise": 24000000
+    },
+    {
+      "account_id": "ACC_MULE_PARTIAL_01",
+      "inflow_paise": 20000000
+    },
+    {
+      "account_id": "ACC_SPLITTER_01",
+      "inflow_paise": 15000000
+    },
+    {
+      "account_id": "ACC_MULE_DIRECT_01",
+      "inflow_paise": 10000000
+    },
+    {
+      "account_id": "ACC_EMP_01",
+      "inflow_paise": 10000000
+    }
+  ],
+  "top_senders_by_count": [
+    {
+      "account_id": "ACC_CORP_PAYROLL",
+      "out_degree": 16
+    },
+    {
+      "account_id": "ACC_PERSONAL_02",
+      "out_degree": 5
+    },
+    {
+      "account_id": "ACC_PERSONAL_03",
+      "out_degree": 5
+    },
+    {
+      "account_id": "ACC_CUST_01",
+      "out_degree": 4
+    },
+    {
+      "account_id": "ACC_CUST_02",
+      "out_degree": 4
+    }
+  ],
+  "top_receivers_by_count": [
+    {
+      "account_id": "ACC_MERCHANT_01",
+      "in_degree": 41
+    },
+    {
+      "account_id": "ACC_LANDLORD_01",
+      "in_degree": 16
+    },
+    {
+      "account_id": "ACC_EMP_01",
+      "in_degree": 2
+    },
+    {
+      "account_id": "ACC_EMP_02",
+      "in_degree": 2
+    },
+    {
+      "account_id": "ACC_EMP_03",
+      "in_degree": 2
+    }
+  ],
+  "warnings": [
+    "Graph contains 1 account(s) with incomplete statement histories: ['ACC_INCOMPLETE_01']"
+  ]
+}

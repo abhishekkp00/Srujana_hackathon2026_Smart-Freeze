@@ -1,0 +1,596 @@
+{
+  "evaluation_metadata": {
+    "title": "Smart-Freeze Tracing Algorithm Evaluation Report",
+    "generator_seed": 42,
+    "total_cases_evaluated": 3,
+    "cases_with_ground_truth": 2,
+    "scenario_coverage": {
+      "commingling_funds": 3,
+      "direct_onward_transfer": 2,
+      "incomplete_history_account": 1,
+      "merchant_multiple_customers": 43,
+      "ordinary_salary_and_business": 62,
+      "partial_withdrawals_leaving_balance": 3,
+      "split_transfers_smurfing": 5
+    },
+    "disclaimer": "Empirical evaluation on controlled synthetic data. Performance on synthetic scenarios does not represent production bank accuracy claims. Consensus bounds are investigative estimates."
+  },
+  "cases": [
+    {
+      "case_id": "CASE-2026-001",
+      "origin_transaction_id": "TXN_0009",
+      "initial_suspected_amount_paise": 10000000,
+      "consensus_status": "COMPARABLE",
+      "total_lower_retained_paise": 5490196,
+      "total_upper_retained_paise": 15189076,
+      "overall_disagreement_paise": 9698880,
+      "account_liens": {
+        "ACC_COMMINGLED_01": {
+          "account_id": "ACC_COMMINGLED_01",
+          "proportional_paise": 3585434,
+          "fifo_paise": 4000000,
+          "libr_paise": 7500000,
+          "lower_estimate_paise": 3585434,
+          "upper_estimate_paise": 7500000,
+          "disagreement_paise": 3914566,
+          "lower_method": "Proportional",
+          "upper_method": "LIBR",
+          "history_complete": true,
+          "explanation_text": "Account 'ACC_COMMINGLED_01' Consensus Lien Assessment:\n  - Proportional Tracing: \u20b935,854.34 (3,585,434 paise)\n  - FIFO Tracing:         \u20b940,000.00 (4,000,000 paise)\n  - LIBR Tracing:         \u20b975,000.00 (7,500,000 paise)\n  -> Consensus Bounds: Lower = \u20b935,854.34 | Upper = \u20b975,000.00\n  -> Method Disagreement Range: \u20b939,145.66 (3,914,566 paise)\n  [Analysis] Method divergence drivers:\n    * LIBR provides the upper bound because non-suspected (clean) funds absorbed outgoing transfers under the equitable fiduciary presumption, preserving suspected funds in this account.\n    * Proportional tracing provides the lower bound because commingling diluted the suspected balance across multiple onward transfers.\n  [Governance] Investigative Estimate Notice: Consensus Lien figures represent method-dependent accounting bounds for decision support. They do not constitute judicial proof of liability, guaranteed recovery, or an automated freeze order. Authorized human investigator review is required."
+        },
+        "ACC_LAYER2_01": {
+          "account_id": "ACC_LAYER2_01",
+          "proportional_paise": 2689076,
+          "fifo_paise": 500000,
+          "libr_paise": 0,
+          "lower_estimate_paise": 0,
+          "upper_estimate_paise": 2689076,
+          "disagreement_paise": 2689076,
+          "lower_method": "LIBR",
+          "upper_method": "Proportional",
+          "history_complete": true,
+          "explanation_text": "Account 'ACC_LAYER2_01' Consensus Lien Assessment:\n  - Proportional Tracing: \u20b926,890.76 (2,689,076 paise)\n  - FIFO Tracing:         \u20b95,000.00 (500,000 paise)\n  - LIBR Tracing:         \u20b90.00 (0 paise)\n  -> Consensus Bounds: Lower = \u20b90.00 | Upper = \u20b926,890.76\n  -> Method Disagreement Range: \u20b926,890.76 (2,689,076 paise)\n  [Analysis] Method divergence drivers:\n    * Proportional tracing provides the upper bound because outgoing transfers drew pro-rata from both clean and suspected funds, leaving a proportional fraction behind.\n    * LIBR provides the lower bound due to intermediate balance drawdowns or clean-fund absorption prioritizing earlier retention.\n  [Governance] Investigative Estimate Notice: Consensus Lien figures represent method-dependent accounting bounds for decision support. They do not constitute judicial proof of liability, guaranteed recovery, or an automated freeze order. Authorized human investigator review is required."
+        },
+        "ACC_LAYER2_02": {
+          "account_id": "ACC_LAYER2_02",
+          "proportional_paise": 1344538,
+          "fifo_paise": 3000000,
+          "libr_paise": 0,
+          "lower_estimate_paise": 0,
+          "upper_estimate_paise": 3000000,
+          "disagreement_paise": 3000000,
+          "lower_method": "LIBR",
+          "upper_method": "FIFO",
+          "history_complete": true,
+          "explanation_text": "Account 'ACC_LAYER2_02' Consensus Lien Assessment:\n  - Proportional Tracing: \u20b913,445.38 (1,344,538 paise)\n  - FIFO Tracing:         \u20b930,000.00 (3,000,000 paise)\n  - LIBR Tracing:         \u20b90.00 (0 paise)\n  -> Consensus Bounds: Lower = \u20b90.00 | Upper = \u20b930,000.00\n  -> Method Disagreement Range: \u20b930,000.00 (3,000,000 paise)\n  [Analysis] Method divergence drivers:\n    * FIFO provides the upper bound because suspected funds arrived after earlier clean funds, and outgoing transfers exhausted the older clean lots first.\n    * LIBR provides the lower bound due to intermediate balance drawdowns or clean-fund absorption prioritizing earlier retention.\n  [Governance] Investigative Estimate Notice: Consensus Lien figures represent method-dependent accounting bounds for decision support. They do not constitute judicial proof of liability, guaranteed recovery, or an automated freeze order. Authorized human investigator review is required."
+        },
+        "ACC_MULE_DIRECT_01": {
+          "account_id": "ACC_MULE_DIRECT_01",
+          "proportional_paise": 1904762,
+          "fifo_paise": 2000000,
+          "libr_paise": 2000000,
+          "lower_estimate_paise": 1904762,
+          "upper_estimate_paise": 2000000,
+          "disagreement_paise": 95238,
+          "lower_method": "Proportional",
+          "upper_method": "FIFO/LIBR",
+          "history_complete": true,
+          "explanation_text": "Account 'ACC_MULE_DIRECT_01' Consensus Lien Assessment:\n  - Proportional Tracing: \u20b919,047.62 (1,904,762 paise)\n  - FIFO Tracing:         \u20b920,000.00 (2,000,000 paise)\n  - LIBR Tracing:         \u20b920,000.00 (2,000,000 paise)\n  -> Consensus Bounds: Lower = \u20b919,047.62 | Upper = \u20b920,000.00\n  -> Method Disagreement Range: \u20b9952.38 (95,238 paise)\n  [Analysis] Method divergence drivers:\n    * LIBR provides the upper bound because non-suspected (clean) funds absorbed outgoing transfers under the equitable fiduciary presumption, preserving suspected funds in this account.\n    * FIFO provides the upper bound because suspected funds arrived after earlier clean funds, and outgoing transfers exhausted the older clean lots first.\n    * Proportional tracing provides the lower bound because commingling diluted the suspected balance across multiple onward transfers.\n  [Governance] Investigative Estimate Notice: Consensus Lien figures represent method-dependent accounting bounds for decision support. They do not constitute judicial proof of liability, guaranteed recovery, or an automated freeze order. Authorized human investigator review is required."
+        }
+      },
+      "evaluation_available": true,
+      "method_evaluations": {
+        "proportional": {
+          "method_name": "Proportional",
+          "case_id": "CASE-2026-001",
+          "account_metrics": [
+            {
+              "account_id": "ACC_COMMINGLED_01",
+              "estimated_paise": 3585434,
+              "ground_truth_paise": 0,
+              "absolute_error_paise": 3585434,
+              "absolute_error_inr": 35854.34,
+              "relative_error": null,
+              "exact_match": false,
+              "relative_error_status": "ZERO_DENOMINATOR_ERROR"
+            },
+            {
+              "account_id": "ACC_LAYER2_01",
+              "estimated_paise": 2689076,
+              "ground_truth_paise": 0,
+              "absolute_error_paise": 2689076,
+              "absolute_error_inr": 26890.76,
+              "relative_error": null,
+              "exact_match": false,
+              "relative_error_status": "ZERO_DENOMINATOR_ERROR"
+            },
+            {
+              "account_id": "ACC_LAYER2_02",
+              "estimated_paise": 1344538,
+              "ground_truth_paise": 0,
+              "absolute_error_paise": 1344538,
+              "absolute_error_inr": 13445.38,
+              "relative_error": null,
+              "exact_match": false,
+              "relative_error_status": "ZERO_DENOMINATOR_ERROR"
+            },
+            {
+              "account_id": "ACC_MULE_DIRECT_01",
+              "estimated_paise": 1904762,
+              "ground_truth_paise": 1500000,
+              "absolute_error_paise": 404762,
+              "absolute_error_inr": 4047.62,
+              "relative_error": 0.2698,
+              "exact_match": false,
+              "relative_error_status": "VALID"
+            }
+          ],
+          "total_accounts": 4,
+          "exact_match_count": 0,
+          "exact_match_rate": 0.0,
+          "total_absolute_error_paise": 8023810,
+          "total_absolute_error_inr": 80238.1,
+          "mean_absolute_error_paise": 2005952.5,
+          "mean_absolute_error_inr": 20059.53,
+          "mean_relative_error": 0.2698,
+          "zero_denominator_count": 3
+        },
+        "fifo": {
+          "method_name": "FIFO",
+          "case_id": "CASE-2026-001",
+          "account_metrics": [
+            {
+              "account_id": "ACC_COMMINGLED_01",
+              "estimated_paise": 4000000,
+              "ground_truth_paise": 0,
+              "absolute_error_paise": 4000000,
+              "absolute_error_inr": 40000.0,
+              "relative_error": null,
+              "exact_match": false,
+              "relative_error_status": "ZERO_DENOMINATOR_ERROR"
+            },
+            {
+              "account_id": "ACC_LAYER2_01",
+              "estimated_paise": 500000,
+              "ground_truth_paise": 0,
+              "absolute_error_paise": 500000,
+              "absolute_error_inr": 5000.0,
+              "relative_error": null,
+              "exact_match": false,
+              "relative_error_status": "ZERO_DENOMINATOR_ERROR"
+            },
+            {
+              "account_id": "ACC_LAYER2_02",
+              "estimated_paise": 3000000,
+              "ground_truth_paise": 0,
+              "absolute_error_paise": 3000000,
+              "absolute_error_inr": 30000.0,
+              "relative_error": null,
+              "exact_match": false,
+              "relative_error_status": "ZERO_DENOMINATOR_ERROR"
+            },
+            {
+              "account_id": "ACC_MULE_DIRECT_01",
+              "estimated_paise": 2000000,
+              "ground_truth_paise": 1500000,
+              "absolute_error_paise": 500000,
+              "absolute_error_inr": 5000.0,
+              "relative_error": 0.3333,
+              "exact_match": false,
+              "relative_error_status": "VALID"
+            }
+          ],
+          "total_accounts": 4,
+          "exact_match_count": 0,
+          "exact_match_rate": 0.0,
+          "total_absolute_error_paise": 8000000,
+          "total_absolute_error_inr": 80000.0,
+          "mean_absolute_error_paise": 2000000.0,
+          "mean_absolute_error_inr": 20000.0,
+          "mean_relative_error": 0.3333,
+          "zero_denominator_count": 3
+        },
+        "libr": {
+          "method_name": "LIBR",
+          "case_id": "CASE-2026-001",
+          "account_metrics": [
+            {
+              "account_id": "ACC_COMMINGLED_01",
+              "estimated_paise": 7500000,
+              "ground_truth_paise": 0,
+              "absolute_error_paise": 7500000,
+              "absolute_error_inr": 75000.0,
+              "relative_error": null,
+              "exact_match": false,
+              "relative_error_status": "ZERO_DENOMINATOR_ERROR"
+            },
+            {
+              "account_id": "ACC_MULE_DIRECT_01",
+              "estimated_paise": 2000000,
+              "ground_truth_paise": 1500000,
+              "absolute_error_paise": 500000,
+              "absolute_error_inr": 5000.0,
+              "relative_error": 0.3333,
+              "exact_match": false,
+              "relative_error_status": "VALID"
+            }
+          ],
+          "total_accounts": 2,
+          "exact_match_count": 0,
+          "exact_match_rate": 0.0,
+          "total_absolute_error_paise": 8000000,
+          "total_absolute_error_inr": 80000.0,
+          "mean_absolute_error_paise": 4000000.0,
+          "mean_absolute_error_inr": 40000.0,
+          "mean_relative_error": 0.3333,
+          "zero_denominator_count": 1
+        },
+        "consensus_lower": {
+          "method_name": "Consensus_Lower",
+          "case_id": "CASE-2026-001",
+          "account_metrics": [
+            {
+              "account_id": "ACC_COMMINGLED_01",
+              "estimated_paise": 3585434,
+              "ground_truth_paise": 0,
+              "absolute_error_paise": 3585434,
+              "absolute_error_inr": 35854.34,
+              "relative_error": null,
+              "exact_match": false,
+              "relative_error_status": "ZERO_DENOMINATOR_ERROR"
+            },
+            {
+              "account_id": "ACC_LAYER2_01",
+              "estimated_paise": 0,
+              "ground_truth_paise": 0,
+              "absolute_error_paise": 0,
+              "absolute_error_inr": 0.0,
+              "relative_error": 0.0,
+              "exact_match": true,
+              "relative_error_status": "ZERO_DENOMINATOR_EXACT"
+            },
+            {
+              "account_id": "ACC_LAYER2_02",
+              "estimated_paise": 0,
+              "ground_truth_paise": 0,
+              "absolute_error_paise": 0,
+              "absolute_error_inr": 0.0,
+              "relative_error": 0.0,
+              "exact_match": true,
+              "relative_error_status": "ZERO_DENOMINATOR_EXACT"
+            },
+            {
+              "account_id": "ACC_MULE_DIRECT_01",
+              "estimated_paise": 1904762,
+              "ground_truth_paise": 1500000,
+              "absolute_error_paise": 404762,
+              "absolute_error_inr": 4047.62,
+              "relative_error": 0.2698,
+              "exact_match": false,
+              "relative_error_status": "VALID"
+            }
+          ],
+          "total_accounts": 4,
+          "exact_match_count": 2,
+          "exact_match_rate": 0.5,
+          "total_absolute_error_paise": 3990196,
+          "total_absolute_error_inr": 39901.96,
+          "mean_absolute_error_paise": 997549.0,
+          "mean_absolute_error_inr": 9975.49,
+          "mean_relative_error": 0.0899,
+          "zero_denominator_count": 1
+        },
+        "consensus_upper": {
+          "method_name": "Consensus_Upper",
+          "case_id": "CASE-2026-001",
+          "account_metrics": [
+            {
+              "account_id": "ACC_COMMINGLED_01",
+              "estimated_paise": 7500000,
+              "ground_truth_paise": 0,
+              "absolute_error_paise": 7500000,
+              "absolute_error_inr": 75000.0,
+              "relative_error": null,
+              "exact_match": false,
+              "relative_error_status": "ZERO_DENOMINATOR_ERROR"
+            },
+            {
+              "account_id": "ACC_LAYER2_01",
+              "estimated_paise": 2689076,
+              "ground_truth_paise": 0,
+              "absolute_error_paise": 2689076,
+              "absolute_error_inr": 26890.76,
+              "relative_error": null,
+              "exact_match": false,
+              "relative_error_status": "ZERO_DENOMINATOR_ERROR"
+            },
+            {
+              "account_id": "ACC_LAYER2_02",
+              "estimated_paise": 3000000,
+              "ground_truth_paise": 0,
+              "absolute_error_paise": 3000000,
+              "absolute_error_inr": 30000.0,
+              "relative_error": null,
+              "exact_match": false,
+              "relative_error_status": "ZERO_DENOMINATOR_ERROR"
+            },
+            {
+              "account_id": "ACC_MULE_DIRECT_01",
+              "estimated_paise": 2000000,
+              "ground_truth_paise": 1500000,
+              "absolute_error_paise": 500000,
+              "absolute_error_inr": 5000.0,
+              "relative_error": 0.3333,
+              "exact_match": false,
+              "relative_error_status": "VALID"
+            }
+          ],
+          "total_accounts": 4,
+          "exact_match_count": 0,
+          "exact_match_rate": 0.0,
+          "total_absolute_error_paise": 13689076,
+          "total_absolute_error_inr": 136890.76,
+          "mean_absolute_error_paise": 3422269.0,
+          "mean_absolute_error_inr": 34222.69,
+          "mean_relative_error": 0.3333,
+          "zero_denominator_count": 3
+        }
+      }
+    },
+    {
+      "case_id": "CASE-2026-002",
+      "origin_transaction_id": "TXN_0038",
+      "initial_suspected_amount_paise": 15000000,
+      "consensus_status": "COMPARABLE",
+      "total_lower_retained_paise": 14798039,
+      "total_upper_retained_paise": 15189554,
+      "overall_disagreement_paise": 391515,
+      "account_liens": {
+        "ACC_CRYPTO_OTC_01": {
+          "account_id": "ACC_CRYPTO_OTC_01",
+          "proportional_paise": 4283267,
+          "fifo_paise": 4350000,
+          "libr_paise": 4350000,
+          "lower_estimate_paise": 4283267,
+          "upper_estimate_paise": 4350000,
+          "disagreement_paise": 66733,
+          "lower_method": "Proportional",
+          "upper_method": "FIFO/LIBR",
+          "history_complete": true,
+          "explanation_text": "Account 'ACC_CRYPTO_OTC_01' Consensus Lien Assessment:\n  - Proportional Tracing: \u20b942,832.67 (4,283,267 paise)\n  - FIFO Tracing:         \u20b943,500.00 (4,350,000 paise)\n  - LIBR Tracing:         \u20b943,500.00 (4,350,000 paise)\n  -> Consensus Bounds: Lower = \u20b942,832.67 | Upper = \u20b943,500.00\n  -> Method Disagreement Range: \u20b9667.33 (66,733 paise)\n  [Analysis] Method divergence drivers:\n    * LIBR provides the upper bound because non-suspected (clean) funds absorbed outgoing transfers under the equitable fiduciary presumption, preserving suspected funds in this account.\n    * FIFO provides the upper bound because suspected funds arrived after earlier clean funds, and outgoing transfers exhausted the older clean lots first.\n    * Proportional tracing provides the lower bound because commingling diluted the suspected balance across multiple onward transfers.\n  [Governance] Investigative Estimate Notice: Consensus Lien figures represent method-dependent accounting bounds for decision support. They do not constitute judicial proof of liability, guaranteed recovery, or an automated freeze order. Authorized human investigator review is required."
+        },
+        "ACC_INCOMPLETE_01": {
+          "account_id": "ACC_INCOMPLETE_01",
+          "proportional_paise": 3389009,
+          "fifo_paise": 3450000,
+          "libr_paise": 3450000,
+          "lower_estimate_paise": 3389009,
+          "upper_estimate_paise": 3450000,
+          "disagreement_paise": 60991,
+          "lower_method": "Proportional",
+          "upper_method": "FIFO/LIBR",
+          "history_complete": false,
+          "explanation_text": "Account 'ACC_INCOMPLETE_01' Consensus Lien Assessment:\n  - Proportional Tracing: \u20b933,890.09 (3,389,009 paise)\n  - FIFO Tracing:         \u20b934,500.00 (3,450,000 paise)\n  - LIBR Tracing:         \u20b934,500.00 (3,450,000 paise)\n  -> Consensus Bounds: Lower = \u20b933,890.09 | Upper = \u20b934,500.00\n  -> Method Disagreement Range: \u20b9609.91 (60,991 paise)\n  [Analysis] Method divergence drivers:\n    * LIBR provides the upper bound because non-suspected (clean) funds absorbed outgoing transfers under the equitable fiduciary presumption, preserving suspected funds in this account.\n    * FIFO provides the upper bound because suspected funds arrived after earlier clean funds, and outgoing transfers exhausted the older clean lots first.\n    * Proportional tracing provides the lower bound because commingling diluted the suspected balance across multiple onward transfers.\n  [!] Incomplete Account History: Historical bank records for this account are truncated or incomplete. Attributed balances may omit prior transactions or opening balance origins.\n  [Governance] Investigative Estimate Notice: Consensus Lien figures represent method-dependent accounting bounds for decision support. They do not constitute judicial proof of liability, guaranteed recovery, or an automated freeze order. Authorized human investigator review is required."
+        },
+        "ACC_MERCHANT_01": {
+          "account_id": "ACC_MERCHANT_01",
+          "proportional_paise": 83710,
+          "fifo_paise": 0,
+          "libr_paise": 0,
+          "lower_estimate_paise": 0,
+          "upper_estimate_paise": 83710,
+          "disagreement_paise": 83710,
+          "lower_method": "FIFO/LIBR",
+          "upper_method": "Proportional",
+          "history_complete": true,
+          "explanation_text": "Account 'ACC_MERCHANT_01' Consensus Lien Assessment:\n  - Proportional Tracing: \u20b9837.10 (83,710 paise)\n  - FIFO Tracing:         \u20b90.00 (0 paise)\n  - LIBR Tracing:         \u20b90.00 (0 paise)\n  -> Consensus Bounds: Lower = \u20b90.00 | Upper = \u20b9837.10\n  -> Method Disagreement Range: \u20b9837.10 (83,710 paise)\n  [Analysis] Method divergence drivers:\n    * Proportional tracing provides the upper bound because outgoing transfers drew pro-rata from both clean and suspected funds, leaving a proportional fraction behind.\n    * LIBR provides the lower bound due to intermediate balance drawdowns or clean-fund absorption prioritizing earlier retention.\n    * FIFO provides the lower bound because suspected lots arrived early and were consumed first by subsequent outgoing payments.\n  [Governance] Investigative Estimate Notice: Consensus Lien figures represent method-dependent accounting bounds for decision support. They do not constitute judicial proof of liability, guaranteed recovery, or an automated freeze order. Authorized human investigator review is required."
+        },
+        "ACC_MULE_SPLIT_01": {
+          "account_id": "ACC_MULE_SPLIT_01",
+          "proportional_paise": 4805844,
+          "fifo_paise": 4700000,
+          "libr_paise": 4700000,
+          "lower_estimate_paise": 4700000,
+          "upper_estimate_paise": 4805844,
+          "disagreement_paise": 105844,
+          "lower_method": "FIFO/LIBR",
+          "upper_method": "Proportional",
+          "history_complete": true,
+          "explanation_text": "Account 'ACC_MULE_SPLIT_01' Consensus Lien Assessment:\n  - Proportional Tracing: \u20b948,058.44 (4,805,844 paise)\n  - FIFO Tracing:         \u20b947,000.00 (4,700,000 paise)\n  - LIBR Tracing:         \u20b947,000.00 (4,700,000 paise)\n  -> Consensus Bounds: Lower = \u20b947,000.00 | Upper = \u20b948,058.44\n  -> Method Disagreement Range: \u20b91,058.44 (105,844 paise)\n  [Analysis] Method divergence drivers:\n    * Proportional tracing provides the upper bound because outgoing transfers drew pro-rata from both clean and suspected funds, leaving a proportional fraction behind.\n    * LIBR provides the lower bound due to intermediate balance drawdowns or clean-fund absorption prioritizing earlier retention.\n    * FIFO provides the lower bound because suspected lots arrived early and were consumed first by subsequent outgoing payments.\n  [Governance] Investigative Estimate Notice: Consensus Lien figures represent method-dependent accounting bounds for decision support. They do not constitute judicial proof of liability, guaranteed recovery, or an automated freeze order. Authorized human investigator review is required."
+        },
+        "ACC_MULE_SPLIT_02": {
+          "account_id": "ACC_MULE_SPLIT_02",
+          "proportional_paise": 618694,
+          "fifo_paise": 650000,
+          "libr_paise": 650000,
+          "lower_estimate_paise": 618694,
+          "upper_estimate_paise": 650000,
+          "disagreement_paise": 31306,
+          "lower_method": "Proportional",
+          "upper_method": "FIFO/LIBR",
+          "history_complete": true,
+          "explanation_text": "Account 'ACC_MULE_SPLIT_02' Consensus Lien Assessment:\n  - Proportional Tracing: \u20b96,186.94 (618,694 paise)\n  - FIFO Tracing:         \u20b96,500.00 (650,000 paise)\n  - LIBR Tracing:         \u20b96,500.00 (650,000 paise)\n  -> Consensus Bounds: Lower = \u20b96,186.94 | Upper = \u20b96,500.00\n  -> Method Disagreement Range: \u20b9313.06 (31,306 paise)\n  [Analysis] Method divergence drivers:\n    * LIBR provides the upper bound because non-suspected (clean) funds absorbed outgoing transfers under the equitable fiduciary presumption, preserving suspected funds in this account.\n    * FIFO provides the upper bound because suspected funds arrived after earlier clean funds, and outgoing transfers exhausted the older clean lots first.\n    * Proportional tracing provides the lower bound because commingling diluted the suspected balance across multiple onward transfers.\n  [Governance] Investigative Estimate Notice: Consensus Lien figures represent method-dependent accounting bounds for decision support. They do not constitute judicial proof of liability, guaranteed recovery, or an automated freeze order. Authorized human investigator review is required."
+        },
+        "ACC_MULE_SPLIT_03": {
+          "account_id": "ACC_MULE_SPLIT_03",
+          "proportional_paise": 532559,
+          "fifo_paise": 550000,
+          "libr_paise": 550000,
+          "lower_estimate_paise": 532559,
+          "upper_estimate_paise": 550000,
+          "disagreement_paise": 17441,
+          "lower_method": "Proportional",
+          "upper_method": "FIFO/LIBR",
+          "history_complete": true,
+          "explanation_text": "Account 'ACC_MULE_SPLIT_03' Consensus Lien Assessment:\n  - Proportional Tracing: \u20b95,325.59 (532,559 paise)\n  - FIFO Tracing:         \u20b95,500.00 (550,000 paise)\n  - LIBR Tracing:         \u20b95,500.00 (550,000 paise)\n  -> Consensus Bounds: Lower = \u20b95,325.59 | Upper = \u20b95,500.00\n  -> Method Disagreement Range: \u20b9174.41 (17,441 paise)\n  [Analysis] Method divergence drivers:\n    * LIBR provides the upper bound because non-suspected (clean) funds absorbed outgoing transfers under the equitable fiduciary presumption, preserving suspected funds in this account.\n    * FIFO provides the upper bound because suspected funds arrived after earlier clean funds, and outgoing transfers exhausted the older clean lots first.\n    * Proportional tracing provides the lower bound because commingling diluted the suspected balance across multiple onward transfers.\n  [Governance] Investigative Estimate Notice: Consensus Lien figures represent method-dependent accounting bounds for decision support. They do not constitute judicial proof of liability, guaranteed recovery, or an automated freeze order. Authorized human investigator review is required."
+        },
+        "ACC_SPLITTER_01": {
+          "account_id": "ACC_SPLITTER_01",
+          "proportional_paise": 1274510,
+          "fifo_paise": 1300000,
+          "libr_paise": 1300000,
+          "lower_estimate_paise": 1274510,
+          "upper_estimate_paise": 1300000,
+          "disagreement_paise": 25490,
+          "lower_method": "Proportional",
+          "upper_method": "FIFO/LIBR",
+          "history_complete": true,
+          "explanation_text": "Account 'ACC_SPLITTER_01' Consensus Lien Assessment:\n  - Proportional Tracing: \u20b912,745.10 (1,274,510 paise)\n  - FIFO Tracing:         \u20b913,000.00 (1,300,000 paise)\n  - LIBR Tracing:         \u20b913,000.00 (1,300,000 paise)\n  -> Consensus Bounds: Lower = \u20b912,745.10 | Upper = \u20b913,000.00\n  -> Method Disagreement Range: \u20b9254.90 (25,490 paise)\n  [Analysis] Method divergence drivers:\n    * LIBR provides the upper bound because non-suspected (clean) funds absorbed outgoing transfers under the equitable fiduciary presumption, preserving suspected funds in this account.\n    * FIFO provides the upper bound because suspected funds arrived after earlier clean funds, and outgoing transfers exhausted the older clean lots first.\n    * Proportional tracing provides the lower bound because commingling diluted the suspected balance across multiple onward transfers.\n  [Governance] Investigative Estimate Notice: Consensus Lien figures represent method-dependent accounting bounds for decision support. They do not constitute judicial proof of liability, guaranteed recovery, or an automated freeze order. Authorized human investigator review is required."
+        }
+      },
+      "evaluation_available": false
+    },
+    {
+      "case_id": "CASE-2026-003",
+      "origin_transaction_id": "TXN_0067",
+      "initial_suspected_amount_paise": 20000000,
+      "consensus_status": "COMPARABLE",
+      "total_lower_retained_paise": 8059701,
+      "total_upper_retained_paise": 8100000,
+      "overall_disagreement_paise": 40299,
+      "account_liens": {
+        "ACC_MULE_PARTIAL_01": {
+          "account_id": "ACC_MULE_PARTIAL_01",
+          "proportional_paise": 8059701,
+          "fifo_paise": 8100000,
+          "libr_paise": 8100000,
+          "lower_estimate_paise": 8059701,
+          "upper_estimate_paise": 8100000,
+          "disagreement_paise": 40299,
+          "lower_method": "Proportional",
+          "upper_method": "FIFO/LIBR",
+          "history_complete": true,
+          "explanation_text": "Account 'ACC_MULE_PARTIAL_01' Consensus Lien Assessment:\n  - Proportional Tracing: \u20b980,597.01 (8,059,701 paise)\n  - FIFO Tracing:         \u20b981,000.00 (8,100,000 paise)\n  - LIBR Tracing:         \u20b981,000.00 (8,100,000 paise)\n  -> Consensus Bounds: Lower = \u20b980,597.01 | Upper = \u20b981,000.00\n  -> Method Disagreement Range: \u20b9402.99 (40,299 paise)\n  [Analysis] Method divergence drivers:\n    * LIBR provides the upper bound because non-suspected (clean) funds absorbed outgoing transfers under the equitable fiduciary presumption, preserving suspected funds in this account.\n    * FIFO provides the upper bound because suspected funds arrived after earlier clean funds, and outgoing transfers exhausted the older clean lots first.\n    * Proportional tracing provides the lower bound because commingling diluted the suspected balance across multiple onward transfers.\n  [Governance] Investigative Estimate Notice: Consensus Lien figures represent method-dependent accounting bounds for decision support. They do not constitute judicial proof of liability, guaranteed recovery, or an automated freeze order. Authorized human investigator review is required."
+        }
+      },
+      "evaluation_available": true,
+      "method_evaluations": {
+        "proportional": {
+          "method_name": "Proportional",
+          "case_id": "CASE-2026-003",
+          "account_metrics": [
+            {
+              "account_id": "ACC_MULE_PARTIAL_01",
+              "estimated_paise": 8059701,
+              "ground_truth_paise": 8000000,
+              "absolute_error_paise": 59701,
+              "absolute_error_inr": 597.01,
+              "relative_error": 0.0075,
+              "exact_match": false,
+              "relative_error_status": "VALID"
+            }
+          ],
+          "total_accounts": 1,
+          "exact_match_count": 0,
+          "exact_match_rate": 0.0,
+          "total_absolute_error_paise": 59701,
+          "total_absolute_error_inr": 597.01,
+          "mean_absolute_error_paise": 59701.0,
+          "mean_absolute_error_inr": 597.01,
+          "mean_relative_error": 0.0075,
+          "zero_denominator_count": 0
+        },
+        "fifo": {
+          "method_name": "FIFO",
+          "case_id": "CASE-2026-003",
+          "account_metrics": [
+            {
+              "account_id": "ACC_MULE_PARTIAL_01",
+              "estimated_paise": 8100000,
+              "ground_truth_paise": 8000000,
+              "absolute_error_paise": 100000,
+              "absolute_error_inr": 1000.0,
+              "relative_error": 0.0125,
+              "exact_match": false,
+              "relative_error_status": "VALID"
+            }
+          ],
+          "total_accounts": 1,
+          "exact_match_count": 0,
+          "exact_match_rate": 0.0,
+          "total_absolute_error_paise": 100000,
+          "total_absolute_error_inr": 1000.0,
+          "mean_absolute_error_paise": 100000.0,
+          "mean_absolute_error_inr": 1000.0,
+          "mean_relative_error": 0.0125,
+          "zero_denominator_count": 0
+        },
+        "libr": {
+          "method_name": "LIBR",
+          "case_id": "CASE-2026-003",
+          "account_metrics": [
+            {
+              "account_id": "ACC_MULE_PARTIAL_01",
+              "estimated_paise": 8100000,
+              "ground_truth_paise": 8000000,
+              "absolute_error_paise": 100000,
+              "absolute_error_inr": 1000.0,
+              "relative_error": 0.0125,
+              "exact_match": false,
+              "relative_error_status": "VALID"
+            }
+          ],
+          "total_accounts": 1,
+          "exact_match_count": 0,
+          "exact_match_rate": 0.0,
+          "total_absolute_error_paise": 100000,
+          "total_absolute_error_inr": 1000.0,
+          "mean_absolute_error_paise": 100000.0,
+          "mean_absolute_error_inr": 1000.0,
+          "mean_relative_error": 0.0125,
+          "zero_denominator_count": 0
+        },
+        "consensus_lower": {
+          "method_name": "Consensus_Lower",
+          "case_id": "CASE-2026-003",
+          "account_metrics": [
+            {
+              "account_id": "ACC_MULE_PARTIAL_01",
+              "estimated_paise": 8059701,
+              "ground_truth_paise": 8000000,
+              "absolute_error_paise": 59701,
+              "absolute_error_inr": 597.01,
+              "relative_error": 0.0075,
+              "exact_match": false,
+              "relative_error_status": "VALID"
+            }
+          ],
+          "total_accounts": 1,
+          "exact_match_count": 0,
+          "exact_match_rate": 0.0,
+          "total_absolute_error_paise": 59701,
+          "total_absolute_error_inr": 597.01,
+          "mean_absolute_error_paise": 59701.0,
+          "mean_absolute_error_inr": 597.01,
+          "mean_relative_error": 0.0075,
+          "zero_denominator_count": 0
+        },
+        "consensus_upper": {
+          "method_name": "Consensus_Upper",
+          "case_id": "CASE-2026-003",
+          "account_metrics": [
+            {
+              "account_id": "ACC_MULE_PARTIAL_01",
+              "estimated_paise": 8100000,
+              "ground_truth_paise": 8000000,
+              "absolute_error_paise": 100000,
+              "absolute_error_inr": 1000.0,
+              "relative_error": 0.0125,
+              "exact_match": false,
+              "relative_error_status": "VALID"
+            }
+          ],
+          "total_accounts": 1,
+          "exact_match_count": 0,
+          "exact_match_rate": 0.0,
+          "total_absolute_error_paise": 100000,
+          "total_absolute_error_inr": 1000.0,
+          "mean_absolute_error_paise": 100000.0,
+          "mean_absolute_error_inr": 1000.0,
+          "mean_relative_error": 0.0125,
+          "zero_denominator_count": 0
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "artifact_file": "mule_detector_v1.joblib",
+  "artifact_sha256": "b77c49ccdbcee99aee3ed7d34c0a7b478dcbf08d7b5f9fe2686ecf88bd640583",
+  "comparisons": {
+    "hand_weighted_priority_score": {
+      "test_roc_auc": 0.8926666666666666
+    },
+    "hist_gradient_boosting": {
+      "test_roc_auc": 1.0,
+      "val_roc_auc": 0.5859649122807018
+    }
+  },
+  "dataset_source": "Smart-Freeze Scaled Deterministic Synthetic Financial Ledger",
+  "dataset_type": "simulated_data",
+  "features": [
+    "rapid_pass_through_ratio",
+    "drain_rate",
+    "amount_deviation_ratio",
+    "fan_out_degree",
+    "fan_in_degree",
+    "cash_exit_ratio",
+    "clean_balance_ratio",
+    "merchant_settlement_ratio",
+    "inbound_velocity",
+    "has_incomplete_history"
+  ],
+  "governance_label": "trained on simulated data",
+  "intercept": 1.087964302281501,
+  "model_algorithm": "Standardized Logistic Regression",
+  "model_name": "Smart-Freeze Interpretable Mule Detector",
+  "model_version": "1.0.0-mule-detector",
+  "random_seed": 42,
+  "reason_code_rules": {
+    "BYSTANDER_HIGH_CLEAN_CAPITAL": "Standardized clean balance z-score contribution < -0.40 (substantial legitimate capital)",
+    "BYSTANDER_MERCHANT_SETTLEMENT": "Standardized merchant settlement z-score contribution < -0.40 (funds settled to verified merchants)",
+    "MULE_CASH_EXIT_CONVERSION": "Standardized cash exit z-score contribution > +0.40 (outflow converted to cash/crypto)",
+    "MULE_DRAIN_SURGE": "Standardized drain rate z-score contribution > +0.40 (depletes incoming funds rapidly)",
+    "MULE_FAN_IN_CONCENTRATION": "Standardized fan-in z-score contribution > +0.40 (multiple inbound fund sources)",
+    "MULE_INBOUND_VELOCITY": "Standardized inbound velocity z-score contribution > +0.40 (unusual throughput relative to balance)",
+    "MULE_RAPID_PASS_THROUGH": "Standardized rapid pass-through z-score contribution > +0.40 (<2h onwards transfer)"
+  },
+  "sanity_checks": {
+    "label_shuffle_passed": true,
+    "label_shuffle_test_roc_auc": 0.5986666666666667,
+    "no_ground_truth_leakage_verified": true
+  },
+  "selected_threshold": 0.5,
+  "split_strategy": {
+    "test_family": "family_d_structuring_below_threshold",
+    "test_sample_count": 80,
+    "train_families": [
+      "family_a_layered_chain",
+      "family_b_tiny_amount_spray"
+    ],
+    "train_sample_count": 260,
+    "val_family": "family_c_heavy_commingling",
+    "val_sample_count": 110
+  },
+  "standardized_coefficients": {
+    "amount_deviation_ratio": -0.2843,
+    "cash_exit_ratio": 0.364,
+    "clean_balance_ratio": -1.2574,
+    "drain_rate": 0.361,
+    "fan_in_degree": 2.0872,
+    "fan_out_degree": -0.9254,
+    "has_incomplete_history": 0.0,
+    "inbound_velocity": 0.4535,
+    "merchant_settlement_ratio": -1.3057,
+    "rapid_pass_through_ratio": 0.1439
+  },
+  "test_metrics": {
+    "confusion_matrix": {
+      "false_negatives": 0,
+      "false_positives": 0,
+      "true_negatives": 50,
+      "true_positives": 30
+    },
+    "f1_score": 1.0,
+    "pr_auc": 0.9999999999999999,
+    "precision": 1.0,
+    "precision_at_10": 1.0,
+    "precision_at_3": 1.0,
+    "precision_at_5": 1.0,
+    "recall": 1.0,
+    "roc_auc": 1.0
+  },
+  "training_data_sha256": "9bf77db9b89311f93488afa269a664809c1886585ead3fd2516f9e93adbcc6fc",
+  "training_timestamp": "2026-10-25T06:04:38.562471+00:00",
+  "validation_metrics": {
+    "aggregator_hard_case_false_positive_rate": 0.0,
+    "aggregator_hard_case_false_positives": 0,
+    "aggregator_hard_case_total": 15,
+    "pr_auc": 0.3826094440237522,
+    "roc_auc": 0.5543859649122808
+  }
+}

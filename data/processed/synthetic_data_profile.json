@@ -1,0 +1,268 @@
+{
+  "_metadata": {
+    "data_directory": "/home/abhishek/Srujana_hackathon2026_Smart-Freeze/data/synthetic",
+    "generator_seed": 42,
+    "generator_version": "2.0.0-scaled-12month",
+    "profiled_at": "2026-10-25T15:43:08Z"
+  },
+  "accounts": {
+    "by_archetype": {
+      "dormant": 96,
+      "gig": 480,
+      "high_volume_merchant": 48,
+      "intermediary": 24,
+      "merchant": 360,
+      "mule": 240,
+      "payment_aggregator": 72,
+      "salaried": 960,
+      "savings": 48,
+      "wallet_ppi": 72
+    },
+    "count": 2400,
+    "incomplete_history_accounts": 38,
+    "incomplete_history_percentage": 1.58,
+    "opening_balances": {
+      "count": 2400,
+      "max_inr": 4896696.8,
+      "max_paise": 489669680,
+      "mean_inr": 277588.36,
+      "mean_paise": 27758835.91,
+      "min_inr": 1016.4,
+      "min_paise": 101640,
+      "p10_paise": 918771,
+      "p25_paise": 2618227,
+      "p50_median_inr": 67611.45,
+      "p50_median_paise": 6761145,
+      "p75_paise": 14548947,
+      "p90_inr": 804536.31,
+      "p90_paise": 80453631,
+      "p95_paise": 137179295,
+      "p99_inr": 3610995.61,
+      "p99_paise": 361099561,
+      "std_paise": 62062881.36
+    }
+  },
+  "cases": {
+    "count": 120,
+    "reported_amount_percentiles": {
+      "count": 120,
+      "max_inr": 348229.0,
+      "max_paise": 34822900,
+      "mean_inr": 201124.72,
+      "mean_paise": 20112471.67,
+      "min_inr": 81918.0,
+      "min_paise": 8191800,
+      "p10_paise": 10446600,
+      "p25_paise": 13584300,
+      "p50_median_inr": 194938.0,
+      "p50_median_paise": 19493800,
+      "p75_paise": 25206400,
+      "p90_inr": 317190.0,
+      "p90_paise": 31719000,
+      "p95_paise": 33461900,
+      "p99_inr": 346343.0,
+      "p99_paise": 34634300,
+      "std_paise": 7542964.62
+    },
+    "total_reported_stolen_inr": 24134966.0,
+    "total_reported_stolen_paise": 2413496600
+  },
+  "financial_integrity": {
+    "conservation_equation_holds": true,
+    "negative_balance_events": 0,
+    "total_ext_inflows_paise": 131242298496,
+    "total_ext_outflows_paise": 427546373,
+    "total_final_paise": 197435958305,
+    "total_opening_paise": 66621206182,
+    "zero_negative_balances_verified": true
+  },
+  "network_topology": {
+    "largest_wcc_size": 2003,
+    "max_in_degree": 67,
+    "max_out_degree": 235,
+    "mean_in_degree": 3.4,
+    "mean_out_degree": 3.4,
+    "num_edges": 8166,
+    "num_nodes": 2400,
+    "top_in_degree_hubs": [
+      {
+        "account_id": "ACC_HV_MERCH_0028",
+        "in_degree": 67
+      },
+      {
+        "account_id": "ACC_HV_MERCH_0033",
+        "in_degree": 67
+      },
+      {
+        "account_id": "ACC_HV_MERCH_0029",
+        "in_degree": 64
+      },
+      {
+        "account_id": "ACC_HV_MERCH_0021",
+        "in_degree": 62
+      },
+      {
+        "account_id": "ACC_HV_MERCH_0041",
+        "in_degree": 62
+      }
+    ],
+    "top_out_degree_hubs": [
+      {
+        "account_id": "ACC_AGG_0005",
+        "out_degree": 235
+      },
+      {
+        "account_id": "ACC_AGG_0003",
+        "out_degree": 234
+      },
+      {
+        "account_id": "ACC_AGG_0001",
+        "out_degree": 232
+      },
+      {
+        "account_id": "ACC_AGG_0002",
+        "out_degree": 225
+      },
+      {
+        "account_id": "ACC_AGG_0004",
+        "out_degree": 219
+      }
+    ],
+    "weakly_connected_components": 389
+  },
+  "scenario_coverage": {
+    "ambiguous_evidence_case": 7,
+    "commingling_funds": 16,
+    "dead_end_stuck_funds": 7,
+    "direct_onward_transfer": 32,
+    "dormant_account_activation": 14,
+    "family_a_layered_chain": 32,
+    "family_b_tiny_amount_spray": 56,
+    "family_c_heavy_commingling": 16,
+    "family_d_structuring_below_threshold": 68,
+    "high_volume_legitimate_merchants": 2696,
+    "incomplete_history_account": 7,
+    "ineligible_hold_drained_case": 14,
+    "later_legitimate_credits_entering_commingled": 16,
+    "merchant_multiple_customers": 2696,
+    "method_divergence_case": 21,
+    "multi_event_case": 14,
+    "ordinary_salary_and_business": 29444,
+    "partial_withdrawals_leaving_balance": 16,
+    "rapid_movement_between_accounts": 24,
+    "refunds_and_reversals": 16,
+    "shared_intermediary_accounts": 14,
+    "split_transfers_smurfing": 56
+  },
+  "summary": {
+    "case_linked_percentage": 1.01,
+    "case_linked_transactions": 327,
+    "date_range": "2025-01-02T00:00:17Z to 2025-12-31T20:50:46Z",
+    "non_case_percentage": 98.99,
+    "non_case_transactions": 32155,
+    "timespan_days": 364,
+    "total_accounts": 2400,
+    "total_cases": 120,
+    "total_transactions": 32482
+  },
+  "temporal_distribution": {
+    "daily_stats": {
+      "active_days": 364,
+      "max_per_day": 667,
+      "mean_per_day": 89.24,
+      "min_per_day": 26,
+      "p50_per_day": 31
+    },
+    "monthly_volume": {
+      "2025-01": 2701,
+      "2025-02": 2646,
+      "2025-03": 2730,
+      "2025-04": 2470,
+      "2025-05": 2988,
+      "2025-06": 2466,
+      "2025-07": 3398,
+      "2025-08": 2505,
+      "2025-09": 2719,
+      "2025-10": 2765,
+      "2025-11": 2729,
+      "2025-12": 2365
+    },
+    "timespan_days": 364
+  },
+  "transactions": {
+    "amount_percentiles_all": {
+      "count": 32482,
+      "max_inr": 401542.8,
+      "max_paise": 40154280,
+      "mean_inr": 47639.29,
+      "mean_paise": 4763928.99,
+      "min_inr": 100.0,
+      "min_paise": 10000,
+      "p10_paise": 17067,
+      "p25_paise": 101503,
+      "p50_median_inr": 35053.39,
+      "p50_median_paise": 3505339,
+      "p75_paise": 9094347,
+      "p90_inr": 124816.52,
+      "p90_paise": 12481652,
+      "p95_paise": 13604330,
+      "p99_inr": 167765.56,
+      "p99_paise": 16776556,
+      "std_paise": 5198444.1
+    },
+    "amount_percentiles_case_linked": {
+      "count": 327,
+      "max_inr": 348229.0,
+      "max_paise": 34822900,
+      "mean_inr": 128597.77,
+      "mean_paise": 12859776.97,
+      "min_inr": 324.19,
+      "min_paise": 32419,
+      "p10_paise": 2798866,
+      "p25_paise": 4546189,
+      "p50_median_inr": 117065.0,
+      "p50_median_paise": 11706500,
+      "p75_paise": 18976900,
+      "p90_inr": 278226.0,
+      "p90_paise": 27822600,
+      "p95_paise": 31216700,
+      "p99_inr": 345919.0,
+      "p99_paise": 34591900,
+      "std_paise": 9354208.62
+    },
+    "amount_percentiles_legitimate": {
+      "count": 32155,
+      "max_inr": 401542.8,
+      "max_paise": 40154280,
+      "mean_inr": 46815.98,
+      "mean_paise": 4681598.33,
+      "min_inr": 100.0,
+      "min_paise": 10000,
+      "p10_paise": 16931,
+      "p25_paise": 99463,
+      "p50_median_inr": 34153.62,
+      "p50_median_paise": 3415362,
+      "p75_paise": 9023260,
+      "p90_inr": 124109.95,
+      "p90_paise": 12410995,
+      "p95_paise": 13532949,
+      "p99_inr": 163676.29,
+      "p99_paise": 16367629,
+      "std_paise": 5073015.07
+    },
+    "by_evidence_status": {
+      "suspected_fraud": 312,
+      "unverified": 7,
+      "verified_legitimate": 32163
+    },
+    "by_type": {
+      "deposit": 10229,
+      "merchant_payment": 6906,
+      "refund": 8,
+      "salary_credit": 13208,
+      "transfer": 2101,
+      "withdrawal": 30
+    },
+    "count": 32482
+  }
+}

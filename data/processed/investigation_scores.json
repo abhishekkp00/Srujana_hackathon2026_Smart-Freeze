@@ -1,0 +1,244 @@
+{
+  "config": {
+    "version": "1.0.0-prototype",
+    "weights": {
+      "B": 0.4,
+      "T": 0.4,
+      "H": 0.2
+    },
+    "min_coverage": 0.5
+  },
+  "cases_count": 3,
+  "ranked_cases": [
+    {
+      "case_id": "CASE-2026-001",
+      "final_score": 80.72,
+      "priority_band": "CRITICAL",
+      "status": "SCORED",
+      "evidence_coverage": 1.0,
+      "reported_amount_paise": 10000000,
+      "reported_date": "2026-01-16T10:00:00Z",
+      "component_b": {
+        "component_name": "B (Behavioural)",
+        "score": 79.31,
+        "weight": 0.4,
+        "is_available": true,
+        "description": "Rapid movement ratio: 50.0%, Amount deviation: 15.7x baseline median, Intermediary drain rate: 97.2%.",
+        "subfactors": {
+          "rapid_movement_pts": 20.0,
+          "amount_deviation_pts": 35.0,
+          "drain_pts": 24.31
+        }
+      },
+      "component_t": {
+        "component_name": "T (Transaction-Trail)",
+        "score": 85.0,
+        "weight": 0.4,
+        "is_available": true,
+        "description": "Graph depth: 3 hops, Fan-out degree: 2, Cash exit present: True.",
+        "subfactors": {
+          "graph_depth_pts": 50.0,
+          "fan_out_pts": 15.0,
+          "withdrawal_pts": 20.0
+        }
+      },
+      "component_h": {
+        "component_name": "H (Historical/Contextual)",
+        "score": 75.0,
+        "weight": 0.2,
+        "is_available": true,
+        "description": "Suspected status ratio: 100.0%, Reported loss scale: \u20b9100,000.00.",
+        "subfactors": {
+          "suspected_status_pts": 50.0,
+          "amount_scale_pts": 25.0
+        }
+      },
+      "missing_components": [],
+      "positive_factors": [
+        "Rapid pass-through in 'ACC_MULE_DIRECT_01': funds transferred out 45m after arrival (TXN_0009 -> TXN_0010).",
+        "Extended multi-hop layering (3 sequential hops in trail).",
+        "Structuring / fan-out observed (account disbursed to 2 counterparties).",
+        "Cash withdrawal identified (TXN_0011), interrupting digital tracing.",
+        "High evidence concordance (100% transactions flagged suspected fraud)."
+      ],
+      "mitigating_factors": [],
+      "data_quality_warnings": [],
+      "supporting_transaction_ids": [
+        "TXN_0009",
+        "TXN_0010",
+        "TXN_0011",
+        "TXN_0026",
+        "TXN_0037"
+      ],
+      "supporting_account_ids": [
+        "ACC_COMMINGLED_01",
+        "ACC_LAYER2_01",
+        "ACC_LAYER2_02",
+        "ACC_MULE_DIRECT_01",
+        "ACC_VICTIM_01",
+        "EXT_CASH_ATM"
+      ],
+      "scoring_config_version": "1.0.0-prototype",
+      "config_weights": {
+        "B": 0.4,
+        "T": 0.4,
+        "H": 0.2
+      },
+      "disclaimer": "The Investigation Priority Score is a decision-support heuristic for prioritizing cases for authorized human review. It is NOT a calibrated probability of fraud, guilt, money laundering, or legal liability. Automatic account freezes, fund releases, or case closures must never be executed based on this score. All consequential decisions require human investigation and verification."
+    },
+    {
+      "case_id": "CASE-2026-003",
+      "final_score": 80.0,
+      "priority_band": "CRITICAL",
+      "status": "SCORED",
+      "evidence_coverage": 1.0,
+      "reported_amount_paise": 20000000,
+      "reported_date": "2026-01-20T09:15:00Z",
+      "component_b": {
+        "component_name": "B (Behavioural)",
+        "score": 90.0,
+        "weight": 0.4,
+        "is_available": true,
+        "description": "Rapid movement ratio: 100.0%, Amount deviation: 45.7x baseline median, Intermediary drain rate: 60.0%.",
+        "subfactors": {
+          "rapid_movement_pts": 40.0,
+          "amount_deviation_pts": 35.0,
+          "drain_pts": 15.0
+        }
+      },
+      "component_t": {
+        "component_name": "T (Transaction-Trail)",
+        "score": 60.0,
+        "weight": 0.4,
+        "is_available": true,
+        "description": "Graph depth: 2 hops, Fan-out degree: 1, Cash exit present: True.",
+        "subfactors": {
+          "graph_depth_pts": 35.0,
+          "fan_out_pts": 5.0,
+          "withdrawal_pts": 20.0
+        }
+      },
+      "component_h": {
+        "component_name": "H (Historical/Contextual)",
+        "score": 100.0,
+        "weight": 0.2,
+        "is_available": true,
+        "description": "Suspected status ratio: 100.0%, Reported loss scale: \u20b9200,000.00.",
+        "subfactors": {
+          "suspected_status_pts": 50.0,
+          "amount_scale_pts": 50.0
+        }
+      },
+      "missing_components": [],
+      "positive_factors": [
+        "Rapid pass-through in 'ACC_MULE_PARTIAL_01': funds transferred out 120m after arrival (TXN_0067 -> TXN_0068).",
+        "Cash withdrawal identified (TXN_0068), interrupting digital tracing.",
+        "High evidence concordance (100% transactions flagged suspected fraud).",
+        "High reported loss scale (\u20b9200,000.00)."
+      ],
+      "mitigating_factors": [
+        "Linear transfer trail without split disbursements."
+      ],
+      "data_quality_warnings": [],
+      "supporting_transaction_ids": [
+        "TXN_0067",
+        "TXN_0068"
+      ],
+      "supporting_account_ids": [
+        "ACC_MULE_PARTIAL_01",
+        "ACC_VICTIM_03",
+        "EXT_CASH_ATM"
+      ],
+      "scoring_config_version": "1.0.0-prototype",
+      "config_weights": {
+        "B": 0.4,
+        "T": 0.4,
+        "H": 0.2
+      },
+      "disclaimer": "The Investigation Priority Score is a decision-support heuristic for prioritizing cases for authorized human review. It is NOT a calibrated probability of fraud, guilt, money laundering, or legal liability. Automatic account freezes, fund releases, or case closures must never be executed based on this score. All consequential decisions require human investigation and verification."
+    },
+    {
+      "case_id": "CASE-2026-002",
+      "final_score": 75.12,
+      "priority_band": "HIGH",
+      "status": "SCORED",
+      "evidence_coverage": 1.0,
+      "reported_amount_paise": 15000000,
+      "reported_date": "2026-01-18T14:30:00Z",
+      "component_b": {
+        "component_name": "B (Behavioural)",
+        "score": 64.05,
+        "weight": 0.4,
+        "is_available": true,
+        "description": "Rapid movement ratio: 25.0%, Amount deviation: 15.1x baseline median, Intermediary drain rate: 76.2%.",
+        "subfactors": {
+          "rapid_movement_pts": 10.0,
+          "amount_deviation_pts": 35.0,
+          "drain_pts": 19.05
+        }
+      },
+      "component_t": {
+        "component_name": "T (Transaction-Trail)",
+        "score": 80.0,
+        "weight": 0.4,
+        "is_available": true,
+        "description": "Graph depth: 3 hops, Fan-out degree: 3, Cash exit present: False.",
+        "subfactors": {
+          "graph_depth_pts": 50.0,
+          "fan_out_pts": 30.0,
+          "withdrawal_pts": 0.0
+        }
+      },
+      "component_h": {
+        "component_name": "H (Historical/Contextual)",
+        "score": 87.5,
+        "weight": 0.2,
+        "is_available": true,
+        "description": "Suspected status ratio: 100.0%, Reported loss scale: \u20b9150,000.00.",
+        "subfactors": {
+          "suspected_status_pts": 50.0,
+          "amount_scale_pts": 37.5
+        }
+      },
+      "missing_components": [],
+      "positive_factors": [
+        "Rapid pass-through in 'ACC_SPLITTER_01': funds transferred out 60m after arrival (TXN_0038 -> TXN_0039).",
+        "Extended multi-hop layering (3 sequential hops in trail).",
+        "Structuring / fan-out observed (account disbursed to 3 counterparties).",
+        "High evidence concordance (100% transactions flagged suspected fraud).",
+        "High reported loss scale (\u20b9150,000.00)."
+      ],
+      "mitigating_factors": [],
+      "data_quality_warnings": [
+        "Account 'ACC_INCOMPLETE_01' has incomplete historical statement records; transaction trail may omit earlier fund origins or subsequent transfers."
+      ],
+      "supporting_transaction_ids": [
+        "TXN_0038",
+        "TXN_0039",
+        "TXN_0040",
+        "TXN_0041",
+        "TXN_0058",
+        "TXN_0061",
+        "TXN_0064"
+      ],
+      "supporting_account_ids": [
+        "ACC_CRYPTO_OTC_01",
+        "ACC_INCOMPLETE_01",
+        "ACC_MERCHANT_01",
+        "ACC_MULE_SPLIT_01",
+        "ACC_MULE_SPLIT_02",
+        "ACC_MULE_SPLIT_03",
+        "ACC_SPLITTER_01",
+        "ACC_VICTIM_02"
+      ],
+      "scoring_config_version": "1.0.0-prototype",
+      "config_weights": {
+        "B": 0.4,
+        "T": 0.4,
+        "H": 0.2
+      },
+      "disclaimer": "The Investigation Priority Score is a decision-support heuristic for prioritizing cases for authorized human review. It is NOT a calibrated probability of fraud, guilt, money laundering, or legal liability. Automatic account freezes, fund releases, or case closures must never be executed based on this score. All consequential decisions require human investigation and verification."
+    }
+  ],
+  "disclaimer": "The Investigation Priority Score is a decision-support heuristic for prioritizing cases for authorized human review. It is NOT a calibrated probability of fraud, guilt, money laundering, or legal liability. Automatic account freezes, fund releases, or case closures must never be executed based on this score. All consequential decisions require human investigation and verification."
+}
