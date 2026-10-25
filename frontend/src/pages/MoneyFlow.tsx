@@ -135,11 +135,11 @@ export const MoneyFlow: React.FC = () => {
         setHoldPreview(preview);
         setProposals(existingProposals);
         setActiveProposal(existingProposals[0] ?? null);
-        const eligible = preview.candidates.filter((candidate) => candidate.is_eligible);
+        const firstCandidate = preview.candidates.find((candidate) => candidate.is_eligible) ?? preview.candidates[0];
         setHoldAccountId((current) =>
-          eligible.some((candidate) => candidate.account_id === current)
+          preview.candidates.some((candidate) => candidate.account_id === current)
             ? current
-            : (eligible[0]?.account_id ?? '')
+            : (firstCandidate?.account_id ?? '')
         );
         setSelectedTx(flow.source_transaction_id ?? flow.edges[0]?.id ?? null);
         setSelectedAccount(null);
@@ -179,12 +179,20 @@ export const MoneyFlow: React.FC = () => {
   const flaggedNodes = nodes.filter((node) => node.flagged_by_case_evidence);
   const currentEdge = edges.find((edge) => edge.id === selectedTx) ?? null;
   const currentNode = nodes.find((node) => node.id === selectedAccount) ?? null;
-  const eligibleCandidates = useMemo(
-    () => (holdPreview?.candidates ?? []).filter((candidate) => candidate.is_eligible),
+  const allCandidates = useMemo(
+    () => holdPreview?.candidates ?? [],
     [holdPreview],
   );
+  const eligibleCandidates = useMemo(
+    () => allCandidates.filter((candidate) => candidate.is_eligible),
+    [allCandidates],
+  );
+  const ineligibleCandidates = useMemo(
+    () => allCandidates.filter((candidate) => !candidate.is_eligible),
+    [allCandidates],
+  );
   const selectedCandidate: HoldCandidate | null =
-    eligibleCandidates.find((candidate) => candidate.account_id === holdAccountId) ?? null;
+    allCandidates.find((candidate) => candidate.account_id === holdAccountId) ?? allCandidates[0] ?? null;
   const hopCount = edges.reduce((max, edge) => Math.max(max, edge.flow_hop ?? 0), 0);
   const sourceEdge = edges.find((edge) => edge.is_source_transaction) ?? edges[0] ?? null;
   useEffect(() => {
@@ -587,29 +595,105 @@ export const MoneyFlow: React.FC = () => {
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-slate-800"><CircleDollarSign size={17} /><h3 className="text-sm font-semibold">3. Calculate a proposed amount</h3></div>
                     <label className="block text-xs font-medium text-slate-600">Candidate account
-                      <select value={holdAccountId} onChange={(event) => { setHoldAccountId(event.target.value); setActiveProposal(null); }} className="mt-1.5 w-full border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900" disabled={!eligibleCandidates.length}>
-                        {eligibleCandidates.map((candidate) => <option value={candidate.account_id} key={candidate.account_id}>{candidate.account_id}</option>)}
+                      <select
+                        value={holdAccountId}
+                        onChange={(event) => { setHoldAccountId(event.target.value); setActiveProposal(null); }}
+                        className="mt-1.5 w-full border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 rounded"
+                        disabled={!allCandidates.length}
+                      >
+                        {eligibleCandidates.length > 0 && (
+                          <optgroup label="Eligible for Hold Proposal">
+                            {eligibleCandidates.map((candidate) => (
+                              <option value={candidate.account_id} key={candidate.account_id}>
+                                {candidate.account_id} (Hold Cap: {inr(candidate.proposed_hold_inr)})
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {ineligibleCandidates.length > 0 && (
+                          <optgroup label="Ineligible Intermediaries (Safeguards Disqualified)">
+                            {ineligibleCandidates.map((candidate) => (
+                              <option value={candidate.account_id} key={candidate.account_id}>
+                                {candidate.account_id} [Ineligible: {candidate.lower_bound_paise <= 0 ? '₹0 Lower Bound' : 'Incomplete History'}]
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
                       </select>
                     </label>
                     {selectedCandidate ? (
-                      <>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="border border-slate-200 p-3"><div className="text-[11px] text-slate-500">Current ledger balance</div><div className="mt-1 text-lg font-semibold text-slate-900">{inr(selectedCandidate.current_balance_inr ?? 0)}</div></div>
-                          <div className="border border-slate-200 p-3"><div className="text-[11px] text-slate-500">Consensus lower bound</div><div className="mt-1 text-lg font-semibold text-slate-900">{inr(selectedCandidate.lower_bound_inr)}</div></div>
+                      selectedCandidate.is_eligible ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="border border-slate-200 p-3 bg-slate-50/50"><div className="text-[11px] text-slate-500">Current ledger balance</div><div className="mt-1 text-lg font-semibold text-slate-900">{inr(selectedCandidate.current_balance_inr ?? 0)}</div></div>
+                            <div className="border border-slate-200 p-3 bg-slate-50/50"><div className="text-[11px] text-slate-500">Consensus lower bound</div><div className="mt-1 text-lg font-semibold text-slate-900">{inr(selectedCandidate.lower_bound_inr)}</div></div>
+                          </div>
+                          <div className="border-t border-slate-200 pt-3">
+                            <div className="text-[11px] text-slate-500">Proposed hold cap</div>
+                            <div className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">{inr(selectedCandidate.proposed_hold_inr)}</div>
+                            <div className="mt-2 text-[11px] leading-5 text-slate-600">min({inr(selectedCandidate.lower_bound_inr)} lower bound, {inr(selectedCandidate.current_balance_inr ?? 0)} reconstructed balance)</div>
+                          </div>
+                          <div className="text-xs leading-5 text-slate-600">This cap is recalculated by the FastAPI service from the selected account’s tracing result and ledger balance. It is not a legal determination.</div>
+                        </>
+                      ) : (
+                        <div className="rounded-md border border-amber-300 bg-amber-50 p-3.5 text-xs space-y-2">
+                          <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                            <AlertTriangle size={15} className="text-amber-700 shrink-0" />
+                            Account Disqualified From Simulated Hold
+                          </div>
+                          <p className="text-amber-900 text-xs">
+                            <strong>Disqualification reason:</strong> {selectedCandidate.eligibility_reason}
+                          </p>
+                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-amber-200/80 text-[11px]">
+                            <div><span className="text-amber-700">Observed Balance:</span> <span className="font-mono font-semibold text-slate-800">{inr(selectedCandidate.current_balance_inr ?? 0)}</span></div>
+                            <div><span className="text-amber-700">Consensus Lower:</span> <span className="font-mono font-semibold text-slate-800">{inr(selectedCandidate.lower_bound_inr)}</span></div>
+                          </div>
+                          <p className="text-[11px] text-amber-800/90 leading-relaxed pt-1">
+                            {selectedCandidate.lower_bound_paise <= 0
+                              ? 'Under FIFO tracing, tainted funds have already fully exited downstream to cash/ATM. Freezing would impermissibly seize subsequently acquired clean money.'
+                              : 'Under Smart-Freeze financial integrity invariants, accounts with missing or unverified statement gaps cannot be frozen to prevent wrongful harm to third parties.'}
+                          </p>
                         </div>
-                        <div className="border-t border-slate-200 pt-3">
-                          <div className="text-[11px] text-slate-500">Proposed hold cap</div>
-                          <div className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">{inr(selectedCandidate.proposed_hold_inr)}</div>
-                          <div className="mt-2 text-[11px] leading-5 text-slate-600">min({inr(selectedCandidate.lower_bound_inr)} lower bound, {inr(selectedCandidate.current_balance_inr ?? 0)} reconstructed balance)</div>
-                        </div>
-                        <div className="text-xs leading-5 text-slate-600">This cap is recalculated by the FastAPI service from the selected account’s tracing result and ledger balance. It is not a legal determination.</div>
-                      </>
+                      )
                     ) : (
                       <div className="border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
-                        No account currently meets the demo eligibility checks. The service requires a positive conservative bound, a positive observed balance, and complete statement history.
+                        No candidate accounts available.
                       </div>
                     )}
-                    <button type="button" onClick={() => selectPhase(3)} className="inline-flex items-center gap-2 border border-slate-300 px-3 py-2 text-xs font-medium hover:bg-slate-50">Review hold request <ArrowRight size={13} /></button>
+
+                    {/* Breakdown of all 4 case touchpoints */}
+                    <div className="border-t border-slate-200 pt-3 space-y-1.5">
+                      <div className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
+                        Case Touchpoint Accounts ({flaggedNodes.length} Total)
+                      </div>
+                      <div className="space-y-1">
+                        {flaggedNodes.map((node) => {
+                          const cand = allCandidates.find((c) => c.account_id === node.id);
+                          const isVictim = node.id.includes('VIC');
+                          return (
+                            <div key={node.id} className="flex items-center justify-between p-1.5 rounded bg-slate-50 text-[11px] border border-slate-100">
+                              <span className="font-mono font-medium text-slate-800">{node.id}</span>
+                              {isVictim ? (
+                                <span className="text-slate-500 font-medium">Defrauded Victim (Origin)</span>
+                              ) : cand?.is_eligible ? (
+                                <span className="text-emerald-700 font-semibold">Eligible (Cap: {inr(cand.proposed_hold_inr)})</span>
+                              ) : (
+                                <span className="text-amber-700 font-medium">{cand?.lower_bound_paise ? 'Incomplete History' : 'Exited to Cash (₹0)'}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => selectPhase(3)}
+                      disabled={!selectedCandidate?.is_eligible}
+                      className="inline-flex items-center gap-2 border border-slate-300 px-3 py-2 text-xs font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Review hold request <ArrowRight size={13} />
+                    </button>
                   </div>
                 )}
 
