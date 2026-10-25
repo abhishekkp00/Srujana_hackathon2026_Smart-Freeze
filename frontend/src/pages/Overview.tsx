@@ -170,15 +170,19 @@ export const Overview: React.FC = () => {
               <span className="fh-hero-eyebrow">INVESTIGATION WORKSPACE</span>
               <h2 className="fh-hero-title">Follow the evidence, not assumptions.</h2>
               <p className="fh-hero-subtitle">
-                Inspect recorded transaction paths, compare tracing assumptions and keep missing evidence visible.
-                This workspace currently uses local demonstration records, not live bank feeds.
+                Start from a case-linked source transaction, inspect later account movements and commingling context,
+                then compare Proportional, FIFO and LIBR attribution ranges. This demonstration uses local synthetic ledger records, not live bank feeds.
               </p>
               <div className="fh-hero-buttons">
-                <button className="fh-hero-btn-primary" type="button" onClick={() => navigate('/explorer')}>
-                  Explore transactions <ArrowRight size={15} />
+                <button
+                  className="fh-hero-btn-primary"
+                  type="button"
+                  onClick={() => navigate(cases[0] ? `/money-flow?case=${encodeURIComponent(cases[0].case_id)}` : '/money-flow')}
+                >
+                  Reconstruct money flow <ArrowRight size={15} />
                 </button>
-                <button className="fh-hero-btn-secondary" type="button" onClick={() => navigate('/traceproof')}>
-                  Open TraceProof <ChevronRight size={14} />
+                <button className="fh-hero-btn-secondary" type="button" onClick={() => navigate('/explorer')}>
+                  Inspect ledger records <ChevronRight size={14} />
                 </button>
               </div>
             </div>
