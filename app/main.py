@@ -322,6 +322,8 @@ class GraphNode(BaseModel):
     opening_balance_inr: Optional[float] = None
     final_balance_inr: Optional[float] = None
     history_complete: Optional[bool] = None
+    flow_level: Optional[int] = None
+    is_origin_account: bool = False
 
 
 class GraphEdge(BaseModel):
@@ -334,6 +336,9 @@ class GraphEdge(BaseModel):
     transaction_type: str
     case_id: str
     evidence_status: str
+    flow_hop: Optional[int] = None
+    linkage_basis: str = "LEDGER_RECORD"
+    is_source_transaction: bool = False
 
 
 class GraphResponse(BaseModel):
@@ -341,6 +346,9 @@ class GraphResponse(BaseModel):
     edges: List[GraphEdge]
     total_nodes: int
     total_edges: int
+    source_transaction_id: Optional[str] = None
+    source_amount_inr: Optional[float] = None
+    flow_scope: Optional[str] = None
 
 
 class AccountLienItem(BaseModel):
@@ -887,86 +895,194 @@ def get_transaction_graph(
     case_id: Optional[str] = None,
     auth: AuthContext = Depends(get_current_user),
 ):
-    """Returns nodes and directed edges formatted for Cytoscape.js or web visualizations."""
+    """Return directed ledger edges; case mode expands a time-ordered reachable flow from the source event."""
     client_ip = request.client.host if request.client else "unknown"
     if case_id:
         check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
 
     data = get_ledger_data()
-    accs_df = data["accounts_df"]
-    txs_df = data["transactions_df"]
+    accounts_df = data["accounts_df"]
+    transactions_df = data["transactions_df"]
     final_balances = data["final_balances"]
 
+    source_transaction_id: Optional[str] = None
+    source_amount_inr: Optional[float] = None
+    flow_scope: Optional[str] = None
+    selected_rows: List[Dict[str, Any]] = []
+    node_levels: Dict[str, int] = {}
+    source_accounts: set[str] = set()
+
     if case_id:
-        filtered_txs = txs_df[txs_df["case_id"] == case_id]
-    elif auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
-        filtered_txs = txs_df[txs_df["case_id"].isin(auth.user.assigned_cases)]
+        cases_df = data["cases_df"]
+        if cases_df[cases_df["case_id"].astype(str) == case_id].empty:
+            raise HTTPException(status_code=404, detail=f"Case '{case_id}' not found.")
+
+        case_rows = transactions_df[transactions_df["case_id"].fillna("").astype(str).str.strip() == case_id].copy()
+        if case_rows.empty:
+            raise HTTPException(status_code=404, detail=f"No ledger transactions are linked to case '{case_id}'.")
+
+        case_rows["_flow_ts"] = pd.to_datetime(case_rows["timestamp"], utc=True, errors="coerce")
+        case_rows = case_rows.sort_values(["_flow_ts", "transaction_id"], kind="stable")
+        suspected = case_rows[case_rows["evidence_status"].astype(str).str.lower() == "suspected_fraud"]
+        origin = (suspected.iloc[0] if not suspected.empty else case_rows.iloc[0])
+        source_transaction_id = str(origin["transaction_id"])
+        source_amount_paise = int(origin["amount_paise"])
+        origin_timestamp = pd.to_datetime(origin["timestamp"], utc=True, errors="coerce")
+        origin_from = str(origin["from_account"])
+        origin_to = str(origin["to_account"])
+        source_accounts.add(origin_from)
+        node_levels[origin_from] = 0
+        node_levels[origin_to] = 1
+
+        # Seed with the source event. Then follow later debits from every reached account.
+        # The edge still shows the full recorded transaction amount; this is not the
+        # amount attributed to the original source lot. Attribution remains in Consensus Lien.
+        selected_by_id: Dict[str, Dict[str, Any]] = {
+            source_transaction_id: {
+                **origin.drop(labels=["_flow_ts"], errors="ignore").to_dict(),
+                "_flow_hop": 1,
+                "_linkage_basis": "CASE_REFERENCE",
+                "_is_source_transaction": True,
+            }
+        }
+
+        all_rows = transactions_df.copy()
+        all_rows["_flow_ts"] = pd.to_datetime(all_rows["timestamp"], utc=True, errors="coerce")
+        all_rows = all_rows.sort_values(["_flow_ts", "transaction_id"], kind="stable")
+        queue: List[Tuple[str, Any, int]] = [(origin_to, origin_timestamp, 1)]
+        visited_states: set[Tuple[str, str, int]] = set()
+        max_hops = 6
+        max_edges = 60
+
+        while queue and len(selected_by_id) < max_edges:
+            account_id, arrived_at, current_level = queue.pop(0)
+            arrival_key = arrived_at.isoformat() if not pd.isna(arrived_at) else "unknown-time"
+            state_key = (account_id, arrival_key, current_level)
+            if state_key in visited_states:
+                continue
+            visited_states.add(state_key)
+            if current_level >= max_hops:
+                continue
+
+            outbound = all_rows[
+                (all_rows["from_account"].astype(str) == account_id)
+                & all_rows["_flow_ts"].notna()
+                & (all_rows["_flow_ts"] > arrived_at)
+            ]
+            for _, tx in outbound.iterrows():
+                tx_id = str(tx["transaction_id"])
+                if tx_id == source_transaction_id:
+                    continue
+                next_hop = current_level + 1
+                if tx_id not in selected_by_id:
+                    tx_case = str(tx.get("case_id", "")).strip() if pd.notna(tx.get("case_id")) else ""
+                    selected_by_id[tx_id] = {
+                        **tx.drop(labels=["_flow_ts"], errors="ignore").to_dict(),
+                        "_flow_hop": next_hop,
+                        "_linkage_basis": "CASE_REFERENCE" if tx_case == case_id else "CHRONOLOGICALLY_REACHABLE",
+                        "_is_source_transaction": False,
+                    }
+                destination = str(tx["to_account"])
+                previous_level = node_levels.get(destination)
+                if previous_level is None or next_hop < previous_level:
+                    node_levels[destination] = next_hop
+                if len(selected_by_id) >= max_edges:
+                    break
+                queue.append((destination, tx["_flow_ts"], next_hop))
+
+        selected_rows = list(selected_by_id.values())
+        flow_scope = (
+            f"Source {source_transaction_id} plus subsequent time-ordered outgoing ledger events reachable "
+            f"within {max_hops} hops (maximum {max_edges} edges). Chronological reachability is a candidate path, "
+            "not proof that the full transaction amount came from the source funds."
+        )
+        source_amount_inr = source_amount_paise / 100.0
     else:
-        filtered_txs = txs_df
+        if auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
+            filtered = transactions_df[transactions_df["case_id"].fillna("").astype(str).isin(auth.user.assigned_cases)]
+        else:
+            filtered = transactions_df
+        for _, tx in filtered.iterrows():
+            selected_rows.append({
+                **tx.to_dict(),
+                "_flow_hop": None,
+                "_linkage_basis": "LEDGER_RECORD",
+                "_is_source_transaction": False,
+            })
 
-    # Identify nodes present in filtered transactions
-    involved_acc_ids = set(filtered_txs["from_account"]).union(set(filtered_txs["to_account"]))
-    acc_map = {str(r["account_id"]): r for _, r in accs_df.iterrows()}
+    # Ensure chronological rendering and stable transaction IDs in the response.
+    selected_rows.sort(key=lambda tx: (str(tx.get("timestamp", "")), str(tx.get("transaction_id", ""))))
+    involved_account_ids = set()
+    for tx in selected_rows:
+        involved_account_ids.add(str(tx["from_account"]))
+        involved_account_ids.add(str(tx["to_account"]))
 
+    account_map = {str(row["account_id"]): row for _, row in accounts_df.iterrows()}
     nodes: List[GraphNode] = []
-    for aid in sorted(list(involved_acc_ids)):
-        is_ext = aid.startswith(EXTERNAL_ACCOUNT_PREFIX)
-        opening = None
-        final = None
-        hist_comp = None
-        if aid in acc_map:
-            acc_info = acc_map[aid]
-            acc_type = str(acc_info["account_type"])
+    for account_id in sorted(involved_account_ids, key=lambda aid: (node_levels.get(aid, 99), aid)):
+        is_external = account_id.startswith(EXTERNAL_ACCOUNT_PREFIX) or account_id not in account_map
+        opening_balance = None
+        final_balance = None
+        history_complete = None
+        account_type = "external"
+        if account_id in account_map:
+            account_info = account_map[account_id]
+            account_type = str(account_info["account_type"])
             if auth.user.role != Role.INVESTIGATOR:
-                opening = int(acc_info["opening_balance_paise"])
-                final = int(final_balances.get(aid, opening))
-                hist_comp = bool(acc_info["history_complete"])
+                opening_balance = int(account_info["opening_balance_paise"])
+                final_balance = int(final_balances.get(account_id, opening_balance))
+                history_complete = bool(account_info["history_complete"])
             else:
-                related = txs_df[(txs_df["from_account"] == aid) | (txs_df["to_account"] == aid)]
+                related = transactions_df[
+                    (transactions_df["from_account"].astype(str) == account_id)
+                    | (transactions_df["to_account"].astype(str) == account_id)
+                ]
                 related_case_ids = set(related["case_id"].fillna("").astype(str).str.strip())
                 allowed_scope = {case_id} if case_id else set(auth.user.assigned_cases)
-                # Account-wide balances are hidden if they include events outside the current authorized scope.
                 if related_case_ids and "" not in related_case_ids and related_case_ids.issubset(allowed_scope):
-                    opening = int(acc_info["opening_balance_paise"])
-                    final = int(final_balances.get(aid, opening))
-                    hist_comp = bool(acc_info["history_complete"])
-        else:
-            # External counterparties have no verified account-level balance in this ledger.
-            acc_type = "external"
+                    opening_balance = int(account_info["opening_balance_paise"])
+                    final_balance = int(final_balances.get(account_id, opening_balance))
+                    history_complete = bool(account_info["history_complete"])
 
-        nodes.append(
-            GraphNode(
-                id=aid,
-                label=aid,
-                type=acc_type,
-                is_external=is_ext,
-                opening_balance_inr=(opening / 100.0) if opening is not None else None,
-                final_balance_inr=(final / 100.0) if final is not None else None,
-                history_complete=hist_comp,
-            )
-        )
+        nodes.append(GraphNode(
+            id=account_id,
+            label=account_id,
+            type=account_type,
+            is_external=is_external,
+            opening_balance_inr=(opening_balance / 100.0) if opening_balance is not None else None,
+            final_balance_inr=(final_balance / 100.0) if final_balance is not None else None,
+            history_complete=history_complete,
+            flow_level=node_levels.get(account_id) if case_id else None,
+            is_origin_account=(account_id in source_accounts),
+        ))
 
     edges: List[GraphEdge] = []
-    for _, tx in filtered_txs.iterrows():
-        edges.append(
-            GraphEdge(
-                id=str(tx["transaction_id"]),
-                source=str(tx["from_account"]),
-                target=str(tx["to_account"]),
-                amount_paise=int(tx["amount_paise"]),
-                amount_inr=int(tx["amount_paise"]) / 100.0,
-                timestamp=str(tx["timestamp"]),
-                transaction_type=str(tx["transaction_type"]),
-                case_id=str(tx.get("case_id", "") or ""),
-                evidence_status=str(tx.get("evidence_status", "unflagged")),
-            )
-        )
+    for tx in selected_rows:
+        amount_paise = int(tx["amount_paise"])
+        tx_case = str(tx.get("case_id", "")).strip() if pd.notna(tx.get("case_id")) else ""
+        edges.append(GraphEdge(
+            id=str(tx["transaction_id"]),
+            source=str(tx["from_account"]),
+            target=str(tx["to_account"]),
+            amount_paise=amount_paise,
+            amount_inr=amount_paise / 100.0,
+            timestamp=str(tx["timestamp"]),
+            transaction_type=str(tx["transaction_type"]),
+            case_id=tx_case,
+            evidence_status=str(tx.get("evidence_status", "unflagged")),
+            flow_hop=tx.get("_flow_hop"),
+            linkage_basis=str(tx.get("_linkage_basis", "LEDGER_RECORD")),
+            is_source_transaction=bool(tx.get("_is_source_transaction", False)),
+        ))
 
     return GraphResponse(
         nodes=nodes,
         edges=edges,
         total_nodes=len(nodes),
         total_edges=len(edges),
+        source_transaction_id=source_transaction_id,
+        source_amount_inr=source_amount_inr,
+        flow_scope=flow_scope,
     )
 
 
