@@ -12,6 +12,16 @@ FairHold is a prototype for reconstructing financial transaction trails, compari
 - **Authentication:** the default configuration disables demo authentication. Local personas are mock identities for isolated development/testing, not production authentication. OIDC/SSO/MFA are not implemented.
 - **Security:** API checks, demo signing and audit telemetry are prototype controls; they have not been independently penetration-tested or certified for production use.
 
+## Main application screens
+
+The frontend intentionally keeps the investigator workflow to three screens:
+
+1. **Case Overview** — live case rows, reported amounts and transaction counts returned by FastAPI.
+2. **Money Flow** — a source-rooted, directed graph plus the transaction rows for the same selected case.
+3. **Consensus Lien** — Proportional, FIFO and LIBR estimates for that same case, with per-account results.
+
+The selected case is carried in the URL when moving between screens, so the graph and attribution table do not silently switch to different cases. The UI uses one local demo investigator whose visible case scope is derived from the loaded ledger. Older analysis pages are not part of the main navigation.
+
 ## Architecture
 
 ```text
