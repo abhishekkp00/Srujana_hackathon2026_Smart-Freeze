@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  Activity,
   AlertCircle,
   ArrowRight,
   ArrowUpRight,
   Clock3,
   FileSearch,
   RefreshCw,
+  Search,
   ShieldCheck,
   Wallet,
 } from 'lucide-react';
@@ -14,6 +16,9 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -24,10 +29,10 @@ import { OverviewData, CaseSummary, TransactionItem } from '../types';
 import './Overview.css';
 
 const formatINR = (amount: number) =>
-  `₹${Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  '₹' + Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 
 const formatExactINR = (amount: number) =>
-  `₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  '₹' + Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const statusLabel = (value: string) =>
   value.replace(/[_-]+/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -61,6 +66,14 @@ interface DashboardData {
   transactionTotal: number;
 }
 
+interface ActivityPoint {
+  day: string;
+  label: string;
+  transactions: number;
+  suspected: number;
+  reportedCases: number;
+}
+
 export const Overview: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -69,7 +82,7 @@ export const Overview: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [caseSearch, setCaseSearch] = useState('');
+  const [globalSearch, setGlobalSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
 
   const load = useCallback(async (refresh = false) => {
@@ -89,7 +102,7 @@ export const Overview: React.FC = () => {
         transactionTotal: transactionPage.total,
       });
     } catch (cause: any) {
-      setError(cause?.response?.data?.detail || cause?.message || 'Could not load investigation data from FastAPI.');
+      setError(cause?.response?.data?.detail || cause?.message || 'Could not load dashboard data from FastAPI.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -104,11 +117,16 @@ export const Overview: React.FC = () => {
   }, [load]);
 
   const openMoneyFlow = (caseId: string) =>
-    navigate(`/money-flow?case=${encodeURIComponent(caseId)}`);
+    navigate('/money-flow?case=' + encodeURIComponent(caseId));
+
+  const query = globalSearch.trim().toLowerCase();
+
+  const cases = data?.cases ?? [];
+  const transactions = data?.transactions ?? [];
 
   const openCases = useMemo(
-    () => (data?.cases ?? []).filter((item) => isOpenCase(item.status)),
-    [data],
+    () => cases.filter((item) => isOpenCase(item.status)),
+    [cases],
   );
 
   const openExposure = useMemo(
@@ -117,62 +135,100 @@ export const Overview: React.FC = () => {
   );
 
   const flaggedTransactions = useMemo(
-    () => (data?.transactions ?? []).filter((tx) => tx.evidence_status.toLowerCase() === 'suspected_fraud'),
-    [data],
+    () => transactions.filter((tx) => tx.evidence_status.toLowerCase() === 'suspected_fraud'),
+    [transactions],
   );
 
   const filteredCases = useMemo(() => {
-    const q = caseSearch.trim().toLowerCase();
-    return (data?.cases ?? []).filter((item) => {
-      const matchesText = !q || item.case_id.toLowerCase().includes(q);
+    return cases.filter((item) => {
+      const matchesText = !query || item.case_id.toLowerCase().includes(query);
       const matchesStatus = statusFilter === 'ALL'
         || (statusFilter === 'OPEN' && isOpenCase(item.status))
         || (statusFilter === 'CLOSED' && !isOpenCase(item.status));
       return matchesText && matchesStatus;
     });
-  }, [data, caseSearch, statusFilter]);
+  }, [cases, query, statusFilter]);
 
   const exposureChartData = useMemo(
-    () => [...(data?.cases ?? [])]
+    () => [...cases]
       .sort((a, b) => b.reported_amount_inr - a.reported_amount_inr)
       .slice(0, 6)
       .map((item) => ({
         caseId: item.case_id,
         amount: item.reported_amount_inr,
-        amountLabel: formatINR(item.reported_amount_inr),
       })),
-    [data],
+    [cases],
   );
 
   const activityChartData = useMemo(() => {
-    const perDay = new Map<string, { day: string; transactions: number; amount: number }>();
-    for (const tx of data?.transactions ?? []) {
+    const daily = new Map<string, ActivityPoint>();
+    const ensureDay = (key: string): ActivityPoint => {
+      const existing = daily.get(key);
+      if (existing) return existing;
+      const point: ActivityPoint = {
+        day: key,
+        label: formatDate(key),
+        transactions: 0,
+        suspected: 0,
+        reportedCases: 0,
+      };
+      daily.set(key, point);
+      return point;
+    };
+
+    for (const tx of transactions) {
       const date = new Date(tx.timestamp);
       if (Number.isNaN(date.getTime())) continue;
       const key = date.toISOString().slice(0, 10);
-      const existing = perDay.get(key) ?? { day: key, transactions: 0, amount: 0 };
-      existing.transactions += 1;
-      existing.amount += tx.amount_inr;
-      perDay.set(key, existing);
+      const point = ensureDay(key);
+      point.transactions += 1;
+      if (tx.evidence_status.toLowerCase() === 'suspected_fraud') point.suspected += 1;
     }
-    return [...perDay.values()]
-      .sort((a, b) => a.day.localeCompare(b.day))
-      .slice(-10)
-      .map((item) => ({ ...item, label: formatDate(item.day) }));
-  }, [data]);
+
+    for (const item of cases) {
+      const date = new Date(item.reported_date);
+      if (Number.isNaN(date.getTime())) continue;
+      const key = date.toISOString().slice(0, 10);
+      ensureDay(key).reportedCases += 1;
+    }
+
+    return [...daily.values()].sort((a, b) => a.day.localeCompare(b.day)).slice(-12);
+  }, [transactions, cases]);
+
+  const evidenceStatusData = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const tx of transactions) {
+      const key = tx.evidence_status || 'unknown';
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([status, count]) => ({ status, label: statusLabel(status), count }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  }, [transactions]);
 
   const recentTransactions = useMemo(
-    () => [...(data?.transactions ?? [])]
+    () => transactions
+      .filter((tx) => {
+        if (!query) return true;
+        return [
+          tx.transaction_id,
+          tx.from_account,
+          tx.to_account,
+          tx.case_id ?? '',
+          tx.transaction_type,
+          tx.evidence_status,
+        ].some((value) => value.toLowerCase().includes(query));
+      })
       .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))
-      .slice(0, 6),
-    [data],
+      .slice(0, 5),
+    [transactions, query],
   );
 
   if (loading) {
     return (
       <div className="sf-dashboard-loading">
         <RefreshCw size={17} className="animate-spin" />
-        <span>Loading investigation ledger…</span>
+        <span>Loading investigation data…</span>
       </div>
     );
   }
@@ -182,7 +238,7 @@ export const Overview: React.FC = () => {
       <section className="sf-dashboard-error">
         <AlertCircle size={19} />
         <div className="sf-dashboard-error-copy">
-          <strong>Investigation data unavailable</strong>
+          <strong>Dashboard data unavailable</strong>
           <p>{error || 'FastAPI returned no dashboard data.'}</p>
           <button type="button" onClick={() => void load(true)} disabled={refreshing}>
             <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> Retry
@@ -192,122 +248,128 @@ export const Overview: React.FC = () => {
     );
   }
 
-  const { overview, cases, transactionTotal } = data;
-  const hasTransactionSample = transactionTotal > data.transactions.length;
+  const overview = data.overview;
+  const hasTransactionSample = data.transactionTotal > transactions.length;
+  const maxEvidenceCount = Math.max(1, ...evidenceStatusData.map((item) => item.count));
 
   return (
     <div className="sf-dashboard">
       <section className="sf-dashboard-toolbar">
         <div>
-          <div className="sf-dashboard-overline">INVESTIGATION OPERATIONS</div>
-          <h2>Good to see the full picture.</h2>
-          <p>Review live ledger data, find a case, and follow its money trail.</p>
+          <div className="sf-dashboard-overline">SMART-FREEZE / OPERATIONS</div>
+          <h2>Dashboard</h2>
+          <p>Case exposure, transaction activity and evidence status from the current ledger.</p>
         </div>
-        <button type="button" className="sf-dashboard-refresh" onClick={() => void load(true)} disabled={refreshing}>
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-          Refresh data
-        </button>
+        <div className="sf-dashboard-tools">
+          <label className="sf-global-search">
+            <Search size={15} />
+            <input
+              value={globalSearch}
+              onChange={(event) => setGlobalSearch(event.target.value)}
+              placeholder="Search cases, accounts, transactions"
+              aria-label="Search cases, accounts and transactions"
+            />
+            {globalSearch && (
+              <button type="button" onClick={() => setGlobalSearch('')} aria-label="Clear search">×</button>
+            )}
+          </label>
+          <button type="button" className="sf-dashboard-refresh" onClick={() => void load(true)} disabled={refreshing}>
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
       </section>
 
-      <section className="sf-dashboard-kpis" aria-label="Ledger summary">
-        <article className="sf-kpi">
-          <div className="sf-kpi-top"><span>Open investigations</span><FileSearch size={16} /></div>
+      <section className="sf-dashboard-kpis" aria-label="Investigation summary">
+        <article className="sf-kpi sf-kpi-lilac">
+          <div className="sf-kpi-top"><span>Open investigations</span><FileSearch size={17} /></div>
           <div className="sf-kpi-value">{openCases.length.toLocaleString('en-IN')}</div>
-          <div className="sf-kpi-foot">{overview.cases_requiring_review.toLocaleString('en-IN')} require review by current status rules</div>
+          <div className="sf-kpi-foot">{overview.cases_requiring_review.toLocaleString('en-IN')} cases require review by status</div>
         </article>
-        <article className="sf-kpi">
-          <div className="sf-kpi-top"><span>Reported exposure</span><Wallet size={16} /></div>
+        <article className="sf-kpi sf-kpi-peach">
+          <div className="sf-kpi-top"><span>Reported exposure</span><Wallet size={17} /></div>
           <div className="sf-kpi-value">{formatINR(openExposure)}</div>
-          <div className="sf-kpi-foot">Sum of reported amounts for open cases · not confirmed loss</div>
+          <div className="sf-kpi-foot">Open case reported amounts · not confirmed loss</div>
         </article>
-        <article className="sf-kpi">
-          <div className="sf-kpi-top"><span>Ledger transactions</span><ArrowUpRight size={16} /></div>
+        <article className="sf-kpi sf-kpi-mint">
+          <div className="sf-kpi-top"><span>Ledger transactions</span><ArrowUpRight size={17} /></div>
           <div className="sf-kpi-value">{overview.transactions_processed.toLocaleString('en-IN')}</div>
-          <div className="sf-kpi-foot">Transactions currently visible to this identity</div>
+          <div className="sf-kpi-foot">Visible to the current demo identity</div>
         </article>
-        <article className="sf-kpi">
-          <div className="sf-kpi-top"><span>Evidence flags</span><ShieldCheck size={16} /></div>
+        <article className="sf-kpi sf-kpi-violet">
+          <div className="sf-kpi-top"><span>Suspected transactions</span><ShieldCheck size={17} /></div>
           <div className="sf-kpi-value">{flaggedTransactions.length.toLocaleString('en-IN')}</div>
           <div className="sf-kpi-foot">
-            {hasTransactionSample ? `In the first ${data.transactions.length} rows returned` : 'Suspected-fraud flags in returned ledger rows'}
+            {hasTransactionSample ? 'In the first ' + transactions.length + ' rows returned' : 'Rows marked suspected in the ledger'}
           </div>
         </article>
       </section>
 
       <section className="sf-dashboard-main-grid">
-        <article className="sf-dashboard-panel sf-chart-panel">
-          <div className="sf-panel-heading">
-            <div>
-              <h3>Reported amount by case</h3>
-              <p>Largest reported amounts in the accessible case list</p>
-            </div>
-            <span className="sf-panel-unit">INR</span>
-          </div>
-          {exposureChartData.length ? (
-            <div className="sf-chart-area">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={exposureChartData} margin={{ top: 12, right: 8, left: 0, bottom: 6 }}>
-                  <CartesianGrid stroke="#e9ebe6" strokeDasharray="3 4" vertical={false} />
-                  <XAxis dataKey="caseId" tick={{ fill: '#737a73', fontSize: 10 }} axisLine={{ stroke: '#daddd6' }} tickLine={false} />
-                  <YAxis
-                    width={52}
-                    tick={{ fill: '#737a73', fontSize: 10 }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(value: number) => value >= 100000 ? `₹${(value / 100000).toFixed(value % 100000 ? 1 : 0)}L` : `₹${Math.round(value / 1000)}k`}
-                  />
-                  <Tooltip
-                    cursor={{ fill: '#f0f2ed' }}
-                    formatter={(value) => [formatExactINR(Number(value)), 'Reported amount']}
-                    labelStyle={{ color: '#242924', fontSize: 12, fontWeight: 600 }}
-                    contentStyle={{ border: '1px solid #daddd6', borderRadius: 4, boxShadow: 'none', fontSize: 12 }}
-                  />
-                  <Bar dataKey="amount" fill="#344c3d" maxBarSize={42} radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="sf-chart-empty">No reported amounts are available for this identity.</div>
-          )}
-          <div className="sf-panel-footnote">Reported amounts are not confirmed loss or legally recoverable balances.</div>
-        </article>
-
         <article className="sf-dashboard-panel sf-activity-panel">
           <div className="sf-panel-heading">
             <div>
               <h3>Transaction activity</h3>
-              <p>Recorded transfers by ledger date</p>
+              <p>Ledger rows and case-linked evidence by recorded date</p>
             </div>
-            <Clock3 size={16} className="sf-panel-icon" />
+            <span className="sf-panel-unit">LAST {activityChartData.length} DATES</span>
           </div>
           {activityChartData.length ? (
-            <>
-              <div className="sf-activity-total">
-                <strong>{activityChartData.reduce((sum, item) => sum + item.transactions, 0).toLocaleString('en-IN')}</strong>
-                <span>rows in chart</span>
-              </div>
-              <div className="sf-activity-chart">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activityChartData} margin={{ top: 8, right: 4, left: -21, bottom: 2 }}>
-                    <CartesianGrid stroke="#e9ebe6" strokeDasharray="3 4" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fill: '#737a73', fontSize: 9 }} axisLine={{ stroke: '#daddd6' }} tickLine={false} />
-                    <YAxis allowDecimals={false} tick={{ fill: '#737a73', fontSize: 9 }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      formatter={(value) => [Number(value), 'Transactions']}
-                      labelStyle={{ color: '#242924', fontSize: 11, fontWeight: 600 }}
-                      contentStyle={{ border: '1px solid #daddd6', borderRadius: 4, boxShadow: 'none', fontSize: 11 }}
-                    />
-                    <Bar dataKey="transactions" fill="#b9c6b8" maxBarSize={24} radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </>
+            <div className="sf-line-chart">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={activityChartData} margin={{ top: 14, right: 16, left: 0, bottom: 4 }}>
+                  <CartesianGrid stroke="#e8e9f1" strokeDasharray="3 5" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: '#818394', fontSize: 10 }} axisLine={{ stroke: '#e0e1e9' }} tickLine={false} />
+                  <YAxis allowDecimals={false} width={30} tick={{ fill: '#818394', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    labelStyle={{ color: '#28283a', fontSize: 12, fontWeight: 600 }}
+                    contentStyle={{ border: '1px solid #e0e1e9', borderRadius: 8, boxShadow: '0 6px 22px rgba(30,30,55,.08)', fontSize: 11 }}
+                    formatter={(value, name) => [Number(value), String(name)]}
+                  />
+                  <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 10, color: '#77798a', paddingTop: 7 }} />
+                  <Line type="monotone" dataKey="transactions" name="Transactions" stroke="#625ee8" strokeWidth={2.2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                  <Line type="monotone" dataKey="suspected" name="Suspected" stroke="#e29a58" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                  <Line type="monotone" dataKey="reportedCases" name="Cases reported" stroke="#58aa83" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
-            <div className="sf-chart-empty">No dated transaction rows are available.</div>
+            <div className="sf-chart-empty">No dated transaction or case records are available.</div>
           )}
           <div className="sf-panel-footnote">
-            {hasTransactionSample ? `Chart is based on the first ${data.transactions.length} rows returned by the API.` : 'Each bar is derived from transaction timestamps in the ledger.'}
+            {hasTransactionSample ? 'Transaction series reflects the first ' + transactions.length + ' rows returned; ' + data.transactionTotal + ' records are available in total.' : 'Each series is computed from transaction timestamps, evidence_status and case report dates.'}
           </div>
+        </article>
+
+        <article className="sf-dashboard-panel sf-exposure-panel">
+          <div className="sf-panel-heading">
+            <div>
+              <h3>Reported amount by case</h3>
+              <p>Accessible cases · sorted by reported amount</p>
+            </div>
+            <span className="sf-panel-unit">INR</span>
+          </div>
+          {exposureChartData.length ? (
+            <div className="sf-exposure-chart">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={exposureChartData} margin={{ top: 12, right: 8, left: 0, bottom: 3 }}>
+                  <CartesianGrid stroke="#e8e9f1" strokeDasharray="3 5" vertical={false} />
+                  <XAxis dataKey="caseId" tick={{ fill: '#818394', fontSize: 9 }} axisLine={{ stroke: '#e0e1e9' }} tickLine={false} />
+                  <YAxis width={45} tick={{ fill: '#818394', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(value: number) => value >= 100000 ? '₹' + (value / 100000).toFixed(value % 100000 ? 1 : 0) + 'L' : '₹' + Math.round(value / 1000) + 'k'} />
+                  <Tooltip
+                    cursor={{ fill: '#f0f0fb' }}
+                    formatter={(value) => [formatExactINR(Number(value)), 'Reported amount']}
+                    labelStyle={{ color: '#28283a', fontSize: 12, fontWeight: 600 }}
+                    contentStyle={{ border: '1px solid #e0e1e9', borderRadius: 8, boxShadow: '0 6px 22px rgba(30,30,55,.08)', fontSize: 11 }}
+                  />
+                  <Bar dataKey="amount" fill="#7773ec" maxBarSize={38} radius={[5, 5, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="sf-chart-empty">No reported amounts are available for these cases.</div>
+          )}
+          <div className="sf-panel-footnote">Reported amounts are case references, not confirmed loss or legally recoverable funds.</div>
         </article>
       </section>
 
@@ -318,19 +380,11 @@ export const Overview: React.FC = () => {
               <h3>Investigation queue</h3>
               <p>{filteredCases.length} of {cases.length} accessible cases</p>
             </div>
-            <div className="sf-case-controls">
-              <input
-                value={caseSearch}
-                onChange={(event) => setCaseSearch(event.target.value)}
-                placeholder="Find case ID"
-                aria-label="Find case ID"
-              />
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'ALL' | 'OPEN' | 'CLOSED')} aria-label="Filter cases by status">
-                <option value="ALL">All statuses</option>
-                <option value="OPEN">Open</option>
-                <option value="CLOSED">Closed</option>
-              </select>
-            </div>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'ALL' | 'OPEN' | 'CLOSED')} aria-label="Filter cases by status" className="sf-status-filter">
+              <option value="ALL">All statuses</option>
+              <option value="OPEN">Open cases</option>
+              <option value="CLOSED">Closed cases</option>
+            </select>
           </div>
           <div className="sf-case-table-wrap">
             <table className="sf-case-table">
@@ -354,7 +408,7 @@ export const Overview: React.FC = () => {
                     <td>{item.transaction_count.toLocaleString('en-IN')}</td>
                     <td><span className="sf-status-text">{statusLabel(item.status)}</span></td>
                     <td>
-                      <button type="button" className="sf-row-action" aria-label={`Open ${item.case_id}`} onClick={() => openMoneyFlow(item.case_id)}>
+                      <button type="button" className="sf-row-action" aria-label={'Open ' + item.case_id} onClick={() => openMoneyFlow(item.case_id)}>
                         <ArrowRight size={15} />
                       </button>
                     </td>
@@ -362,22 +416,50 @@ export const Overview: React.FC = () => {
                 ))}
               </tbody>
             </table>
-            {filteredCases.length === 0 && <div className="sf-case-empty">No cases match these filters.</div>}
+            {filteredCases.length === 0 && <div className="sf-case-empty">No cases match this search and status.</div>}
           </div>
           <div className="sf-panel-bottom-link">
-            <span>Reported amount is a case reference, not a finding of fraud.</span>
-            <button type="button" onClick={() => navigate('/money-flow' + (selectedCaseId ? `?case=${encodeURIComponent(selectedCaseId)}` : ''))}>
+            <span>Reported amounts are not a finding of fraud.</span>
+            <button type="button" onClick={() => navigate('/money-flow' + (selectedCaseId ? '?case=' + encodeURIComponent(selectedCaseId) : ''))}>
               Open money flow <ArrowRight size={13} />
             </button>
+          </div>
+        </article>
+
+        <article className="sf-dashboard-panel sf-evidence-panel">
+          <div className="sf-panel-heading">
+            <div>
+              <h3>Evidence status</h3>
+              <p>Distribution in the returned transaction rows</p>
+            </div>
+            <Activity size={16} className="sf-panel-icon" />
+          </div>
+          <div className="sf-evidence-list">
+            {evidenceStatusData.map((item, index) => (
+              <div className="sf-evidence-row" key={item.status}>
+                <div className="sf-evidence-label"><span>{item.label}</span><strong>{item.count}</strong></div>
+                <div className="sf-evidence-track">
+                  <div
+                    className={'sf-evidence-bar sf-evidence-bar-' + (index % 4)}
+                    style={{ width: ((item.count / maxEvidenceCount) * 100) + '%' }}
+                  />
+                </div>
+              </div>
+            ))}
+            {evidenceStatusData.length === 0 && <div className="sf-case-empty">No evidence labels are available.</div>}
+          </div>
+          <div className="sf-panel-footnote">
+            {hasTransactionSample ? 'Based on ' + transactions.length + ' returned rows of ' + data.transactionTotal + ' total.' : 'Counts use the actual evidence_status field.'}
           </div>
         </article>
 
         <article className="sf-dashboard-panel sf-recent-panel">
           <div className="sf-panel-heading">
             <div>
-              <h3>Recent ledger entries</h3>
-              <p>Latest timestamps in the returned transaction rows</p>
+              <h3>Recent transactions</h3>
+              <p>Latest entries matching the search</p>
             </div>
+            <Clock3 size={16} className="sf-panel-icon" />
           </div>
           {recentTransactions.length ? (
             <div className="sf-recent-list">
@@ -394,11 +476,11 @@ export const Overview: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="sf-case-empty">No transaction records were returned.</div>
+            <div className="sf-case-empty">No transactions match this search.</div>
           )}
           <div className="sf-panel-footnote">
             Ledger integrity: <strong className={overview.ledger_valid ? 'sf-ledger-valid' : 'sf-ledger-invalid'}>{statusLabel(overview.validation_status)}</strong>
-            {overview.incomplete_history_accounts > 0 && <> · {overview.incomplete_history_accounts} account histories incomplete</>}
+            {overview.incomplete_history_accounts > 0 && <> · {overview.incomplete_history_accounts} incomplete account histories</>}
           </div>
         </article>
       </section>
