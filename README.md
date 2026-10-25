@@ -22,6 +22,17 @@ The frontend intentionally keeps the investigator workflow to three screens:
 
 The selected case is carried in the URL when moving between screens, so the graph and attribution table do not silently switch to different cases. The UI uses one local demo investigator whose visible case scope is derived from the loaded ledger. Older analysis pages are not part of the main navigation.
 
+## Guided hold demonstration
+
+The Money Flow screen has a four-phase walkthrough:
+
+1. **Trace funds** — the graph animates through recorded ledger transaction edges in timestamp order.
+2. **Flag evidence** — transaction and account highlights come from the ledger's `evidence_status` values.
+3. **Calculate a proposed amount** — FastAPI calculates the smaller of the account-level Consensus Lien lower bound and reconstructed closing balance. Accounts without complete history or a positive eligible amount cannot be selected.
+4. **Simulate a hold request** — `POST /api/hold-proposals` creates a local demonstration record and a security audit event ID. `GET /api/hold-preview/{case_id}` supplies the account-level inputs; `GET /api/hold-proposals?case_id=...` reads proposals in the current process.
+
+This **does not freeze funds**. No bank API is called, no balance is reserved or changed, and the proposal/audit lists are in memory for the current backend process only. A real hold would require an authorized institution integration, identity controls, legal/policy checks, and human approval. The current UI deliberately calls this a simulated hold proposal.
+
 ## Architecture
 
 ```text
