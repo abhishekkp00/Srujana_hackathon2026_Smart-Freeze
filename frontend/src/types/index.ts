@@ -82,6 +82,8 @@ export interface GraphNode {
   opening_balance_inr: number | null;
   final_balance_inr: number | null;
   history_complete: boolean | null;
+  flow_level?: number | null;
+  is_origin_account?: boolean;
 }
 
 export interface GraphEdge {
@@ -94,6 +96,9 @@ export interface GraphEdge {
   transaction_type: string;
   case_id: string;
   evidence_status: string;
+  flow_hop?: number | null;
+  linkage_basis?: 'CASE_REFERENCE' | 'CHRONOLOGICALLY_REACHABLE' | 'LEDGER_RECORD' | string;
+  is_source_transaction?: boolean;
 }
 
 export interface GraphData {
@@ -101,6 +106,9 @@ export interface GraphData {
   edges: GraphEdge[];
   total_nodes: number;
   total_edges: number;
+  source_transaction_id?: string | null;
+  source_amount_inr?: number | null;
+  flow_scope?: string | null;
 }
 
 export interface AccountLienItem {
