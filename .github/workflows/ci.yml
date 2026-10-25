@@ -1,4 +1,4 @@
-name: FairHold CI
+name: Smart-Freeze CI
 
 on:
   push:
