@@ -575,6 +575,7 @@ export const MoneyFlow: React.FC = () => {
                       </ul>
                       <p className="mt-3 font-medium text-slate-800">This is a local simulation. No bank API is called and no real account is frozen.</p>
                     </div>
+                    <p className="text-[11px] leading-5 text-slate-500">{holdPreview.disclaimer} Proposal and audit records exist in backend memory for this demo process only.</p>
                     {currentProposal && (
                       <button type="button" onClick={() => navigate(`/consensus-lien?case=${encodeURIComponent(caseId)}`)} className="inline-flex items-center gap-2 border border-slate-300 px-3 py-2 text-xs font-medium hover:bg-slate-50"><Scale size={13} /> View tracing calculations</button>
                     )}
