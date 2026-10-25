@@ -104,9 +104,9 @@ export const ConsensusLien: React.FC = () => {
                         <td className="px-4 py-3 font-mono text-slate-700">{inr(row.proportional_inr)}</td>
                         <td className="px-4 py-3 font-mono text-slate-700">{inr(row.fifo_inr)}</td>
                         <td className="px-4 py-3 font-mono text-slate-700">{inr(row.libr_inr)}</td>
-                        <td className="px-4 py-3 font-mono font-semibold text-emerald-800">{inr(row.lower_bound_inr)}</td>
+                        <td className="px-4 py-3 font-mono font-semibold text-slate-800">{inr(row.lower_bound_inr)}</td>
                         <td className="px-4 py-3 font-mono font-semibold text-slate-900">{inr(row.upper_bound_inr)}</td>
-                        <td className="px-4 py-3 font-mono text-rose-700">{inr(row.disagreement_inr)}</td>
+                        <td className="px-4 py-3 font-mono text-slate-700">{inr(row.disagreement_inr)}</td>
                       </tr>
                     ))}
                   </tbody>
