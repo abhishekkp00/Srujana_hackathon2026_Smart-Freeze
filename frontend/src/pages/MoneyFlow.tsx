@@ -1,200 +1,132 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import cytoscape from 'cytoscape';
-import {
-  ArrowRight,
-  AlertTriangle,
-  CheckCircle2,
-  CircleDollarSign,
-  RefreshCw,
-  ShieldAlert,
-  Waypoints,
-} from 'lucide-react';
+import { ArrowRight, AlertCircle, RefreshCw, Scale } from 'lucide-react';
 import { getCases, getConsensusLien, getGraphData } from '../api/endpoints';
 import { CaseSummary, ConsensusLienData, GraphData, GraphEdge, GraphNode } from '../types';
-import { Badge } from '../components/common/Badge';
 
-const formatINR = (value: number) =>
-  `₹${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-const formatTime = (value: string) => {
+const inr = (amount: number) => `₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const dateTime = (value: string) => {
   const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString('en-IN', { timeZone: 'UTC', dateStyle: 'medium', timeStyle: 'short' }) + ' UTC';
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('en-IN', { timeZone: 'UTC', dateStyle: 'medium', timeStyle: 'short' }) + ' UTC';
 };
-
-const formatLabel = (value: string) =>
-  value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
-
-const basisLabel = (edge: GraphEdge) =>
-  edge.is_source_transaction
-    ? 'Source transaction'
-    : edge.linkage_basis === 'CASE_REFERENCE'
-      ? 'Linked to this case'
-      : edge.linkage_basis === 'CHRONOLOGICALLY_REACHABLE'
-        ? 'Chronologically reachable'
-        : edge.linkage_basis === 'ACCOUNT_CONTEXT'
-          ? 'Account context / commingling'
-          : 'Ledger transaction';
-
-const basisVariant = (edge: GraphEdge): 'danger' | 'warning' | 'neutral' =>
-  edge.is_source_transaction || edge.linkage_basis === 'CASE_REFERENCE'
-    ? 'danger'
-    : edge.linkage_basis === 'CHRONOLOGICALLY_REACHABLE' || edge.linkage_basis === 'ACCOUNT_CONTEXT'
-      ? 'warning'
-      : 'neutral';
+const titleCase = (value: string) => value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+const edgeLabel = (edge: GraphEdge) =>
+  edge.is_source_transaction ? 'SOURCE' :
+  edge.linkage_basis === 'CASE_REFERENCE' ? 'CASE LINKED' :
+  edge.linkage_basis === 'CHRONOLOGICALLY_REACHABLE' ? 'REACHABLE' :
+  edge.linkage_basis === 'ACCOUNT_CONTEXT' ? 'ACCOUNT CONTEXT' : 'LEDGER';
 
 export const MoneyFlow: React.FC = () => {
-  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedCaseId = searchParams.get('case') || '';
   const [cases, setCases] = useState<CaseSummary[]>([]);
-  const [selectedCaseId, setSelectedCaseId] = useState(searchParams.get('case') || '');
-  const [graphData, setGraphData] = useState<GraphData | null>(null);
-  const [consensus, setConsensus] = useState<ConsensusLienData | null>(null);
-  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [graph, setGraph] = useState<GraphData | null>(null);
+  const [lien, setLien] = useState<ConsensusLienData | null>(null);
+  const [selectedTx, setSelectedTx] = useState<string | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [loadingCases, setLoadingCases] = useState(true);
-  const [loadingFlow, setLoadingFlow] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const cyContainerRef = useRef<HTMLDivElement>(null);
-  const cyInstanceRef = useRef<cytoscape.Core | null>(null);
+  const graphEl = useRef<HTMLDivElement>(null);
+  const cyRef = useRef<cytoscape.Core | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const loadCases = async () => {
-      setLoadingCases(true);
-      try {
-        const response = await getCases();
-        if (cancelled) return;
-        setCases(response);
-        setSelectedCaseId((current) =>
-          current && response.some((item) => item.case_id === current)
-            ? current
-            : (response[0]?.case_id ?? '')
-        );
-      } catch (cause) {
-        if (!cancelled) setError(cause instanceof Error ? cause.message : 'Could not load cases from the API.');
-      } finally {
-        if (!cancelled) setLoadingCases(false);
-      }
-    };
-    void loadCases();
+    getCases().then((items) => {
+      if (cancelled) return;
+      setCases(items);
+      const requested = searchParams.get('case') || '';
+      const valid = items.some((item) => item.case_id === requested);
+      if (!valid && items[0]) setSearchParams({ case: items[0].case_id }, { replace: true });
+      if (!items.length) setSearchParams({}, { replace: true });
+    }).catch((cause) => {
+      if (!cancelled) setError(cause instanceof Error ? cause.message : 'Could not load the case list.');
+    }).finally(() => { if (!cancelled) setLoadingCases(false); });
     return () => { cancelled = true; };
-  }, [refreshKey]);
+  }, [refreshKey, setSearchParams]);
 
   useEffect(() => {
-    if (!selectedCaseId) {
-      setGraphData(null);
-      setConsensus(null);
-      setSelectedTransactionId(null);
-      setLoadingFlow(false);
+    if (!selectedCaseId || !cases.some((item) => item.case_id === selectedCaseId)) {
+      setGraph(null);
+      setLien(null);
+      setLoading(false);
       return;
     }
     let cancelled = false;
-    setLoadingFlow(true);
+    setLoading(true);
     setError(null);
-    setGraphData(null);
-    setConsensus(null);
-    setSelectedTransactionId(null);
-    setSelectedAccountId(null);
-
     Promise.all([getGraphData(selectedCaseId), getConsensusLien(selectedCaseId)])
-      .then(([graph, lien]) => {
+      .then(([flow, bounds]) => {
         if (cancelled) return;
-        setGraphData(graph);
-        setConsensus(lien);
-        setSelectedTransactionId(graph.source_transaction_id ?? graph.edges.find((edge) => edge.is_source_transaction)?.id ?? null);
+        setGraph(flow);
+        setLien(bounds);
+        setSelectedTx(flow.source_transaction_id ?? flow.edges[0]?.id ?? null);
+        setSelectedAccount(null);
       })
       .catch((cause: any) => {
-        if (cancelled) return;
-        setError(cause?.response?.data?.detail || cause?.message || 'The API could not reconstruct this case flow.');
+        if (!cancelled) {
+          setGraph(null);
+          setLien(null);
+          setError(cause?.response?.data?.detail || cause?.message || 'Could not reconstruct this case.');
+        }
       })
-      .finally(() => { if (!cancelled) setLoadingFlow(false); });
-
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [selectedCaseId, refreshKey]);
+  }, [selectedCaseId, cases, refreshKey]);
 
-  const selectedCase = useMemo(
-    () => cases.find((item) => item.case_id === selectedCaseId) ?? null,
-    [cases, selectedCaseId],
-  );
-
-  const edges = useMemo(
-    () => (graphData?.edges ?? []).slice().sort((a, b) => {
-      const byTime = Date.parse(a.timestamp) - Date.parse(b.timestamp);
-      return Number.isNaN(byTime) || byTime === 0 ? a.id.localeCompare(b.id) : byTime;
-    }),
-    [graphData],
-  );
-
-  const selectedEdge = useMemo(
-    () => edges.find((edge) => edge.id === selectedTransactionId) ?? null,
-    [edges, selectedTransactionId],
-  );
-  const selectedNode = useMemo(
-    () => graphData?.nodes.find((node) => node.id === selectedAccountId) ?? null,
-    [graphData, selectedAccountId],
-  );
-  const lienByAccount = useMemo(
-    () => new Map((consensus?.account_liens ?? []).map((item) => [item.account_id, item])),
-    [consensus],
-  );
-  const sourceEdge = edges.find((edge) => edge.is_source_transaction) ?? edges[0] ?? null;
-  const referenceCount = edges.filter((edge) => edge.linkage_basis === 'CASE_REFERENCE' || edge.is_source_transaction).length;
-  const temporalCount = edges.filter((edge) => edge.linkage_basis === 'CHRONOLOGICALLY_REACHABLE').length;
-  const hopCount = edges.reduce((max, edge) => Math.max(max, edge.flow_hop ?? 0), 0);
+  const selectedCase = cases.find((item) => item.case_id === selectedCaseId) ?? null;
+  const edges = useMemo(() => (graph?.edges ?? []).slice().sort((a, b) => {
+    const diff = Date.parse(a.timestamp) - Date.parse(b.timestamp);
+    return diff || a.id.localeCompare(b.id);
+  }), [graph]);
+  const nodes = graph?.nodes ?? [];
+  const currentEdge = edges.find((edge) => edge.id === selectedTx) ?? null;
+  const currentNode = nodes.find((node) => node.id === selectedAccount) ?? null;
+  const maxHop = edges.reduce((max, edge) => Math.max(max, edge.flow_hop ?? 0), 0);
+  const changeCase = (caseId: string) => setSearchParams(caseId ? { case: caseId } : {});
 
   useEffect(() => {
-    const container = cyContainerRef.current;
-    if (!container || !graphData || graphData.nodes.length === 0) return;
+    const container = graphEl.current;
+    if (!container || !graph || !graph.nodes.length) return;
+    cyRef.current?.destroy();
 
-    cyInstanceRef.current?.destroy();
-    const levels = new Map<number, GraphNode[]>();
-    for (const node of graphData.nodes) {
+    const levelGroups = new Map<number, GraphNode[]>();
+    graph.nodes.forEach((node) => {
       const level = node.flow_level ?? 0;
-      levels.set(level, [...(levels.get(level) ?? []), node]);
-    }
+      levelGroups.set(level, [...(levelGroups.get(level) ?? []), node]);
+    });
     const positions: Record<string, { x: number; y: number }> = {};
-    const levelKeys = [...levels.keys()].sort((a, b) => a - b);
-    for (const level of levelKeys) {
-      const nodes = (levels.get(level) ?? []).slice().sort((a, b) => a.id.localeCompare(b.id));
-      nodes.forEach((node, index) => {
-        positions[node.id] = {
-          x: 95 + level * 220,
-          y: 65 + index * 98,
-        };
+    [...levelGroups.keys()].sort((a, b) => a - b).forEach((level) => {
+      const levelNodes = (levelGroups.get(level) ?? []).slice().sort((a, b) => a.id.localeCompare(b.id));
+      levelNodes.forEach((node, index) => {
+        positions[node.id] = { x: 100 + level * 205, y: 58 + index * 100 };
       });
-    }
+    });
 
     const elements: cytoscape.ElementDefinition[] = [
-      ...graphData.nodes.map((node) => ({
+      ...graph.nodes.map((node) => ({
         group: 'nodes' as const,
         data: {
           id: node.id,
           label: node.id,
-          accountType: node.type,
           isExternal: node.is_external,
           isOrigin: Boolean(node.is_origin_account),
-          historyComplete: node.history_complete,
-          flowLevel: node.flow_level ?? 0,
         },
         position: positions[node.id],
       })),
-      ...graphData.edges.map((edge) => ({
+      ...graph.edges.map((edge) => ({
         group: 'edges' as const,
         data: {
           id: edge.id,
-          transactionId: edge.id,
           source: edge.source,
           target: edge.target,
-          amountInr: edge.amount_inr,
-          amountLabel: `₹${Math.round(edge.amount_inr).toLocaleString('en-IN')}`,
-          timestamp: edge.timestamp,
-          evidenceStatus: edge.evidence_status,
+          amountLabel: inr(edge.amount_inr),
           linkageBasis: edge.linkage_basis ?? 'LEDGER_RECORD',
-          isSourceTransaction: Boolean(edge.is_source_transaction),
-          flowHop: edge.flow_hop ?? 0,
+          isSource: Boolean(edge.is_source_transaction),
+          transactionId: edge.id,
         },
       })),
     ];
@@ -202,8 +134,8 @@ export const MoneyFlow: React.FC = () => {
     const cy = cytoscape({
       container,
       elements,
-      minZoom: 0.12,
-      maxZoom: 2.5,
+      minZoom: 0.15,
+      maxZoom: 2.2,
       wheelSensitivity: 0.18,
       style: [
         {
@@ -211,8 +143,8 @@ export const MoneyFlow: React.FC = () => {
           style: {
             label: 'data(label)',
             shape: 'round-rectangle',
-            width: 150,
-            height: 48,
+            width: '158px',
+            height: '48px',
             'background-color': '#F8FAFC',
             'border-width': 1.5,
             'border-color': '#94A3B8',
@@ -220,330 +152,118 @@ export const MoneyFlow: React.FC = () => {
             'font-size': '9px',
             'font-weight': 600,
             'text-wrap': 'wrap',
-            'text-max-width': '136px',
+            'text-max-width': '144px',
             'text-valign': 'center',
             'text-halign': 'center',
-            'text-background-opacity': 0,
             padding: '4px',
           },
         },
-        {
-          selector: 'node[?isOrigin]',
-          style: {
-            'background-color': '#D1FAE5',
-            'border-color': '#047857',
-            'border-width': 3,
-            color: '#064E3B',
-          },
-        },
-        {
-          selector: 'node[?isExternal]',
-          style: {
-            shape: 'round-rectangle',
-            'background-color': '#FFF7ED',
-            'border-color': '#C2410C',
-            color: '#7C2D12',
-          },
-        },
-        {
-          selector: 'node[historyComplete = false]',
-          style: { 'border-style': 'dashed', 'border-color': '#DC2626', 'border-width': 2.5 },
-        },
+        { selector: 'node[?isOrigin]', style: { 'background-color': '#DDF6E8', 'border-color': '#087653', 'border-width': 2.5, color: '#064E3B' } },
+        { selector: 'node[?isExternal]', style: { 'background-color': '#FFF7ED', 'border-color': '#C2410C', color: '#7C2D12' } },
         {
           selector: 'edge',
           style: {
             width: 2,
-            'line-color': '#94A3B8',
-            'target-arrow-color': '#94A3B8',
+            'line-color': '#9CA3AF',
+            'target-arrow-color': '#9CA3AF',
             'target-arrow-shape': 'triangle',
-            'arrow-scale': 1.15,
+            'arrow-scale': 1.2,
             'curve-style': 'bezier',
             label: 'data(amountLabel)',
-            'font-size': 9,
+            'font-size': '9px',
             color: '#334155',
             'text-background-color': '#FFFFFF',
-            'text-background-opacity': 0.96,
+            'text-background-opacity': 1,
             'text-background-padding': '2px',
             'text-rotation': 'autorotate',
             'line-cap': 'round',
           },
         },
-        {
-          selector: 'edge[linkageBasis = "CASE_REFERENCE"]',
-          style: { 'line-color': '#B91C1C', 'target-arrow-color': '#B91C1C', width: 3 },
-        },
-        {
-          selector: 'edge[linkageBasis = "CHRONOLOGICALLY_REACHABLE"]',
-          style: { 'line-color': '#0F766E', 'target-arrow-color': '#0F766E', 'line-style': 'dashed', width: 2.5 },
-        },
-        {
-          selector: 'edge[linkageBasis = "ACCOUNT_CONTEXT"]',
-          style: { 'line-color': '#64748B', 'target-arrow-color': '#64748B', 'line-style': 'dotted', width: 2 },
-        },
-        {
-          selector: 'edge[?isSourceTransaction]',
-          style: { 'line-color': '#B91C1C', 'target-arrow-color': '#B91C1C', width: 4 },
-        },
-        {
-          selector: ':selected',
-          style: { 'border-width': 4, 'border-color': '#D97706', 'line-color': '#D97706', 'target-arrow-color': '#D97706' },
-        },
+        { selector: 'edge[linkageBasis = "CASE_REFERENCE"]', style: { 'line-color': '#B91C1C', 'target-arrow-color': '#B91C1C', width: 2.8 } },
+        { selector: 'edge[linkageBasis = "CHRONOLOGICALLY_REACHABLE"]', style: { 'line-color': '#0F766E', 'target-arrow-color': '#0F766E', 'line-style': 'dashed', width: 2.5 } },
+        { selector: 'edge[linkageBasis = "ACCOUNT_CONTEXT"]', style: { 'line-color': '#64748B', 'target-arrow-color': '#64748B', 'line-style': 'dotted', width: 2 } },
+        { selector: 'edge[?isSource]', style: { 'line-color': '#B91C1C', 'target-arrow-color': '#B91C1C', width: 3.5 } },
+        { selector: ':selected', style: { 'border-width': 3, 'border-color': '#D97706', 'line-color': '#D97706', 'target-arrow-color': '#D97706' } },
       ],
-      layout: {
-        name: 'preset',
-        positions: (id) => positions[id],
-        fit: true,
-        padding: 45,
-      },
+      layout: { name: 'preset', positions: (id) => positions[id], fit: true, padding: 45 },
       userZoomingEnabled: true,
       userPanningEnabled: true,
       boxSelectionEnabled: false,
     });
 
-    cy.on('tap', 'edge', (event) => {
-      setSelectedTransactionId(String(event.target.data('transactionId')));
-      setSelectedAccountId(null);
-    });
-    cy.on('tap', 'node', (event) => {
-      setSelectedAccountId(String(event.target.id()));
-      setSelectedTransactionId(null);
-    });
-    cyInstanceRef.current = cy;
-    return () => {
-      cy.destroy();
-      if (cyInstanceRef.current === cy) cyInstanceRef.current = null;
-    };
-  }, [graphData]);
+    cy.on('tap', 'edge', (event) => { setSelectedTx(String(event.target.data('transactionId'))); setSelectedAccount(null); });
+    cy.on('tap', 'node', (event) => { setSelectedAccount(String(event.target.id())); setSelectedTx(null); });
+    cyRef.current = cy;
+    return () => { cy.destroy(); if (cyRef.current === cy) cyRef.current = null; };
+  }, [graph]);
 
   useEffect(() => {
-    const cy = cyInstanceRef.current;
+    const cy = cyRef.current;
     if (!cy) return;
     cy.elements().unselect();
-    if (selectedTransactionId) {
-      const item = cy.getElementById(selectedTransactionId);
-      if (item.length) item.select();
-    }
-    if (selectedAccountId) {
-      const item = cy.getElementById(selectedAccountId);
-      if (item.length) item.select();
-    }
-  }, [selectedTransactionId, selectedAccountId]);
+    if (selectedTx) cy.getElementById(selectedTx).select();
+    if (selectedAccount) cy.getElementById(selectedAccount).select();
+  }, [selectedTx, selectedAccount]);
 
-  const resetView = () => {
-    cyInstanceRef.current?.fit(undefined, 45);
-    cyInstanceRef.current?.center();
-  };
-
-  const selectEdge = (edge: GraphEdge) => {
-    setSelectedTransactionId(edge.id);
-    setSelectedAccountId(null);
-  };
+  const fitGraph = () => { cyRef.current?.fit(undefined, 40); cyRef.current?.center(); };
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-5">
-      <section className="surface p-5 md:p-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div className="max-w-3xl">
-            <div className="eyebrow flex items-center gap-2"><Waypoints size={13} /> Investigation / Fund flow</div>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[#24332d]">Reconstruct the movement of funds</h1>
-            <p className="mt-2 text-sm leading-6 text-[#67756d]">
-              Start from the case's source transaction, follow later debits from reached accounts, and compare account-level attribution ranges separately.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="min-w-[230px] flex-1 text-xs font-semibold text-[#64736a]">
-              Investigation case
-              <select
-                className="mt-1.5 w-full rounded-md border border-[#d8ded8] bg-white px-3 py-2.5 text-sm font-medium text-[#24332d] outline-none focus:border-[#477d69]"
-                value={selectedCaseId}
-                onChange={(event) => setSelectedCaseId(event.target.value)}
-                disabled={loadingCases || cases.length === 0}
-              >
-                {cases.map((item) => <option key={item.case_id} value={item.case_id}>{item.case_id} · {formatLabel(item.status)}</option>)}
-              </select>
-            </label>
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-md border border-[#d8ded8] bg-white px-3 py-2.5 text-sm font-medium text-[#35443c] hover:bg-[#f3f5f0] disabled:opacity-50"
-              onClick={() => setRefreshKey((value) => value + 1)}
-              disabled={loadingFlow || loadingCases}
-            >
-              <RefreshCw size={14} className={loadingFlow ? 'animate-spin' : ''} /> Refresh ledger
-            </button>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[#e8ebe5] pt-3 text-xs text-[#637168]">
-          <span className="inline-flex items-center gap-1.5 rounded bg-[#edf4ef] px-2 py-1 text-[#335b49]"><CheckCircle2 size={12} /> Local ledger-backed reconstruction</span>
-          <span className="inline-flex items-center gap-1.5 rounded bg-[#f6f2e8] px-2 py-1 text-[#7a5b25]"><AlertTriangle size={12} /> Synthetic demonstration records; no live bank feed</span>
+    <div className="mx-auto max-w-6xl space-y-4">
+      <section className="surface flex flex-wrap items-end justify-between gap-3 p-4">
+        <label className="min-w-[260px] flex-1 text-xs font-semibold text-slate-600">
+          Case
+          <select value={selectedCaseId} onChange={(event) => changeCase(event.target.value)} disabled={loadingCases || cases.length === 0} className="mt-1.5 w-full max-w-lg rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900">
+            {cases.map((item) => <option key={item.case_id} value={item.case_id}>{item.case_id} · {inr(item.reported_amount_inr)}</option>)}
+          </select>
+        </label>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => navigate(`/consensus-lien?case=${encodeURIComponent(selectedCaseId)}`)} disabled={!selectedCaseId} className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Scale size={14} /> Compare tracing</button>
+          <button type="button" onClick={() => setRefreshKey((key) => key + 1)} disabled={loading || loadingCases} className="inline-flex items-center gap-2 rounded-md bg-[#174b3b] px-3 py-2.5 text-xs font-semibold text-white hover:bg-[#0f3d2f] disabled:opacity-50"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh</button>
         </div>
       </section>
 
-      {error && (
-        <div className="flex items-start gap-3 rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-          <AlertTriangle size={17} className="mt-0.5 shrink-0" />
-          <div><div className="font-semibold">Could not reconstruct this case</div><div className="mt-1">{error}</div></div>
-        </div>
-      )}
+      {error && <div className="surface flex items-start gap-2 p-4 text-sm text-rose-800"><AlertCircle size={17} className="mt-0.5 shrink-0" />{error}</div>}
 
-      {loadingFlow ? (
-        <section className="surface flex min-h-64 items-center justify-center gap-3 p-8 text-sm text-[#64736a]"><RefreshCw size={17} className="animate-spin" /> Reading the selected case and computing tracing estimates…</section>
-      ) : graphData && consensus && selectedCase ? (
+      {loading ? (
+        <div className="surface p-10 text-sm text-slate-500">Reconstructing ledger flow and tracing the selected source…</div>
+      ) : graph && lien && selectedCase ? (
         <>
-          <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <article className="surface p-4">
-              <div className="eyebrow">Source event</div>
-              <div className="mt-2 font-mono text-lg font-semibold text-[#24332d]">{graphData.source_transaction_id ?? sourceEdge?.id ?? 'Unavailable'}</div>
-              <div className="mt-1 text-xs text-[#718078]">Original ledger transaction · {formatINR(graphData.source_amount_inr ?? sourceEdge?.amount_inr ?? 0)}</div>
-            </article>
-            <article className="surface p-4">
-              <div className="eyebrow">Candidate flow graph</div>
-              <div className="mt-2 text-2xl font-semibold text-[#24332d]">{graphData.total_edges.toLocaleString('en-IN')} <span className="text-sm font-normal text-[#718078]">transactions</span></div>
-              <div className="mt-1 text-xs text-[#718078]">{graphData.total_nodes.toLocaleString('en-IN')} accounts / counterparties · up to {hopCount} hops</div>
-            </article>
-            <article className="surface p-4">
-              <div className="eyebrow">Evidence linkage</div>
-              <div className="mt-2 text-2xl font-semibold text-[#24332d]">{referenceCount} <span className="text-sm font-normal text-[#718078]">case-linked</span></div>
-              <div className="mt-1 text-xs text-[#718078]">{temporalCount} additional chronologically reachable records</div>
-            </article>
-            <article className="surface p-4">
-              <div className="eyebrow">Consensus Lien comparison</div>
-              {consensus.consensus_status === 'COMPARABLE' ? (
-                <>
-                  <div className="mt-2 text-lg font-semibold text-[#24332d]">{formatINR(consensus.total_lower_bound_inr)} – {formatINR(consensus.total_upper_bound_inr)}</div>
-                  <div className="mt-1 text-xs text-[#718078]">Disagreement {formatINR(consensus.total_disagreement_inr)}</div>
-                </>
-              ) : (
-                <div className="mt-2 text-sm font-semibold text-amber-800">Not comparable · figures withheld</div>
-              )}
-            </article>
+          <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="surface p-4"><div className="text-xs text-slate-500">Source transaction</div><div className="mt-1 font-mono text-sm font-semibold text-slate-900">{graph.source_transaction_id ?? 'Unavailable'}</div><div className="mt-1 text-sm font-semibold text-slate-800">{inr(graph.source_amount_inr ?? 0)}</div></div>
+            <div className="surface p-4"><div className="text-xs text-slate-500">Transactions in candidate flow</div><div className="mt-1 text-2xl font-semibold text-slate-900">{graph.total_edges}</div><div className="mt-1 text-xs text-slate-500">{graph.total_nodes} accounts · up to {maxHop} hops</div></div>
+            <div className="surface p-4"><div className="text-xs text-slate-500">Consensus Lien range</div>{lien.consensus_status === 'COMPARABLE' ? <><div className="mt-1 text-sm font-semibold text-slate-900">{inr(lien.total_lower_bound_inr)} – {inr(lien.total_upper_bound_inr)}</div><div className="mt-1 text-xs text-slate-500">Disagreement {inr(lien.total_disagreement_inr)}</div></> : <div className="mt-1 text-sm font-semibold text-amber-800">Not comparable</div>}</div>
           </section>
 
           <section className="surface overflow-hidden">
-            <div className="flex flex-col gap-3 border-b border-[#e7ebe5] p-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-[#24332d]">Directed movement graph</h2>
-                <p className="mt-1 text-xs text-[#718078]">Each arrow is a recorded transaction. Select an arrow to cross-reference its event below.</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 text-xs text-[#637168]">
-                <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded bg-[#b91c1c]" /> Source / case-linked</span>
-                <span className="flex items-center gap-1.5"><span className="h-0 w-6 border-t-2 border-dashed border-[#0f766e]" /> Chronologically reachable</span>
-                <span className="flex items-center gap-1.5"><span className="h-0 w-6 border-t-2 border-dotted border-[#64748b]" /> Account context</span>
-                <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded border border-[#c2410c] bg-[#fff7ed]" /> External / unknown account</span>
-                <button type="button" className="ml-auto inline-flex items-center gap-1 rounded border border-[#d8ded8] px-2 py-1 hover:bg-[#f3f5f0]" onClick={resetView}>Fit graph</button>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <div><h2 className="text-sm font-semibold text-slate-900">Where the money moves</h2><p className="mt-1 text-xs text-slate-500">Select an arrow to inspect its ledger record.</p></div>
+              <div className="flex flex-wrap items-center gap-3 text-[10px] text-slate-600">
+                <span className="flex items-center gap-1.5"><span className="h-0 w-5 border-t-2 border-[#b91c1c]" /> Case-linked</span>
+                <span className="flex items-center gap-1.5"><span className="h-0 w-5 border-t-2 border-dashed border-[#0f766e]" /> Reachable</span>
+                <span className="flex items-center gap-1.5"><span className="h-0 w-5 border-t-2 border-dotted border-[#64748b]" /> Account context</span>
+                <button type="button" onClick={fitGraph} className="rounded border border-slate-200 px-2 py-1 hover:bg-slate-50">Fit</button>
               </div>
             </div>
-            {graphData.nodes.length > 0 && graphData.edges.length > 0 ? (
-              <div ref={cyContainerRef} className="h-[520px] w-full bg-[#fbfcfa]" aria-label="Directed case transaction flow graph" />
-            ) : (
-              <div className="p-12 text-center text-sm text-[#718078]">No source-linked transaction path is available for this case.</div>
-            )}
-            <div className="border-t border-[#e7ebe5] bg-[#fafbf8] px-4 py-3 text-xs leading-5 text-[#67756d]">
-              {graphData.flow_scope || 'Graph scope comes from the case-linked ledger records.'}
-              <span className="mt-1 block font-semibold text-[#805c22]">Important: arrow labels show full recorded transaction amounts, not the amount of the original source funds proven to be present in that transaction.</span>
-            </div>
+            {graph.nodes.length && graph.edges.length ? <div ref={graphEl} className="h-[410px] w-full bg-[#fbfcfa]" aria-label="Ledger transaction flow graph" /> : <div className="p-8 text-sm text-slate-500">No source-linked flow was returned for this case.</div>}
+            <div className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-[11px] text-slate-500">Arrow values are full recorded transaction amounts—not the amount attributed to the source funds. This is synthetic ledger data, not a live bank feed.</div>
           </section>
 
-          <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
-            <div className="surface overflow-hidden">
-              <div className="border-b border-[#e7ebe5] p-4">
-                <h2 className="text-base font-semibold text-[#24332d]">Chronological event trail</h2>
-                <p className="mt-1 text-xs text-[#718078]">Ordered by the timestamps in the supplied ledger. Click a record to select the matching arrow.</p>
-              </div>
-              <div className="divide-y divide-[#edf0eb]">
-                {edges.map((edge, index) => (
-                  <button
-                    type="button"
-                    key={edge.id}
-                    onClick={() => selectEdge(edge)}
-                    className={`grid w-full grid-cols-[32px_minmax(0,1fr)_auto] gap-3 p-4 text-left transition-colors hover:bg-[#f7f9f5] ${selectedTransactionId === edge.id ? 'bg-[#eef5ef]' : 'bg-white'}`}
-                  >
-                    <span className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${edge.is_source_transaction ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-[#dce4dc] bg-[#f7f9f6] text-[#65736a]'}`}>
-                      {edge.linkage_basis === 'ACCOUNT_CONTEXT' ? 'CTX' : edge.flow_hop ?? index + 1}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs font-semibold text-[#24332d]">{edge.id}</span>
-                        <Badge variant={basisVariant(edge)} size="sm">{basisLabel(edge)}</Badge>
-                        <Badge variant={edge.evidence_status === 'suspected_fraud' ? 'danger' : 'neutral'} size="sm">{formatLabel(edge.evidence_status || 'unflagged')}</Badge>
-                      </span>
-                      <span className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-[#43544a]">
-                        <span className="break-all">{edge.source}</span><ArrowRight size={12} className="shrink-0 text-[#8a978e]" /><span className="break-all">{edge.target}</span>
-                      </span>
-                      <span className="mt-1.5 block text-[11px] text-[#879187]">{formatTime(edge.timestamp)} · {formatLabel(edge.transaction_type)}</span>
-                    </span>
-                    <span className="whitespace-nowrap text-right font-mono text-sm font-semibold text-[#24332d]">{formatINR(edge.amount_inr)}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+          <section className="surface overflow-hidden">
+            <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-sm font-semibold text-slate-900">Transaction trail</h2><p className="mt-1 text-xs text-slate-500">Real ledger rows, ordered by timestamp. Select a row to highlight its arrow.</p></div>
+            {edges.length ? <div className="divide-y divide-slate-100">{edges.slice(0, 12).map((edge) => (
+              <button key={edge.id} type="button" onClick={() => { setSelectedTx(edge.id); setSelectedAccount(null); }} className={`grid w-full grid-cols-1 gap-2 px-4 py-3 text-left hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${selectedTx === edge.id ? 'bg-emerald-50/60' : ''}`}>
+                <span className="min-w-0"><span className="flex flex-wrap items-center gap-2"><span className="font-mono text-xs font-semibold text-slate-900">{edge.id}</span><span className="rounded border border-slate-200 px-1.5 py-0.5 text-[9px] text-slate-600">{edgeLabel(edge)}</span></span><span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-700"><span className="break-all">{edge.source}</span><ArrowRight size={12} /><span className="break-all">{edge.target}</span></span><span className="mt-1 block text-[10px] text-slate-500">{dateTime(edge.timestamp)} · {titleCase(edge.transaction_type)}</span></span>
+                <span className="text-left font-mono text-sm font-semibold text-slate-900 sm:text-right">{inr(edge.amount_inr)}</span>
+              </button>
+            ))}</div> : <div className="p-6 text-sm text-slate-500">No transactions returned.</div>}
+          </section>
 
-            <div className="space-y-5">
-              <section className="surface p-4">
-                <h2 className="text-base font-semibold text-[#24332d]">Selected record</h2>
-                {selectedEdge ? (
-                  <div className="mt-4 space-y-3 text-sm">
-                    <div className="rounded-md border border-[#e4e9e2] bg-[#fafbf8] p-3">
-                      <div className="eyebrow">Transaction ID</div>
-                      <div className="mt-1 font-mono font-semibold text-[#24332d]">{selectedEdge.id}</div>
-                      <div className="mt-2 text-xs text-[#718078]">{formatTime(selectedEdge.timestamp)}</div>
-                    </div>
-                    <div className="flex items-start justify-between gap-4 border-b border-[#edf0eb] pb-2"><span className="text-xs text-[#718078]">Recorded amount</span><span className="font-mono font-semibold text-[#24332d]">{formatINR(selectedEdge.amount_inr)}</span></div>
-                    <div className="flex items-start justify-between gap-4 border-b border-[#edf0eb] pb-2"><span className="text-xs text-[#718078]">Type</span><span className="text-right text-xs font-medium text-[#43544a]">{formatLabel(selectedEdge.transaction_type)}</span></div>
-                    <div className="flex items-start justify-between gap-4 border-b border-[#edf0eb] pb-2"><span className="text-xs text-[#718078]">Linked by</span><span className="text-right text-xs font-medium text-[#43544a]">{basisLabel(selectedEdge)}</span></div>
-                    <div className="flex items-start justify-between gap-4 border-b border-[#edf0eb] pb-2"><span className="text-xs text-[#718078]">Case reference</span><span className="break-all text-right font-mono text-xs text-[#43544a]">{selectedEdge.case_id || 'No direct case ID on this row'}</span></div>
-                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-                      A chronologically reachable debit is a follow-up candidate. It is not proof that the complete recorded amount contains funds from the original source transaction.
-                    </div>
-                  </div>
-                ) : selectedNode ? (
-                  <div className="mt-4 space-y-3 text-sm">
-                    <div className="rounded-md border border-[#e4e9e2] bg-[#fafbf8] p-3"><div className="eyebrow">Account / counterparty</div><div className="mt-1 break-all font-mono font-semibold text-[#24332d]">{selectedNode.id}</div><div className="mt-1 text-xs text-[#718078]">{formatLabel(selectedNode.type)} · Flow level {selectedNode.flow_level ?? 'unknown'}</div></div>
-                    <div className="flex justify-between gap-3 border-b border-[#edf0eb] pb-2 text-xs"><span className="text-[#718078]">Statement history</span><span className="font-medium text-[#43544a]">{selectedNode.history_complete == null ? 'Unknown in this scope' : selectedNode.history_complete ? 'Marked complete' : 'Incomplete'}</span></div>
-                    <div className="flex justify-between gap-3 border-b border-[#edf0eb] pb-2 text-xs"><span className="text-[#718078]">End-of-ledger balance</span><span className="font-mono font-medium text-[#43544a]">{selectedNode.final_balance_inr == null ? 'Unavailable' : formatINR(selectedNode.final_balance_inr)}</span></div>
-                    {lienByAccount.get(selectedNode.id) ? (
-                      <div className="space-y-2 rounded-md border border-[#dbe6dc] bg-[#f6f9f4] p-3">
-                        <div className="text-xs font-semibold text-[#354b3e]">Consensus Lien · account attribution</div>
-                        <div className="grid grid-cols-2 gap-2 text-xs"><div><div className="text-[#718078]">Lower estimate</div><div className="mt-1 font-mono font-semibold">{formatINR(lienByAccount.get(selectedNode.id)!.lower_bound_inr)}</div></div><div><div className="text-[#718078]">Upper estimate</div><div className="mt-1 font-mono font-semibold">{formatINR(lienByAccount.get(selectedNode.id)!.upper_bound_inr)}</div></div></div>
-                        <div className="text-[11px] text-[#718078]">Method disagreement: {formatINR(lienByAccount.get(selectedNode.id)!.disagreement_inr)}</div>
-                      </div>
-                    ) : <div className="rounded-md border border-[#e4e9e2] p-3 text-xs leading-5 text-[#718078]">No retained-balance estimate was returned for this account by the current tracing methods. This is not the same as a zero balance.</div>}
-                  </div>
-                ) : (
-                  <div className="mt-4 py-8 text-center text-sm text-[#718078]">Select a node or transaction arrow to inspect the corresponding ledger evidence.</div>
-                )}
-              </section>
-
-              <section className="surface p-4">
-                <div className="flex items-center gap-2"><CircleDollarSign size={17} className="text-[#477d69]" /><h2 className="text-base font-semibold text-[#24332d]">Consensus Lien range</h2></div>
-                {consensus.consensus_status === 'COMPARABLE' ? (
-                  <div className="mt-4 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-md bg-[#f3f6f0] p-3"><div className="text-[10px] font-semibold uppercase tracking-wide text-[#718078]">Lower estimate</div><div className="mt-1 font-mono text-sm font-semibold text-[#24332d]">{formatINR(consensus.total_lower_bound_inr)}</div></div>
-                      <div className="rounded-md bg-[#f3f6f0] p-3"><div className="text-[10px] font-semibold uppercase tracking-wide text-[#718078]">Upper estimate</div><div className="mt-1 font-mono text-sm font-semibold text-[#24332d]">{formatINR(consensus.total_upper_bound_inr)}</div></div>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-[#edf0eb] pb-2 text-xs"><span className="text-[#718078]">Method disagreement</span><span className="font-mono font-semibold text-amber-800">{formatINR(consensus.total_disagreement_inr)}</span></div>
-                    {(['proportional', 'fifo', 'libr'] as const).map((method) => (
-                      <div key={method} className="rounded border border-[#e7ebe5] p-2.5">
-                        <div className="font-semibold text-xs text-[#35443c]">{formatLabel(method)}</div>
-                        <p className="mt-1 text-[11px] leading-4 text-[#718078]">{consensus.method_details[method].assumption}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">The tracing methods did not produce comparable results for this case. A range is withheld instead of displaying zeros as if they were valid.</div>
-                )}
-                <p className="mt-3 text-[11px] leading-5 text-[#718078]">The range compares modelled attribution assumptions. It is not a legal lien, a guaranteed recovery amount, or an instruction to freeze funds.</p>
-              </section>
-            </div>
+          <section className="surface p-4">
+            <h2 className="text-sm font-semibold text-slate-900">{currentEdge ? 'Selected transaction' : currentNode ? 'Selected account' : 'Details'}</h2>
+            {currentEdge ? <div className="mt-3 grid gap-3 text-xs sm:grid-cols-4"><div><div className="text-slate-500">Transaction</div><div className="mt-1 font-mono font-semibold text-slate-900">{currentEdge.id}</div></div><div><div className="text-slate-500">Recorded amount</div><div className="mt-1 font-semibold text-slate-900">{inr(currentEdge.amount_inr)}</div></div><div><div className="text-slate-500">Linkage</div><div className="mt-1 font-semibold text-slate-900">{edgeLabel(currentEdge)}</div></div><div><div className="text-slate-500">Timestamp</div><div className="mt-1 text-slate-800">{dateTime(currentEdge.timestamp)}</div></div></div> : currentNode ? <div className="mt-3 grid gap-3 text-xs sm:grid-cols-3"><div><div className="text-slate-500">Account</div><div className="mt-1 break-all font-mono font-semibold text-slate-900">{currentNode.id}</div></div><div><div className="text-slate-500">History</div><div className="mt-1 text-slate-800">{currentNode.history_complete == null ? 'Unknown' : currentNode.history_complete ? 'Complete' : 'Incomplete'}</div></div><div><div className="text-slate-500">Final balance</div><div className="mt-1 text-slate-800">{currentNode.final_balance_inr == null ? 'Unavailable' : inr(currentNode.final_balance_inr)}</div></div></div> : <p className="mt-2 text-xs text-slate-500">Select an account or transaction in the graph.</p>}
           </section>
         </>
-      ) : !loadingCases ? (
-        <section className="surface p-10 text-center">
-          <ShieldAlert size={22} className="mx-auto text-[#8a6d33]" />
-          <h2 className="mt-3 text-base font-semibold text-[#24332d]">No case available for this identity</h2>
-          <p className="mt-1 text-sm text-[#718078]">The case list endpoint returned no authorized cases.</p>
-        </section>
-      ) : null}
+      ) : !loadingCases ? <div className="surface p-8 text-sm text-slate-500">No case is available in this session.</div> : null}
     </div>
   );
 };
