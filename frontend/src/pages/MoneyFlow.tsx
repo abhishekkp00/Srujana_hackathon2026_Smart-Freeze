@@ -42,7 +42,7 @@ const basisLabel = (edge: GraphEdge) =>
 const basisVariant = (edge: GraphEdge): 'danger' | 'warning' | 'neutral' =>
   edge.is_source_transaction || edge.linkage_basis === 'CASE_REFERENCE'
     ? 'danger'
-    : edge.linkage_basis === 'CHRONOLOGICALLY_REACHABLE'
+    : edge.linkage_basis === 'CHRONOLOGICALLY_REACHABLE' || edge.linkage_basis === 'ACCOUNT_CONTEXT'
       ? 'warning'
       : 'neutral';
 
@@ -247,7 +247,7 @@ export const MoneyFlow: React.FC = () => {
           },
         },
         {
-          selector: 'node[?historyComplete = false]',
+          selector: 'node[historyComplete = false]',
           style: { 'border-style': 'dashed', 'border-color': '#DC2626', 'border-width': 2.5 },
         },
         {
@@ -276,6 +276,10 @@ export const MoneyFlow: React.FC = () => {
         {
           selector: 'edge[linkageBasis = "CHRONOLOGICALLY_REACHABLE"]',
           style: { 'line-color': '#0F766E', 'target-arrow-color': '#0F766E', 'line-style': 'dashed', width: 2.5 },
+        },
+        {
+          selector: 'edge[linkageBasis = "ACCOUNT_CONTEXT"]',
+          style: { 'line-color': '#64748B', 'target-arrow-color': '#64748B', 'line-style': 'dotted', width: 2 },
         },
         {
           selector: 'edge[?isSourceTransaction]',
@@ -424,6 +428,7 @@ export const MoneyFlow: React.FC = () => {
               <div className="flex flex-wrap items-center gap-3 text-xs text-[#637168]">
                 <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded bg-[#b91c1c]" /> Source / case-linked</span>
                 <span className="flex items-center gap-1.5"><span className="h-0 w-6 border-t-2 border-dashed border-[#0f766e]" /> Chronologically reachable</span>
+                <span className="flex items-center gap-1.5"><span className="h-0 w-6 border-t-2 border-dotted border-[#64748b]" /> Account context</span>
                 <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded border border-[#c2410c] bg-[#fff7ed]" /> External / unknown account</span>
                 <button type="button" className="ml-auto inline-flex items-center gap-1 rounded border border-[#d8ded8] px-2 py-1 hover:bg-[#f3f5f0]" onClick={resetView}>Fit graph</button>
               </div>
@@ -454,7 +459,7 @@ export const MoneyFlow: React.FC = () => {
                     className={`grid w-full grid-cols-[32px_minmax(0,1fr)_auto] gap-3 p-4 text-left transition-colors hover:bg-[#f7f9f5] ${selectedTransactionId === edge.id ? 'bg-[#eef5ef]' : 'bg-white'}`}
                   >
                     <span className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${edge.is_source_transaction ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-[#dce4dc] bg-[#f7f9f6] text-[#65736a]'}`}>
-                      {edge.flow_hop ?? index + 1}
+                      {edge.linkage_basis === 'ACCOUNT_CONTEXT' ? 'CTX' : edge.flow_hop ?? index + 1}
                     </span>
                     <span className="min-w-0">
                       <span className="flex flex-wrap items-center gap-2">
