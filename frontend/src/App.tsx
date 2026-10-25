@@ -9,6 +9,11 @@ import { MoneyFlow } from './pages/MoneyFlow';
 import { ConsensusLien } from './pages/ConsensusLien';
 import { RecommendedActions } from './pages/RecommendedActions';
 import { AttackLab } from './pages/AttackLab';
+import { TraceProof } from './pages/TraceProof';
+import { TransactionExplorer } from './pages/TransactionExplorer';
+import { MLAnalysis } from './pages/MLAnalysis';
+import { DataQuality } from './pages/DataQuality';
+import { SecurityAudit } from './pages/SecurityAudit';
 import { LandingPage } from './pages/LandingPage';
 
 interface DemoPersona {
@@ -41,9 +46,14 @@ interface Session {
 const PAGE_META: Record<string, { title: string; subtitle: string; section: string }> = {
   '/': { title: 'Dashboard', subtitle: 'Monitor cases, transaction activity and evidence.', section: 'Workspace' },
   '/money-flow': { title: 'Money flow', subtitle: 'See where transactions move and where commingling may occur.', section: 'Investigation' },
-  '/consensus-lien': { title: 'Consensus Lien', subtitle: 'Compare three tracing methods for the same selected case.', section: 'Analysis' },
-  '/recommendations': { title: 'Recommended actions', subtitle: 'Explainable, policy-dialed decision support with invariant-backed safeguards.', section: 'Decision support' },
-  '/attack-lab': { title: 'Attack Lab', subtitle: 'Simulated adversary; abstract parameters only — evolutionary stress-testing and policy tuning.', section: 'Stress testing' },
+  '/consensus-lien': { title: 'Consensus Lien', subtitle: 'Compare three tracing methods for the same selected case.', section: 'Investigation' },
+  '/recommendations': { title: 'Recommended actions', subtitle: 'Explainable, policy-dialed decision support with invariant-backed safeguards.', section: 'Investigation' },
+  '/traceproof': { title: 'TraceProof evidence verification', subtitle: 'Verify signed multi-institution evidence envelopes without overstating guarantees.', section: 'Investigation' },
+  '/transactions': { title: 'Transaction ledger', subtitle: 'Reconstructed multi-account ledger and evidence provenance.', section: 'Investigation' },
+  '/attack-lab': { title: 'Attack Lab', subtitle: 'Simulated adversary; abstract parameters only — evolutionary stress-testing and policy tuning.', section: 'Testing & ML' },
+  '/ml-analysis': { title: 'ML mule scoring', subtitle: 'Interpretable mule-vs-bystander behavioral classification trained on simulated data.', section: 'Testing & ML' },
+  '/data-quality': { title: 'Data quality', subtitle: 'Dataset schema validation, balance conservation, and ingestion integrity reports.', section: 'Testing & ML' },
+  '/security-audit': { title: 'Security & audit', subtitle: 'Cryptographic hash-chained audit log, signed hold receipts, and RBAC enforcement.', section: 'Governance' },
 };
 
 interface AppContentProps {
@@ -72,7 +82,12 @@ const AppContent: React.FC<AppContentProps> = ({ session, onSignOut }) => {
               <Route path="/money-flow" element={<MoneyFlow />} />
               <Route path="/consensus-lien" element={<ConsensusLien />} />
               <Route path="/recommendations" element={<RecommendedActions />} />
+              <Route path="/traceproof" element={<TraceProof />} />
+              <Route path="/transactions" element={<TransactionExplorer />} />
               <Route path="/attack-lab" element={<AttackLab />} />
+              <Route path="/ml-analysis" element={<MLAnalysis />} />
+              <Route path="/data-quality" element={<DataQuality />} />
+              <Route path="/security-audit" element={<SecurityAudit />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>

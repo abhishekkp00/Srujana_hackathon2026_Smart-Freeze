@@ -11,6 +11,7 @@ import {
   Clock3,
   Database,
   FileSearch,
+  FolderOpen,
   Info,
   RefreshCw,
   RotateCcw,
@@ -502,99 +503,39 @@ export const Overview: React.FC = () => {
         </div>
       </section>
 
-      {/* 3. Explainable KPIs with Denominators & "i" Popovers */}
+      {/* Row 1: Four Compact KPI Panels with Restrained Pastel Backgrounds & "i" Popovers */}
       <section className="sf-dashboard-kpis" aria-label="Investigation KPIs">
-        {/* KPI 1: Total Ledger Transactions */}
+        {/* KPI 1: Open Cases */}
         <article className="sf-kpi sf-kpi-lilac">
           <div className="sf-kpi-top">
             <div className="sf-kpi-top-title">
-              <span>Total Transactions</span>
+              <span>Open Cases</span>
               <KpiInfoPopover
                 details={{
-                  title: 'Total Transactions',
-                  formula: 'count(transactions) in the closed ledger',
-                  sourceTable: 'transactions.csv',
-                  sourceField: 'transaction_id',
-                  filterApplied: 'All ledger records (case-linked + routine background commerce)',
+                  title: 'Open Cases',
+                  formula: 'count(cases WHERE status NOT IN ("CLOSED", "RESOLVED", "DISMISSED"))',
+                  sourceTable: 'cases.csv',
+                  sourceField: 'status, case_id',
+                  filterApplied: 'Active investigations requiring triage or tracing',
                   timeRange: activeRangeText,
                 }}
-                isOpen={activePopover === 'total_tx'}
-                onToggle={() => setActivePopover(activePopover === 'total_tx' ? null : 'total_tx')}
+                isOpen={activePopover === 'open_cases'}
+                onToggle={() => setActivePopover(activePopover === 'open_cases' ? null : 'open_cases')}
                 onClose={() => setActivePopover(null)}
               />
             </div>
-            <ArrowUpRight size={17} />
+            <FolderOpen size={16} />
           </div>
-          <div className="sf-kpi-value">{totalTxCount.toLocaleString('en-IN')}</div>
+          <div className="sf-kpi-value">{openCases.length.toLocaleString('en-IN')}</div>
           <div className="sf-kpi-denominator">
-            100% of recorded ledger activity
+            {openCases.length} of {cases.length} cases = {cases.length ? Math.round((openCases.length / cases.length) * 100) : 0}% open
           </div>
           <div className="sf-kpi-foot">
-            {fl.case_linked_transactions} case-linked + {fl.unlinked_transactions} background transactions
+            Active investigations requiring review &amp; tracing
           </div>
         </article>
 
-        {/* KPI 2: Suspected Fraud with Denominator */}
-        <article className="sf-kpi sf-kpi-rose">
-          <div className="sf-kpi-top">
-            <div className="sf-kpi-top-title">
-              <span>Suspected Fraud</span>
-              <KpiInfoPopover
-                details={{
-                  title: 'Suspected Fraud Transactions',
-                  formula: 'count(transactions WHERE evidence_status = "suspected_fraud")',
-                  sourceTable: 'transactions.csv',
-                  sourceField: 'evidence_status',
-                  filterApplied: 'evidence_status.toLowerCase() == "suspected_fraud"',
-                  timeRange: activeRangeText,
-                }}
-                isOpen={activePopover === 'suspected_tx'}
-                onToggle={() => setActivePopover(activePopover === 'suspected_tx' ? null : 'suspected_tx')}
-                onClose={() => setActivePopover(null)}
-              />
-            </div>
-            <ShieldAlert size={17} />
-          </div>
-          <div className="sf-kpi-value">{suspectedTxCount.toLocaleString('en-IN')}</div>
-          <div className="sf-kpi-denominator">
-            {suspectedTxCount} of {totalTxCount} = {suspectedPct}%
-          </div>
-          <div className="sf-kpi-foot">
-            Suspected transactions flagged across active scam waves
-          </div>
-        </article>
-
-        {/* KPI 3: Verified Legitimate with Denominator */}
-        <article className="sf-kpi sf-kpi-mint">
-          <div className="sf-kpi-top">
-            <div className="sf-kpi-top-title">
-              <span>Verified Legitimate</span>
-              <KpiInfoPopover
-                details={{
-                  title: 'Verified Legitimate Transactions',
-                  formula: 'count(transactions WHERE evidence_status != "suspected_fraud")',
-                  sourceTable: 'transactions.csv',
-                  sourceField: 'evidence_status',
-                  filterApplied: 'evidence_status != "suspected_fraud"',
-                  timeRange: activeRangeText,
-                }}
-                isOpen={activePopover === 'legit_tx'}
-                onToggle={() => setActivePopover(activePopover === 'legit_tx' ? null : 'legit_tx')}
-                onClose={() => setActivePopover(null)}
-              />
-            </div>
-            <ShieldCheck size={17} />
-          </div>
-          <div className="sf-kpi-value">{legitimateTxCount.toLocaleString('en-IN')}</div>
-          <div className="sf-kpi-denominator">
-            {legitimateTxCount} of {totalTxCount} = {legitimatePct}%
-          </div>
-          <div className="sf-kpi-foot">
-            Routine salary, merchant payments & pass-through commerce
-          </div>
-        </article>
-
-        {/* KPI 4: Reported Exposure */}
+        {/* KPI 2: Reported Exposure */}
         <article className="sf-kpi sf-kpi-peach">
           <div className="sf-kpi-top">
             <div className="sf-kpi-top-title">
@@ -605,7 +546,7 @@ export const Overview: React.FC = () => {
                   formula: 'sum(reported_amount_paise) / 100 for open cases',
                   sourceTable: 'cases.csv',
                   sourceField: 'reported_amount_paise, status',
-                  filterApplied: 'status NOT IN ("CLOSED", "RESOLVED", "COMPLETED", "DISMISSED")',
+                  filterApplied: 'status NOT IN ("CLOSED", "RESOLVED", "DISMISSED")',
                   timeRange: activeRangeText,
                 }}
                 isOpen={activePopover === 'exposure'}
@@ -613,43 +554,206 @@ export const Overview: React.FC = () => {
                 onClose={() => setActivePopover(null)}
               />
             </div>
-            <Wallet size={17} />
+            <Wallet size={16} />
           </div>
           <div className="sf-kpi-value">{formatINR(openExposure)}</div>
           <div className="sf-kpi-denominator">
-            Sum of reported amounts for {openCases.length} open cases
+            Sum of reported claims across {openCases.length} open cases
           </div>
           <div className="sf-kpi-foot">
             Complainant reported claim · not confirmed loss
           </div>
         </article>
+
+        {/* KPI 3: Transactions in Scope */}
+        <article className="sf-kpi sf-kpi-mint">
+          <div className="sf-kpi-top">
+            <div className="sf-kpi-top-title">
+              <span>Transactions in Scope</span>
+              <KpiInfoPopover
+                details={{
+                  title: 'Transactions in Scope',
+                  formula: 'count(transactions) in the reconstructed ledger',
+                  sourceTable: 'transactions.csv',
+                  sourceField: 'transaction_id',
+                  filterApplied: 'All ledger records (case-linked + routine background commerce)',
+                  timeRange: activeRangeText,
+                }}
+                isOpen={activePopover === 'total_tx'}
+                onToggle={() => setActivePopover(activePopover === 'total_tx' ? null : 'total_tx')}
+                onClose={() => setActivePopover(null)}
+              />
+            </div>
+            <ArrowUpRight size={16} />
+          </div>
+          <div className="sf-kpi-value">{totalTxCount.toLocaleString('en-IN')}</div>
+          <div className="sf-kpi-denominator">
+            {fl.case_linked_transactions} case-linked + {fl.unlinked_transactions} background
+          </div>
+          <div className="sf-kpi-foot">
+            100% of recorded ledger activity in scope
+          </div>
+        </article>
+
+        {/* KPI 4: Evidence-Flagged Transactions */}
+        <article className="sf-kpi sf-kpi-rose">
+          <div className="sf-kpi-top">
+            <div className="sf-kpi-top-title">
+              <span>Evidence-Flagged</span>
+              <KpiInfoPopover
+                details={{
+                  title: 'Evidence-Flagged Transactions',
+                  formula: 'count(transactions WHERE evidence_status = "suspected_fraud")',
+                  sourceTable: 'transactions.csv',
+                  sourceField: 'evidence_status',
+                  filterApplied: 'evidence_status == "suspected_fraud"',
+                  timeRange: activeRangeText,
+                }}
+                isOpen={activePopover === 'suspected_tx'}
+                onToggle={() => setActivePopover(activePopover === 'suspected_tx' ? null : 'suspected_tx')}
+                onClose={() => setActivePopover(null)}
+              />
+            </div>
+            <ShieldAlert size={16} />
+          </div>
+          <div className="sf-kpi-value">{suspectedTxCount.toLocaleString('en-IN')}</div>
+          <div className="sf-kpi-denominator">
+            {suspectedTxCount} of {totalTxCount} = {suspectedPct}%
+          </div>
+          <div className="sf-kpi-foot">
+            Flagged suspicious transfers across active scam waves
+          </div>
+        </article>
       </section>
 
-      {/* 4. Separate, Correctly Scaled Panels (Discrete Daily Bars, No Smoothing, No Duplicates) */}
-      <section className="sf-chart-grid-3" aria-label="Daily activity breakdown panels">
-        {/* Panel A: Total Transactions */}
-        <article className="sf-chart-panel">
+      {/* Row 2: Reported Case Amounts (Main Chart) | Transaction Activity Over Time (Secondary Chart) */}
+      <section className="sf-dashboard-main-grid" aria-label="Investigation Charts">
+        {/* Chart 1: Reported Amount by Case */}
+        <article className="sf-dashboard-panel sf-chart-panel">
           <div className="sf-panel-heading">
             <div>
-              <h3>Total Daily Transactions</h3>
-              <p>All recorded activity (background commerce + scam transfers)</p>
+              <h3>Reported Amount by Case</h3>
+              <p>Disputed loss claims (INR) across accessible cases</p>
+            </div>
+            <span className="sf-panel-unit">INR IN LAKHS</span>
+          </div>
+
+          {cases.length > 0 ? (
+            <div className="sf-line-chart">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={cases.map((c) => ({
+                    case_id: c.case_id,
+                    reported_amount_inr: c.reported_amount_inr,
+                    transaction_count: c.transaction_count,
+                    status: c.status,
+                  }))}
+                  margin={{ top: 14, right: 14, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid stroke="#f1f2f8" strokeDasharray="3 4" vertical={false} />
+                  <XAxis
+                    dataKey="case_id"
+                    tick={{ fill: '#6b7280', fontSize: 10, fontFamily: 'monospace' }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#e5e7eb' }}
+                  />
+                  <YAxis
+                    tick={{ fill: '#6b7280', fontSize: 10 }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(val) => '₹' + (val / 100000).toFixed(1) + 'L'}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                    }}
+                    formatter={(val) => [formatExactINR(Number(val)), 'Reported Amount']}
+                    labelFormatter={(lbl) => `Case: ${lbl}`}
+                  />
+                  <Bar
+                    dataKey="reported_amount_inr"
+                    fill="#625ee8"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={44}
+                    onClick={(entry: unknown) => {
+                      const data = entry as { payload?: { case_id?: string }; case_id?: string };
+                      const targetId = data?.payload?.case_id || data?.case_id;
+                      if (targetId) openMoneyFlow(targetId);
+                    }}
+                    cursor="pointer"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="sf-chart-empty">No case records available.</div>
+          )}
+
+          <div className="sf-panel-footnote">
+            Click any case bar to jump directly into its Money Flow investigation graph.
+          </div>
+        </article>
+
+        {/* Chart 2: Transaction Activity Over Time */}
+        <article className="sf-dashboard-panel sf-chart-panel">
+          <div className="sf-panel-heading">
+            <div>
+              <h3>Transaction Activity Over Time</h3>
+              <p>Discrete daily volume by actual ledger dates</p>
             </div>
             <span className="sf-panel-unit">DAILY BARS</span>
           </div>
 
           {filteredDailyActivity.some((pt) => pt.total_transactions > 0) ? (
-            <div className="sf-discrete-bar-chart">
+            <div className="sf-line-chart">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={filteredDailyActivity} margin={{ top: 12, right: 12, left: -16, bottom: 0 }}>
+                <BarChart
+                  data={filteredDailyActivity}
+                  margin={{ top: 14, right: 14, left: -16, bottom: 0 }}
+                >
                   <CartesianGrid stroke="#f1f2f8" strokeDasharray="3 4" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fill: '#6b7280', fontSize: 9 }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
-                  <YAxis allowDecimals={false} tick={{ fill: '#6b7280', fontSize: 9 }} tickLine={false} axisLine={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: '#6b7280', fontSize: 9 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#e5e7eb' }}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fill: '#6b7280', fontSize: 9 }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
                   <Tooltip
-                    contentStyle={{ border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 11, boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
-                    formatter={(val) => [`${val} transactions`, 'Total Volume']}
+                    contentStyle={{
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                    }}
+                    formatter={(val, name) => [
+                      `${val} txs`,
+                      name === 'suspected_transactions' ? 'Suspected Fraud' : 'Total Activity',
+                    ]}
                     labelFormatter={(lbl) => `Date: ${lbl}`}
                   />
-                  <Bar dataKey="total_transactions" fill="#6366f1" radius={[3, 3, 0, 0]} maxBarSize={28} />
+                  <Bar
+                    dataKey="total_transactions"
+                    name="total_transactions"
+                    fill="#a5b4fc"
+                    radius={[3, 3, 0, 0]}
+                    maxBarSize={22}
+                  />
+                  <Bar
+                    dataKey="suspected_transactions"
+                    name="suspected_transactions"
+                    fill="#ef4444"
+                    radius={[3, 3, 0, 0]}
+                    maxBarSize={22}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -658,83 +762,13 @@ export const Overview: React.FC = () => {
           )}
 
           <div className="sf-panel-footnote">
-            Discrete daily bars. Days with zero transactions explicitly show zero (never smoothed or interpolated).
-          </div>
-        </article>
-
-        {/* Panel B: Suspected Fraud Transactions */}
-        <article className="sf-chart-panel">
-          <div className="sf-panel-heading">
-            <div>
-              <h3>Suspected Fraud Activity</h3>
-              <p>Daily transfers marked suspected_fraud across cases</p>
-            </div>
-            <span className="sf-panel-unit">SUSPECTED BARS</span>
-          </div>
-
-          {filteredDailyActivity.some((pt) => pt.suspected_transactions > 0) ? (
-            <div className="sf-discrete-bar-chart">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={filteredDailyActivity} margin={{ top: 12, right: 12, left: -16, bottom: 0 }}>
-                  <CartesianGrid stroke="#f1f2f8" strokeDasharray="3 4" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fill: '#6b7280', fontSize: 9 }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
-                  <YAxis allowDecimals={false} tick={{ fill: '#6b7280', fontSize: 9 }} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    contentStyle={{ border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 11, boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
-                    formatter={(val) => [`${val} suspected txs`, 'Suspected Fraud']}
-                    labelFormatter={(lbl) => `Date: ${lbl}`}
-                  />
-                  <Bar dataKey="suspected_transactions" fill="#ef4444" radius={[3, 3, 0, 0]} maxBarSize={28} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="sf-chart-empty">No suspected fraud transactions in selected date range.</div>
-          )}
-
-          <div className="sf-panel-footnote">
-            Independent Y-axis scaled specifically to daily suspected transfers. Highlights scam activation spikes.
-          </div>
-        </article>
-
-        {/* Panel C: Cases Reported */}
-        <article className="sf-chart-panel">
-          <div className="sf-panel-heading">
-            <div>
-              <h3>Cases Reported</h3>
-              <p>New victim complaints lodged by reported date</p>
-            </div>
-            <span className="sf-panel-unit">CASE BARS</span>
-          </div>
-
-          {filteredDailyActivity.some((pt) => pt.cases_reported > 0) ? (
-            <div className="sf-discrete-bar-chart">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={filteredDailyActivity} margin={{ top: 12, right: 12, left: -16, bottom: 0 }}>
-                  <CartesianGrid stroke="#f1f2f8" strokeDasharray="3 4" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fill: '#6b7280', fontSize: 9 }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
-                  <YAxis allowDecimals={false} tick={{ fill: '#6b7280', fontSize: 9 }} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    contentStyle={{ border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 11, boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
-                    formatter={(val) => [`${val} cases reported`, 'New Complaints']}
-                    labelFormatter={(lbl) => `Date: ${lbl}`}
-                  />
-                  <Bar dataKey="cases_reported" fill="#059669" radius={[3, 3, 0, 0]} maxBarSize={28} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="sf-chart-empty">No cases reported in selected date range.</div>
-          )}
-
-          <div className="sf-panel-footnote">
-            Independent Y-axis scaled to complaint arrival frequency. Zero cases on quiet days.
+            Discrete daily bars for actual dates (zero interpolation). Lilac: total volume, Red: suspected fraud.
           </div>
         </article>
       </section>
 
-      {/* 5. Lower Grid: Queue, Exposure Breakdown, and Recent Transactions */}
-      <section className="sf-dashboard-lower-grid">
+      {/* Row 3: Investigation Queue (Left) | Recent Ledger Activity (Right) */}
+      <section className="sf-dashboard-lower-grid" aria-label="Investigation Queue and Recent Activity">
         {/* Investigation Queue */}
         <article className="sf-dashboard-panel sf-case-panel">
           <div className="sf-panel-heading sf-case-heading">
@@ -819,47 +853,6 @@ export const Overview: React.FC = () => {
             >
               Open money flow <ArrowRight size={13} />
             </button>
-          </div>
-        </article>
-
-        {/* Evidence Status Breakdown */}
-        <article className="sf-dashboard-panel sf-evidence-panel">
-          <div className="sf-panel-heading">
-            <div>
-              <h3>Evidence Classification</h3>
-              <p>Distribution in active date range</p>
-            </div>
-            <Activity size={16} className="sf-panel-icon" />
-          </div>
-          <div className="sf-evidence-list">
-            <div className="sf-evidence-row">
-              <div className="sf-evidence-label">
-                <span>Verified Legitimate</span>
-                <strong>{legitimateTxCount} ({legitimatePct}%)</strong>
-              </div>
-              <div className="sf-evidence-track">
-                <div
-                  className="sf-evidence-bar sf-evidence-bar-2"
-                  style={{ width: `${legitimatePct}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="sf-evidence-row">
-              <div className="sf-evidence-label">
-                <span>Suspected Fraud</span>
-                <strong>{suspectedTxCount} ({suspectedPct}%)</strong>
-              </div>
-              <div className="sf-evidence-track">
-                <div
-                  className="sf-evidence-bar sf-evidence-bar-1"
-                  style={{ width: `${suspectedPct}%` }}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="sf-panel-footnote">
-            Computed from transactions table evidence_status field across {totalTxCount} active rows.
           </div>
         </article>
 

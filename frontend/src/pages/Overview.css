@@ -38,8 +38,8 @@
 .sf-kpi-violet .sf-kpi-top svg { color: #9c73bc; }
 .sf-kpi-value { overflow: hidden; margin-top: 11px; color: #29293d; font-size: clamp(24px, 2.15vw, 30px); font-weight: 680; letter-spacing: -.055em; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sf-kpi-foot { margin-top: 8px; color: #77798a; font-size: 9px; line-height: 1.5; }
-.sf-dashboard-main-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(330px, .88fr); gap: 14px; margin-bottom: 14px; }
-.sf-dashboard-lower-grid { display: grid; grid-template-columns: minmax(0, 1.28fr) minmax(220px, .67fr) minmax(295px, .9fr); gap: 14px; align-items: stretch; }
+.sf-dashboard-main-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr); gap: 14px; margin-bottom: 14px; }
+.sf-dashboard-lower-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr); gap: 14px; align-items: stretch; }
 .sf-dashboard-panel { min-width: 0; overflow: hidden; background: #fff; border: 1px solid #e9eaf1; border-radius: 9px; box-shadow: 0 2px 8px rgba(36,37,64,.025); }
 .sf-panel-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; min-height: 63px; padding: 15px 16px 12px; border-bottom: 1px solid #eff0f5; }
 .sf-panel-heading h3 { margin: 0; color: #303047; font-size: 12px; line-height: 1.35; font-weight: 650; letter-spacing: -.018em; }
@@ -101,14 +101,8 @@
 .sf-dashboard-error-copy p { color: #73758a; font-size: 11px; line-height: 1.6; }
 .sf-dashboard-error-copy button { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid #e0e1eb; border-radius: 4px; background: #fff; color: #51536a; font-size: 10px; }
 
-@media (max-width: 1250px) {
-  .sf-dashboard-lower-grid { grid-template-columns: minmax(0, 1.25fr) minmax(210px, .75fr); }
-  .sf-recent-panel { grid-column: 1 / -1; }
-  .sf-recent-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; }
-}
-@media (max-width: 950px) {
+@media (max-width: 1024px) {
   .sf-dashboard-main-grid, .sf-dashboard-lower-grid { grid-template-columns: 1fr; }
-  .sf-recent-panel { grid-column: auto; }
   .sf-recent-list { display: block; }
 }
 @media (max-width: 600px) {
