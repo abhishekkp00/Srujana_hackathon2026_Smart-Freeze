@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertCircle, ArrowLeftRight, RefreshCw } from 'lucide-react';
+import { AlertCircle, ArrowLeftRight, RefreshCw, Zap } from 'lucide-react';
 import { getCases, getConsensusLien } from '../api/endpoints';
 import { CaseSummary, ConsensusLienData } from '../types';
 
@@ -53,6 +53,14 @@ export const ConsensusLien: React.FC = () => {
     return () => { cancelled = true; };
   }, [selectedCaseId, cases, refreshKey]);
 
+  const sortedCases = useMemo(() => {
+    return [...cases].sort((a, b) => {
+      if (a.case_id === 'CASE-2026-000') return -1;
+      if (b.case_id === 'CASE-2026-000') return 1;
+      return a.case_id.localeCompare(b.case_id);
+    });
+  }, [cases]);
+
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       <section className="surface flex flex-wrap items-end justify-between gap-3 p-4">
@@ -64,7 +72,13 @@ export const ConsensusLien: React.FC = () => {
             disabled={loadingCases || cases.length === 0}
             className="mt-1.5 w-full max-w-lg rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
           >
-            {cases.map((item) => <option key={item.case_id} value={item.case_id}>{item.case_id} · {inr(item.reported_amount_inr)}</option>)}
+            {sortedCases.map((item) => (
+              <option key={item.case_id} value={item.case_id}>
+                {item.case_id === 'CASE-2026-000'
+                  ? `⭐ ${item.case_id} · ${inr(item.reported_amount_inr)} (Standard Benchmark: 6 Nodes / 8 Edges)`
+                  : `${item.case_id} · ${inr(item.reported_amount_inr)}`}
+              </option>
+            ))}
           </select>
         </label>
         <div className="flex items-center gap-2">

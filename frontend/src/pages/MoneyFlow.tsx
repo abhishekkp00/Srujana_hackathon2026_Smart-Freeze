@@ -13,6 +13,7 @@ import {
   RefreshCw,
   RotateCcw,
   Scale,
+  Zap,
 } from 'lucide-react';
 import {
   createDemoHoldProposal,
@@ -157,6 +158,14 @@ export const MoneyFlow: React.FC = () => {
   }, [caseId, cases, refreshKey]);
 
 
+  const sortedCases = useMemo(() => {
+    return [...cases].sort((a, b) => {
+      if (a.case_id === 'CASE-2026-000') return -1;
+      if (b.case_id === 'CASE-2026-000') return 1;
+      return a.case_id.localeCompare(b.case_id);
+    });
+  }, [cases]);
+
   const selectedCase = cases.find((item) => item.case_id === caseId) ?? null;
   const edges = useMemo(
     () => (graph?.edges ?? []).slice().sort((a, b) => {
@@ -232,31 +241,52 @@ export const MoneyFlow: React.FC = () => {
     if (!container || !graph || graph.nodes.length === 0) return;
     cyRef.current?.destroy();
 
+    const isSmallGraph = graph.nodes.length <= 10;
+    const xSpacing = isSmallGraph ? 240 : 205;
+    const ySpacing = isSmallGraph ? 115 : 94;
+
     const groups = new Map<number, GraphNode[]>();
     for (const node of graph.nodes) {
       const level = node.flow_level ?? 0;
       groups.set(level, [...(groups.get(level) ?? []), node]);
     }
+
+    let maxPerCol = 1;
+    groups.forEach((list) => {
+      if (list.length > maxPerCol) maxPerCol = list.length;
+    });
+    const totalHeight = (maxPerCol - 1) * ySpacing;
+
     const positions: Record<string, { x: number; y: number }> = {};
     [...groups.keys()].sort((a, b) => a - b).forEach((level) => {
       const list = (groups.get(level) ?? []).slice().sort((a, b) => a.id.localeCompare(b.id));
+      const colHeight = (list.length - 1) * ySpacing;
+      const yOffset = isSmallGraph ? (totalHeight - colHeight) / 2 + 50 : 64;
       list.forEach((node, index) => {
-        positions[node.id] = { x: 100 + level * 205, y: 64 + index * 94 };
+        positions[node.id] = { x: 80 + level * xSpacing, y: yOffset + index * ySpacing };
       });
     });
 
     const elements: cytoscape.ElementDefinition[] = [
-      ...graph.nodes.map((node) => ({
-        group: 'nodes' as const,
-        data: {
-          id: node.id,
-          label: node.flagged_by_case_evidence ? `${node.id}\nFLAGGED RECIPIENT` : node.id,
-          isExternal: node.is_external,
-          isOrigin: Boolean(node.is_origin_account),
-          flaggedByEvidence: Boolean(node.flagged_by_case_evidence),
-        },
-        position: positions[node.id],
-      })),
+      ...graph.nodes.map((node) => {
+        let sublabel = '';
+        if (node.is_origin_account) sublabel = 'VICTIM ORIGIN';
+        else if (node.is_external) sublabel = 'EXTERNAL SINK';
+        else if (node.flagged_by_case_evidence) sublabel = 'FLAGGED RECIPIENT';
+        else sublabel = 'INTERMEDIARY';
+
+        return {
+          group: 'nodes' as const,
+          data: {
+            id: node.id,
+            label: `${node.id}\n${sublabel}`,
+            isExternal: node.is_external,
+            isOrigin: Boolean(node.is_origin_account),
+            flaggedByEvidence: Boolean(node.flagged_by_case_evidence),
+          },
+          position: positions[node.id],
+        };
+      }),
       ...graph.edges.map((edge) => ({
         group: 'edges' as const,
         data: {
@@ -380,7 +410,11 @@ export const MoneyFlow: React.FC = () => {
     if (selectedAccount) cy.getElementById(selectedAccount).select();
   }, [selectedTx, selectedAccount]);
 
-  const fitGraph = () => { cyRef.current?.fit(undefined, 42); cyRef.current?.center(); };
+  const fitGraph = () => {
+    const pad = graph && graph.nodes.length <= 10 ? 55 : 42;
+    cyRef.current?.fit(undefined, pad);
+    cyRef.current?.center();
+  };
   const startWalkthrough = () => {
     setActivePhase(0);
     setPlayingEdgeIndex(0);
@@ -398,11 +432,53 @@ export const MoneyFlow: React.FC = () => {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
+      {/* Quick Test Benchmark Flow */}
+      <section className="surface flex flex-wrap items-center justify-between gap-3 border-l-4 border-l-amber-500 bg-amber-50/50 p-3.5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-500 text-white shadow-xs">
+            <Zap size={18} className="fill-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-950">Standard Benchmark Flow</span>
+              <span className="inline-flex items-center rounded bg-amber-200/80 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
+                6 Nodes · 8 Edges
+              </span>
+            </div>
+            <p className="text-[11px] text-amber-800">
+              Clean 3-layer money flow graph with smurfing split, intermediary convergence, and ATM sink for rapid evaluation.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {caseId === 'CASE-2026-000' ? (
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs">
+              <Check size={13} /> Active Benchmark Case
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => changeCase('CASE-2026-000')}
+              className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-950 shadow-xs hover:bg-amber-100 transition-all cursor-pointer"
+            >
+              <Zap size={13} className="fill-amber-600" />
+              Switch to Benchmark Case
+            </button>
+          )}
+        </div>
+      </section>
+
       <section className="surface flex flex-wrap items-end justify-between gap-3 p-4">
         <label className="min-w-[260px] flex-1 text-xs font-semibold text-slate-600">
           Investigation case
           <select value={caseId} onChange={(event) => changeCase(event.target.value)} disabled={loadingCases || cases.length === 0} className="mt-1.5 w-full max-w-lg rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900">
-            {cases.map((item) => <option key={item.case_id} value={item.case_id}>{item.case_id} · {inr(item.reported_amount_inr)}</option>)}
+            {sortedCases.map((item) => (
+              <option key={item.case_id} value={item.case_id}>
+                {item.case_id === 'CASE-2026-000'
+                  ? `⭐ ${item.case_id} · ${inr(item.reported_amount_inr)} (Standard Benchmark: 6 Nodes / 8 Edges)`
+                  : `${item.case_id} · ${inr(item.reported_amount_inr)}`}
+              </option>
+            ))}
           </select>
         </label>
         <div className="flex items-center gap-2">

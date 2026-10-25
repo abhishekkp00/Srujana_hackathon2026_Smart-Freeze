@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogOut, Search, Shield, ArrowUpRight } from 'lucide-react';
+import { LogOut, Search, Shield, ArrowUpRight, Zap } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 interface CurrentUser {
@@ -89,6 +89,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Right: Active Investigation Context & Identity */}
       <div className="fh-header-actions flex items-center gap-3">
+        {/* Quick Test Case Button */}
+        <button
+          type="button"
+          onClick={() => navigate('/money-flow?case=CASE-2026-000')}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[11px] font-semibold shadow-xs transition-colors"
+          title="Switch to standard 6-node reference test case"
+        >
+          <Zap size={12} className="fill-white" />
+          <span>Quick Test Case</span>
+        </button>
+
         {/* Active Investigation Context Pill */}
         <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 border border-indigo-100 rounded text-[11px] text-indigo-700">
           <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
