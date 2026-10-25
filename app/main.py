@@ -634,7 +634,8 @@ def get_case_detail(
 
     row = matched.iloc[0]
     case_txs = txs_df[txs_df["case_id"] == case_id]
-    origin_tx = case_txs.iloc[0]["transaction_id"] if not case_txs.empty else None
+    source_row = select_case_source_transaction(case_txs)
+    origin_tx = str(source_row["transaction_id"]) if source_row is not None else None
 
     scoring_txs = txs_df
     scoring_accounts = accs_df
