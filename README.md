@@ -1,6 +1,6 @@
-# FairHold — Financial Investigation Decision Support
+# Smart-Freeze — Financial Investigation Decision Support
 
-FairHold is a prototype for reconstructing financial transaction trails, comparing fund-attribution methods, and showing where evidence is incomplete. It supports authorized human review; it does not establish guilt, create a legal lien, or freeze/release funds.
+Smart-Freeze is a prototype for reconstructing financial transaction trails, comparing fund-attribution methods, and showing where evidence is incomplete. It supports authorized human review; it does not establish guilt, create a legal lien, or freeze/release funds.
 
 ## What is real in this repository?
 
@@ -145,4 +145,4 @@ Protected endpoints require an authenticated local demo bearer token in the expl
 
 ## Production blockers
 
-Before any real institutional use, FairHold would need a bank-approved identity provider and MFA, formal data-sharing/legal authority, partner trust/key governance, stronger deployment isolation and monitoring, independent threat-led penetration testing, and validation on authorized representative banking data. The prototype is not production-ready, and its simulated cross-institution adapters must not be presented as live integrations.
+Before any real institutional use, Smart-Freeze would need a bank-approved identity provider and MFA, formal data-sharing/legal authority, partner trust/key governance, stronger deployment isolation and monitoring, independent threat-led penetration testing, and validation on authorized representative banking data. The prototype is not production-ready, and its simulated cross-institution adapters must not be presented as live integrations.
