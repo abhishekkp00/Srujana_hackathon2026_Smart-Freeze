@@ -188,7 +188,6 @@ class DatasetType(str, Enum):
     """Categorization of supported datasets."""
     SMART_FREEZE_SYNTHETIC = "smartfreeze_synthetic"
     SMARTFREEZE_SYNTHETIC = "smartfreeze_synthetic"
-    FAIRHOLD_SYNTHETIC = "smartfreeze_synthetic"
     ELLIPTIC_BITCOIN = "elliptic_bitcoin"
     SYNTHAML_ALERTS = "synthaml_alerts"
     AMLNET = "amlnet"
