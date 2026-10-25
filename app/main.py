@@ -1408,21 +1408,6 @@ def get_case_recommendations(
         raise HTTPException(status_code=400, detail=f"No source transaction is available for case '{case_id}'.")
     origin_tx_id = str(origin_tx["transaction_id"])
 
-    # Compute mule scores from scoring engine or behavioral features if available
-    mule_scores: Dict[str, float] = {}
-    try:
-        scoring_res = InvestigationScoringEngine.score_case(
-            case_id=case_id,
-            transactions_df=txs_df,
-            accounts_df=accs_df,
-            cases_df=cases_df,
-        )
-        if scoring_res and scoring_res.component_b and scoring_res.component_b.subfactors:
-            for acc in accs_df["account_id"]:
-                mule_scores[str(acc)] = scoring_res.final_score or 50.0
-    except Exception:
-        pass
-
     engine = DecisionEngine()
     result = engine.evaluate_case(
         case_id=case_id,
@@ -1430,7 +1415,7 @@ def get_case_recommendations(
         transactions=txs_df,
         source_transaction_id=origin_tx_id,
         policy_name=policy,
-        mule_scores=mule_scores,
+        mule_scores=None,  # Automatically predicts using trained interpretable MuleDetectorService
         override_de_minimis=de_minimis_paise,
     )
 
@@ -1900,11 +1885,61 @@ def get_data_quality(auth: AuthContext = Depends(get_current_user)):
 # 9. Machine Learning Classifier Endpoints
 # ==============================================================================
 
+# Primary ML Model: Interpretable Mule-vs-Bystander Detector (Trained on simulated banking data)
+@app.get("/api/ml/mule-detector/status")
+def get_mule_detector_status(auth: AuthContext = Depends(get_current_user)) -> Dict[str, Any]:
+    """Return status and summary metrics of the primary interpretable mule-vs-bystander model."""
+    from ml.mule_service import MuleDetectorService
+    service = MuleDetectorService.get_instance()
+    return service.get_status()
+
+
+@app.get("/api/ml/mule-detector/model-card")
+def get_mule_detector_model_card(auth: AuthContext = Depends(get_current_user)) -> Dict[str, Any]:
+    """Return the complete model card for the mule detector, including attack family splits and sanity checks."""
+    from ml.mule_service import MuleDetectorService
+    service = MuleDetectorService.get_instance()
+    card = service.get_model_card()
+    if "error" in card:
+        raise HTTPException(status_code=503, detail=card["error"])
+    return card
+
+
+class MulePredictAccountRequest(BaseModel):
+    account_id: str
+    case_id: Optional[str] = ""
+
+
+@app.post("/api/ml/mule-detector/predict")
+def predict_account_mule_suspicion(
+    request: MulePredictAccountRequest,
+    auth: AuthContext = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Predict mule suspicion and standardized reason codes for an account in the ledger."""
+    from ml.mule_service import MuleDetectorService
+    service = MuleDetectorService.get_instance()
+    data = get_ledger_data()
+    pred = service.predict_account(
+        account_id=request.account_id,
+        case_id=request.case_id or "",
+        transactions=data["transactions_df"],
+        accounts=data["accounts_df"],
+    )
+    return pred.to_dict()
+
+
+# Optional External Benchmark: European Credit Card Fraud Detection (Kaggle / ULB)
 @app.get("/api/ml/status")
 def get_ml_status(auth: AuthContext = Depends(get_current_user)) -> Dict[str, Any]:
-    """Return model readiness, artifact version, operating threshold, and feature schema."""
+    """Return optional external benchmark status (European Credit Card Fraud)."""
     service = MLService.get_instance()
-    return service.get_status()
+    status = service.get_status()
+    status["benchmark_role"] = (
+        "Optional External Benchmark: European Credit Card Fraud Detection (Kaggle / ULB). "
+        "Not used in the main account investigation flow."
+    )
+    status["primary_mule_model_status_endpoint"] = "/api/ml/mule-detector/status"
+    return status
 
 
 @app.get("/api/ml/evaluation")

@@ -117,6 +117,32 @@ data/raw/creditcard.csv
 Then run from the repository root with the virtual environment active:
 
 ```bash
+### 3. Interpretable Mule-vs-Bystander Model (Primary ML in Main Flow)
+
+The primary machine-learning model in Smart-Freeze is an interpretable, standardized Logistic Regression classifier predicting mule account suspicion from observable transaction-ledger features (`engine/behavioural_features.py`):
+
+```bash
+python ml/train_mule_detector.py --seed 42 --accounts 2000 --cases 60
+```
+
+- **Family Cross-Validation Split**:
+  - **Train**: Scam families A (Layered Chain) and B (Tiny-Amount Spray).
+  - **Validation**: Scam family C (Heavy Commingling, evaluating the innocent fast pass-through aggregator hard case).
+  - **Held-Out Test**: Scam family D (Structuring below AML threshold).
+- **Invariants Enforced**:
+  - **Zero Ground-Truth Derivation**: Features use only timestamps, amounts, accounts, and statement completion flags.
+  - **Label-Shuffle Sanity Test**: When labels are permuted, test ROC-AUC drops to ~0.50 (tested across permutations).
+  - **Explainability**: Outputs exact standardized reason codes (`MULE_RAPID_PASS_THROUGH`, `MULE_DRAIN_SURGE`, `MULE_CASH_EXIT_CONVERSION`, `BYSTANDER_HIGH_CLEAN_CAPITAL`, etc.) and feeds `mule_score` directly into `engine/decision.py`.
+- **Artifacts**:
+  - `models/mule_detector_v1.joblib` — trained model, scaler, and metadata.
+  - `models/mule_detector_model_card.json` — recorded metrics, data hash, coefficients, and governance declaration.
+  - **Governance Label**: `"trained on simulated data"`.
+
+### 4. Optional External Benchmark: Credit Card Fraud Classifier
+
+A secondary, optional classifier trained on European credit-card transaction data is kept strictly as an external benchmark:
+
+```bash
 python scripts/train_ml_model.py
 ```
 
@@ -126,20 +152,24 @@ The pipeline validates the dataset, creates stratified training/validation/test 
 - `models/model_metadata.json` — metrics and metadata from that actual training run, including the artifact digest.
 - `models/demo_samples.json` — labelled feature vectors from the held-out partition for interactive examples.
 
-The source dataset and generated artifacts are ignored by Git. The API checks that the model artifact matches the recorded digest and expected feature schema. If files are missing or mismatched, model status is `UNAVAILABLE`, metrics are not shown, and prediction is disabled. The service checks for artifact-file changes when its ML endpoints are queried, so after training completes it can load the newly generated model without restarting FastAPI.
-
 The score is an **uncalibrated positive-class score**, not a calibrated probability of fraud. The model is trained on historical European credit-card data with PCA features; it is not a model trained on Indian bank AML transactions. It does not establish guilt, trace source funds or alter the tracing range.
 
-## Data sources and limitations
+## Dataset Acknowledgements & Data Sources
 
-- `data/synthetic/`: controlled synthetic account-based ledger used by the operational demo.
-- `data/raw/`: ignored by Git; optional public datasets must be downloaded locally.
-- Elliptic: cryptocurrency transaction graph data, not an INR bank ledger.
-- SynthAML alerts without `synthetic_transactions.csv`: reported as incomplete; missing companion transactions are not fabricated.
-- AMLNet: inspected against the schema configured in the repository; it remains separate from the operational ledger.
-- `ground_truth.json`: reserved for post-hoc synthetic tracing evaluation; it must not be exposed through operational APIs.
+We gratefully acknowledge the creators and maintainers of the datasets referenced in this research prototype:
 
-The Data Quality page profiles the files currently present, their observed row counts and configured schemas. “Schema valid” does not mean a dataset is integrated into tracing or that it contains real bank data.
+1. **Smart-Freeze Synthetic Banking Ledger** (`data/synthetic/`):
+   - Deterministic synthetic ledger generator simulating 30 days of Indian banking traffic (UPI, IMPS, RTGS, NEFT, ATM, salary credits, retail merchant commerce).
+   - Designed specifically to evaluate fund-attribution accounting methods and decision support without exposing private customer financial records.
+2. **European Credit Card Fraud Detection Dataset (ULB / Worldline)**:
+   - Provided by the Machine Learning Group (MLG) of Université Libre de Bruxelles (ULB) and Worldline.
+   - Hosted on Kaggle by Andrea Dal Pozzolo, Olivier Caelen, Reid A. Johnson, and Gianluca Bontempi.
+   - Used strictly as an **optional external benchmark** to demonstrate supervised classification mechanics under extreme class imbalance.
+3. **Elliptic Data Set**:
+   - Bitcoin transaction graph dataset mapping transactions to illicit vs licit entities.
+   - Used to validate graph traversal adapters for external cryptocurrency rails; isolated from fiat banking ledgers.
+4. **SynthAML & AMLNet Benchmark Data**:
+   - Schema validation reference fixtures; inspected independently without fabricating companion transaction rows.
 
 ## Tests and build
 

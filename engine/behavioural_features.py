@@ -502,3 +502,249 @@ class BehaviouralFeatureExtractor:
             mitigating_factors=mitigating_factors,
             data_quality_warnings=warnings,
         )
+
+
+MULE_FEATURE_NAMES = [
+    "rapid_pass_through_ratio",
+    "drain_rate",
+    "amount_deviation_ratio",
+    "fan_out_degree",
+    "fan_in_degree",
+    "cash_exit_ratio",
+    "clean_balance_ratio",
+    "merchant_settlement_ratio",
+    "inbound_velocity",
+    "has_incomplete_history",
+]
+
+
+@dataclass
+class AccountBehaviouralFeatures:
+    """Interpretable behavioural feature set for an account within a fraud case or investigation window.
+    
+    All features are derived deterministically from visible ledger and account records,
+    without referencing ground truth or hidden lot allocations.
+    """
+    account_id: str
+    case_id: str
+    rapid_pass_through_ratio: float
+    drain_rate: float
+    amount_deviation_ratio: float
+    fan_out_degree: float
+    fan_in_degree: float
+    cash_exit_ratio: float
+    clean_balance_ratio: float
+    merchant_settlement_ratio: float
+    inbound_velocity: float
+    has_incomplete_history: float
+
+    def to_dict(self) -> Dict[str, float]:
+        return {
+            "rapid_pass_through_ratio": self.rapid_pass_through_ratio,
+            "drain_rate": self.drain_rate,
+            "amount_deviation_ratio": self.amount_deviation_ratio,
+            "fan_out_degree": self.fan_out_degree,
+            "fan_in_degree": self.fan_in_degree,
+            "cash_exit_ratio": self.cash_exit_ratio,
+            "clean_balance_ratio": self.clean_balance_ratio,
+            "merchant_settlement_ratio": self.merchant_settlement_ratio,
+            "inbound_velocity": self.inbound_velocity,
+            "has_incomplete_history": self.has_incomplete_history,
+        }
+
+    def to_feature_vector(self) -> List[float]:
+        return [
+            self.rapid_pass_through_ratio,
+            self.drain_rate,
+            self.amount_deviation_ratio,
+            self.fan_out_degree,
+            self.fan_in_degree,
+            self.cash_exit_ratio,
+            self.clean_balance_ratio,
+            self.merchant_settlement_ratio,
+            self.inbound_velocity,
+            self.has_incomplete_history,
+        ]
+
+
+class AccountFeatureExtractor:
+    """Extracts verifiable account-level behavioural features from ledgers and account histories."""
+
+    def __init__(
+        self,
+        rapid_hop_seconds: int = 7200,
+        baseline_median_default_paise: int = 1_000_000,
+    ):
+        self.rapid_hop_seconds = rapid_hop_seconds
+        self.baseline_median_default_paise = baseline_median_default_paise
+
+    def extract_account_features(
+        self,
+        account_id: str,
+        case_id: str,
+        transactions: List[Dict[str, Any]] | pd.DataFrame,
+        accounts: List[Dict[str, Any]] | pd.DataFrame,
+        baseline_median_paise: Optional[int] = None,
+    ) -> AccountBehaviouralFeatures:
+        """Extract features for a specific account within the scope of a case.
+        
+        Zero feature is derived from ground truth.
+        """
+        # 1. Normalize accounts
+        acc_dict: Dict[str, Any] = {}
+        if isinstance(accounts, pd.DataFrame):
+            acc_list = accounts.to_dict(orient="records")
+        else:
+            acc_list = accounts
+        for a in acc_list:
+            aid = str(a.get("account_id", "")).strip()
+            if aid:
+                acc_dict[aid] = a
+
+        acc_meta = acc_dict.get(account_id, {})
+        opening_bal = int(acc_meta.get("opening_balance_paise", 0))
+        history_complete = bool(acc_meta.get("history_complete", True))
+
+        # 2. Normalize transactions
+        if isinstance(transactions, pd.DataFrame):
+            tx_list = transactions.to_dict(orient="records")
+        else:
+            tx_list = transactions
+
+        # Filter transactions matching this case (or account if case_id empty)
+        case_id_clean = str(case_id).strip()
+        if case_id_clean:
+            relevant_txs = [t for t in tx_list if str(t.get("case_id", "")).strip() == case_id_clean]
+        else:
+            relevant_txs = [
+                t for t in tx_list
+                if str(t.get("from_account", "")).strip() == account_id
+                or str(t.get("to_account", "")).strip() == account_id
+            ]
+
+        # 3. Partition into inflows and outflows for account_id
+        inflows: List[Tuple[datetime.datetime, int, str]] = []
+        outflows: List[Tuple[datetime.datetime, int, str]] = []
+
+        for t in relevant_txs:
+            fa = str(t.get("from_account", "")).strip()
+            ta = str(t.get("to_account", "")).strip()
+            amt = int(t.get("amount_paise", 0))
+            ts_str = str(t.get("timestamp", "")).strip()
+            if not ts_str:
+                continue
+            try:
+                ts = _parse_iso_timestamp(ts_str)
+            except Exception:
+                continue
+
+            if ta == account_id:
+                inflows.append((ts, amt, fa))
+            if fa == account_id:
+                outflows.append((ts, amt, ta))
+
+        total_in = sum(amt for _, amt, _ in inflows)
+        total_out = sum(amt for _, amt, _ in outflows)
+
+        # Baseline median
+        eff_baseline = baseline_median_paise or self.baseline_median_default_paise
+
+        # 1. Rapid pass-through ratio
+        rapid_count = 0
+        total_in_count = len(inflows)
+        for in_ts, in_amt, _ in inflows:
+            subsequent = [o for o in outflows if o[0] >= in_ts]
+            if subsequent:
+                delta = (subsequent[0][0] - in_ts).total_seconds()
+                if delta <= self.rapid_hop_seconds:
+                    rapid_count += 1
+        rapid_ratio = (rapid_count / max(1, total_in_count)) if total_in_count > 0 else 0.0
+
+        # 2. Drain rate
+        drain_rate = min(1.0, total_out / max(1, total_in)) if total_in > 0 else 0.0
+
+        # 3. Amount deviation ratio
+        all_amts = [amt for _, amt, _ in inflows] + [amt for _, amt, _ in outflows]
+        mean_amt = (sum(all_amts) / len(all_amts)) if all_amts else 0.0
+        amt_dev = round(mean_amt / max(1, eff_baseline), 2)
+
+        # 4. Fan-out degree (distinct destinations)
+        dest_set = set(ta for _, _, ta in outflows if not ta.startswith(EXTERNAL_ACCOUNT_PREFIX))
+        fan_out = float(len(dest_set))
+
+        # 5. Fan-in degree (distinct sources)
+        src_set = set(fa for _, _, fa in inflows if not fa.startswith(EXTERNAL_ACCOUNT_PREFIX))
+        fan_in = float(len(src_set))
+
+        # 6. Cash exit ratio
+        cash_out = sum(
+            amt for _, amt, ta in outflows
+            if ta.startswith("EXT_CASH") or "crypto" in ta.lower() or "atm" in ta.lower()
+        )
+        cash_ratio = (cash_out / max(1, total_out)) if total_out > 0 else 0.0
+
+        # 7. Clean balance ratio
+        clean_ratio = opening_bal / max(1, opening_bal + total_in)
+
+        # 8. Merchant settlement ratio
+        merch_out = sum(
+            amt for _, amt, ta in outflows
+            if "merch" in ta.lower() or "corp" in ta.lower() or "salary" in ta.lower()
+        )
+        merch_ratio = (merch_out / max(1, total_out)) if total_out > 0 else 0.0
+
+        # 9. Inbound velocity
+        inbound_velocity = min(50.0, total_in / max(100_000, opening_bal))
+
+        # 10. Has incomplete history
+        incomplete_hist = 0.0 if history_complete else 1.0
+
+        return AccountBehaviouralFeatures(
+            account_id=account_id,
+            case_id=case_id_clean,
+            rapid_pass_through_ratio=round(rapid_ratio, 4),
+            drain_rate=round(drain_rate, 4),
+            amount_deviation_ratio=round(amt_dev, 4),
+            fan_out_degree=fan_out,
+            fan_in_degree=fan_in,
+            cash_exit_ratio=round(cash_ratio, 4),
+            clean_balance_ratio=round(clean_ratio, 4),
+            merchant_settlement_ratio=round(merch_ratio, 4),
+            inbound_velocity=round(inbound_velocity, 4),
+            has_incomplete_history=incomplete_hist,
+        )
+
+    def extract_case_accounts_features(
+        self,
+        case_id: str,
+        transactions: List[Dict[str, Any]] | pd.DataFrame,
+        accounts: List[Dict[str, Any]] | pd.DataFrame,
+        baseline_median_paise: Optional[int] = None,
+    ) -> Dict[str, AccountBehaviouralFeatures]:
+        """Extract features for all internal accounts involved in a case trail."""
+        case_id_clean = str(case_id).strip()
+        if isinstance(transactions, pd.DataFrame):
+            tx_list = transactions.to_dict(orient="records")
+        else:
+            tx_list = transactions
+
+        involved_accounts: Set[str] = set()
+        for t in tx_list:
+            if str(t.get("case_id", "")).strip() == case_id_clean:
+                fa = str(t.get("from_account", "")).strip()
+                ta = str(t.get("to_account", "")).strip()
+                if fa and not fa.startswith(EXTERNAL_ACCOUNT_PREFIX):
+                    involved_accounts.add(fa)
+                if ta and not ta.startswith(EXTERNAL_ACCOUNT_PREFIX):
+                    involved_accounts.add(ta)
+
+        results: Dict[str, AccountBehaviouralFeatures] = {}
+        for aid in sorted(involved_accounts):
+            results[aid] = self.extract_account_features(
+                account_id=aid,
+                case_id=case_id_clean,
+                transactions=tx_list,
+                accounts=accounts,
+                baseline_median_paise=baseline_median_paise,
+            )
+        return results

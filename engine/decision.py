@@ -365,7 +365,24 @@ class DecisionEngine:
     ) -> CaseRecommendationsResult:
         """Run full Consensus Lien and produce case recommendations."""
         policy = self.get_policy(policy_name)
-        mule_map = mule_scores or {}
+        mule_reasons_map: Dict[str, List[str]] = {}
+        if mule_scores is not None:
+            mule_map = dict(mule_scores)
+        else:
+            try:
+                from ml.mule_service import MuleDetectorService
+                mule_service = MuleDetectorService.get_instance()
+                preds = mule_service.predict_case_accounts(
+                    case_id=case_id,
+                    transactions=transactions,
+                    accounts=accounts,
+                )
+                mule_map = {aid: p.mule_score for aid, p in preds.items()}
+                mule_reasons_map = {aid: p.reason_codes for aid, p in preds.items()}
+            except Exception:
+                mule_map = {}
+                mule_reasons_map = {}
+
         docs_map = uploaded_documents_by_acc or {}
 
         acc_list = (
@@ -444,6 +461,9 @@ class DecisionEngine:
                 uploaded_documents=docs,
                 override_de_minimis=override_de_minimis,
             )
+            for rc in mule_reasons_map.get(acc_id, []):
+                if rc not in rec.reasons:
+                    rec.reasons.append(rc)
             recommendations.append(rec)
 
         # Aggregate totals
