@@ -1474,7 +1474,7 @@ def list_demo_hold_proposals(
         check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
     visible = [
         DemoHoldProposalResponse(**item) for item in DEMO_HOLD_PROPOSALS
-        if auth.user.can_access_case(str(item["case_id"]))
+        if auth.can_access_case(str(item["case_id"]))
         and (not case_id or item["case_id"] == case_id)
     ]
     return visible
