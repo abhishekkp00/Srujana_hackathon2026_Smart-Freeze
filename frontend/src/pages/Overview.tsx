@@ -362,7 +362,7 @@ export const Overview: React.FC = () => {
                     labelStyle={{ color: '#28283a', fontSize: 12, fontWeight: 600 }}
                     contentStyle={{ border: '1px solid #e0e1e9', borderRadius: 8, boxShadow: '0 6px 22px rgba(30,30,55,.08)', fontSize: 11 }}
                   />
-                  <Bar dataKey="amount" fill="#7773ec" maxBarSize={38} radius={[5, 5, 0, 0]} />
+                  <Bar dataKey="amount" fill="#7773ec" maxBarSize={38} radius={[5, 5, 0, 0]} cursor="pointer" onClick={(entry: any) => { const caseId = entry?.payload?.caseId; if (caseId) openMoneyFlow(String(caseId)); }} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
