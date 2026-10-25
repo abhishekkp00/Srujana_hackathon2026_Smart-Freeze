@@ -947,12 +947,19 @@ def get_transaction_graph(
         }
 
         all_rows = transactions_df.copy()
+        # Never traverse records assigned to a different case when the requester is a
+        # case-scoped investigator. Unassigned ledger entries may be shown only as
+        # contextual statement activity on an already reached account.
+        if auth.user.role == Role.INVESTIGATOR and "*" not in auth.user.assigned_cases:
+            row_case_ids = all_rows["case_id"].fillna("").astype(str).str.strip()
+            allowed_case_ids = set(auth.user.assigned_cases)
+            all_rows = all_rows[(row_case_ids == "") | row_case_ids.isin(allowed_case_ids)]
         all_rows["_flow_ts"] = pd.to_datetime(all_rows["timestamp"], utc=True, errors="coerce")
         all_rows = all_rows.sort_values(["_flow_ts", "transaction_id"], kind="stable")
         queue: List[Tuple[str, Any, int]] = [(origin_to, origin_timestamp, 1)]
         visited_states: set[Tuple[str, str, int]] = set()
         max_hops = 6
-        max_edges = 60
+        max_edges = 40
 
         while queue and len(selected_by_id) < max_edges:
             account_id, arrived_at, current_level = queue.pop(0)
@@ -990,11 +997,35 @@ def get_transaction_graph(
                     break
                 queue.append((destination, tx["_flow_ts"], next_hop))
 
+            # Also surface later credits into the reached account. These matter for
+            # commingling analysis, but are explicitly tagged as account context and
+            # are not treated as a hop originating from the suspicious source.
+            context_rows = all_rows[
+                (all_rows["to_account"].astype(str) == account_id)
+                & all_rows["_flow_ts"].notna()
+                & (all_rows["_flow_ts"] > arrived_at)
+            ]
+            for _, tx in context_rows.iterrows():
+                tx_id = str(tx["transaction_id"])
+                if tx_id == source_transaction_id or tx_id in selected_by_id:
+                    continue
+                selected_by_id[tx_id] = {
+                    **tx.drop(labels=["_flow_ts"], errors="ignore").to_dict(),
+                    "_flow_hop": None,
+                    "_linkage_basis": "ACCOUNT_CONTEXT",
+                    "_is_source_transaction": False,
+                }
+                context_source = str(tx["from_account"])
+                node_levels.setdefault(context_source, max(0, current_level - 1))
+                if len(selected_by_id) >= max_edges:
+                    break
+
         selected_rows = list(selected_by_id.values())
         flow_scope = (
-            f"Source {source_transaction_id} plus subsequent time-ordered outgoing ledger events reachable "
-            f"within {max_hops} hops (maximum {max_edges} edges). Chronological reachability is a candidate path, "
-            "not proof that the full transaction amount came from the source funds."
+            f"Source {source_transaction_id}, subsequent time-ordered outgoing events reachable within "
+            f"{max_hops} hops, and later credits into reached accounts for commingling context (maximum {max_edges} edges). "
+            "A chronologically reachable edge is a candidate path, while an account-context edge shows a related credit; "
+            "neither proves that the full transaction amount came from the source funds."
         )
         source_amount_inr = source_amount_paise / 100.0
     else:
