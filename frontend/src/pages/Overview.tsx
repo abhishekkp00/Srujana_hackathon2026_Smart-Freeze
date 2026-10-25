@@ -197,7 +197,7 @@ export const Overview: React.FC = () => {
     );
   }
 
-  const { overview, cases, transactions, transactionTotal } = data;
+  const { overview, cases, transactionTotal } = data;
   const hasTransactionSample = transactionTotal > transactions.length;
 
   return (
