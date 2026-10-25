@@ -1,0 +1,1042 @@
+{
+  "_metadata": {
+    "dataset_type": "synthetic_ground_truth",
+    "generated_at": "2026-01-20T12:00:00Z",
+    "generator_version": "1.0.0",
+    "random_seed": 42,
+    "warning": "CONFIDENTIAL EVALUATION DATA: Tracing and scoring algorithms must NEVER read this file directly. Strictly for evaluation/benchmark modules."
+  },
+  "cases": {
+    "CASE-2026-001": {
+      "expected_allocations": {
+        "ACC_COMMINGLED_01": {
+          "commingled_with_legitimate_paise": 9000000,
+          "received_suspected_paise": 8000000,
+          "total_outflow_paise": 9000000
+        },
+        "ACC_MULE_DIRECT_01": {
+          "forwarded_suspected_paise": 8000000,
+          "received_suspected_paise": 10000000,
+          "retained_suspected_paise": 1500000,
+          "withdrawn_suspected_paise": 500000
+        }
+      },
+      "origin_transfer_paise": 10000000,
+      "source_lots": [
+        {
+          "initial_receiver": "ACC_MULE_DIRECT_01",
+          "lot_id": "LOT-CASE1-01",
+          "original_amount_paise": 10000000,
+          "source_case_id": "CASE-2026-001"
+        }
+      ],
+      "victim_account": "ACC_VICTIM_01"
+    },
+    "CASE-2026-002": {
+      "fan_out_accounts": [
+        "ACC_MULE_SPLIT_01",
+        "ACC_MULE_SPLIT_02",
+        "ACC_MULE_SPLIT_03"
+      ],
+      "origin_transfer_paise": 15000000,
+      "source_lots": [
+        {
+          "initial_receiver": "ACC_SPLITTER_01",
+          "lot_id": "LOT-CASE2-01",
+          "original_amount_paise": 15000000,
+          "source_case_id": "CASE-2026-002"
+        }
+      ],
+      "victim_account": "ACC_VICTIM_02"
+    },
+    "CASE-2026-003": {
+      "expected_allocations": {
+        "ACC_MULE_PARTIAL_01": {
+          "received_suspected_paise": 20000000,
+          "retained_suspected_paise": 8000000,
+          "withdrawn_cash_paise": 12000000
+        }
+      },
+      "origin_transfer_paise": 20000000,
+      "source_lots": [
+        {
+          "initial_receiver": "ACC_MULE_PARTIAL_01",
+          "lot_id": "LOT-CASE3-01",
+          "original_amount_paise": 20000000,
+          "source_case_id": "CASE-2026-003"
+        }
+      ],
+      "victim_account": "ACC_VICTIM_03"
+    }
+  },
+  "scenarios": {
+    "commingling_funds": [
+      "TXN_0014",
+      "TXN_0026",
+      "TXN_0037"
+    ],
+    "direct_onward_transfer": [
+      "TXN_0009",
+      "TXN_0010"
+    ],
+    "incomplete_history_account": [
+      "TXN_0064"
+    ],
+    "merchant_multiple_customers": [
+      "TXN_0023",
+      "TXN_0024",
+      "TXN_0025",
+      "TXN_0028",
+      "TXN_0030",
+      "TXN_0032",
+      "TXN_0033",
+      "TXN_0034",
+      "TXN_0035",
+      "TXN_0036",
+      "TXN_0047",
+      "TXN_0051",
+      "TXN_0052",
+      "TXN_0054",
+      "TXN_0056",
+      "TXN_0058",
+      "TXN_0059",
+      "TXN_0060",
+      "TXN_0062",
+      "TXN_0063",
+      "TXN_0065",
+      "TXN_0066",
+      "TXN_0069",
+      "TXN_0070",
+      "TXN_0071",
+      "TXN_0072",
+      "TXN_0075",
+      "TXN_0077",
+      "TXN_0078",
+      "TXN_0079",
+      "TXN_0080",
+      "TXN_0081",
+      "TXN_0082",
+      "TXN_0083",
+      "TXN_0084",
+      "TXN_0085",
+      "TXN_0088",
+      "TXN_0090",
+      "TXN_0091",
+      "TXN_0092",
+      "TXN_0093",
+      "TXN_0094",
+      "TXN_0095"
+    ],
+    "ordinary_salary_and_business": [
+      "TXN_0001",
+      "TXN_0002",
+      "TXN_0003",
+      "TXN_0004",
+      "TXN_0005",
+      "TXN_0006",
+      "TXN_0007",
+      "TXN_0008",
+      "TXN_0012",
+      "TXN_0013",
+      "TXN_0015",
+      "TXN_0016",
+      "TXN_0017",
+      "TXN_0018",
+      "TXN_0019",
+      "TXN_0020",
+      "TXN_0021",
+      "TXN_0022",
+      "TXN_0027",
+      "TXN_0029",
+      "TXN_0031",
+      "TXN_0042",
+      "TXN_0043",
+      "TXN_0044",
+      "TXN_0045",
+      "TXN_0046",
+      "TXN_0048",
+      "TXN_0049",
+      "TXN_0050",
+      "TXN_0053",
+      "TXN_0055",
+      "TXN_0057",
+      "TXN_0073",
+      "TXN_0074",
+      "TXN_0076",
+      "TXN_0086",
+      "TXN_0087",
+      "TXN_0089",
+      "TXN_0096",
+      "TXN_0097",
+      "TXN_0098",
+      "TXN_0099",
+      "TXN_0100",
+      "TXN_0101",
+      "TXN_0102",
+      "TXN_0103",
+      "TXN_0104",
+      "TXN_0105",
+      "TXN_0106",
+      "TXN_0107",
+      "TXN_0108",
+      "TXN_0109",
+      "TXN_0110",
+      "TXN_0111",
+      "TXN_0112",
+      "TXN_0113",
+      "TXN_0114",
+      "TXN_0115",
+      "TXN_0116",
+      "TXN_0117",
+      "TXN_0118",
+      "TXN_0119"
+    ],
+    "partial_withdrawals_leaving_balance": [
+      "TXN_0011",
+      "TXN_0067",
+      "TXN_0068"
+    ],
+    "split_transfers_smurfing": [
+      "TXN_0038",
+      "TXN_0039",
+      "TXN_0040",
+      "TXN_0041",
+      "TXN_0061"
+    ]
+  },
+  "transactions_ground_truth": {
+    "TXN_0001": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0002": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0003": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0004": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0005": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0006": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0007": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0008": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0009": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "direct_onward_transfer",
+      "source_case_id": "CASE-2026-001",
+      "suspected_amount_paise": 10000000
+    },
+    "TXN_0010": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "direct_onward_transfer",
+      "source_case_id": "CASE-2026-001",
+      "suspected_amount_paise": 8000000
+    },
+    "TXN_0011": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "partial_withdrawals_leaving_balance",
+      "source_case_id": "CASE-2026-001",
+      "suspected_amount_paise": 500000
+    },
+    "TXN_0012": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 250000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0013": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0014": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 4000000,
+      "scenario": "commingling_funds",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0015": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0016": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0017": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0018": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0019": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0020": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0021": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0022": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0023": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 100000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0024": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 25000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0025": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 115000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0026": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "commingling_funds",
+      "source_case_id": "CASE-2026-001",
+      "suspected_amount_paise": 6000000
+    },
+    "TXN_0027": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 50000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0028": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 40000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0029": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 300000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0030": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 130000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0031": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 550000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0032": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 55000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0033": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 145000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0034": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 70000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0035": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 160000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0036": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 85000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0037": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "commingling_funds",
+      "source_case_id": "CASE-2026-001",
+      "suspected_amount_paise": 3000000
+    },
+    "TXN_0038": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "split_transfers_smurfing",
+      "source_case_id": "CASE-2026-002",
+      "suspected_amount_paise": 15000000
+    },
+    "TXN_0039": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "split_transfers_smurfing",
+      "source_case_id": "CASE-2026-002",
+      "suspected_amount_paise": 5000000
+    },
+    "TXN_0040": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "split_transfers_smurfing",
+      "source_case_id": "CASE-2026-002",
+      "suspected_amount_paise": 5000000
+    },
+    "TXN_0041": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "split_transfers_smurfing",
+      "source_case_id": "CASE-2026-002",
+      "suspected_amount_paise": 4000000
+    },
+    "TXN_0042": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0043": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0044": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0045": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0046": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0047": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 110000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0048": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0049": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0050": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0051": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 35000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0052": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 125000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0053": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 100000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0054": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 50000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0055": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0056": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 140000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0057": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 600000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0058": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "CASE-2026-002",
+      "suspected_amount_paise": 100000
+    },
+    "TXN_0059": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 65000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0060": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 155000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0061": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "split_transfers_smurfing",
+      "source_case_id": "CASE-2026-002",
+      "suspected_amount_paise": 4500000
+    },
+    "TXN_0062": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 80000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0063": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 170000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0064": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "incomplete_history_account",
+      "source_case_id": "CASE-2026-002",
+      "suspected_amount_paise": 3500000
+    },
+    "TXN_0065": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 95000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0066": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0067": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "partial_withdrawals_leaving_balance",
+      "source_case_id": "CASE-2026-003",
+      "suspected_amount_paise": 20000000
+    },
+    "TXN_0068": {
+      "contains_suspected_funds": true,
+      "legitimate_amount_paise": 0,
+      "scenario": "partial_withdrawals_leaving_balance",
+      "source_case_id": "CASE-2026-003",
+      "suspected_amount_paise": 12000000
+    },
+    "TXN_0069": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 120000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0070": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 45000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0071": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 135000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0072": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 60000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0073": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 150000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0074": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 400000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0075": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 150000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0076": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 650000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0077": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 75000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0078": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 165000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0079": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 90000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0080": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 180000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0081": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 105000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0082": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 130000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0083": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 55000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0084": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 145000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0085": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 70000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0086": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 200000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0087": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 450000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0088": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 160000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0089": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 700000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0090": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 85000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0091": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 175000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0092": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 100000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0093": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 190000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0094": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 115000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0095": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "merchant_multiple_customers",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0096": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0097": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0098": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0099": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0100": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0101": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0102": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0103": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 5000000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0104": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0105": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0106": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0107": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0108": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0109": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0110": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0111": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 1500000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0112": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0113": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0114": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0115": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0116": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0117": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0118": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    },
+    "TXN_0119": {
+      "contains_suspected_funds": false,
+      "legitimate_amount_paise": 350000,
+      "scenario": "ordinary_salary_and_business",
+      "source_case_id": "",
+      "suspected_amount_paise": 0
+    }
+  }
+}

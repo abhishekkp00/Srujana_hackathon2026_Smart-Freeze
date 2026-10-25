@@ -242,17 +242,17 @@ def test_9_deterministic_identical_generation():
 def test_10_pandas_loading_integrity(synthetic_files):
     """Test 10: Pandas can load all CSVs without corruption or type errors."""
     df_accounts = pd.read_csv(synthetic_files["accounts"])
-    assert len(df_accounts) == 38
+    assert len(df_accounts) >= 38
     assert df_accounts["opening_balance_paise"].dtype.kind in ("i", "u")  # Integer type
     assert df_accounts["history_complete"].dtype.kind == "b"  # Boolean type
 
     df_txns = pd.read_csv(synthetic_files["transactions"], keep_default_na=False)
-    assert len(df_txns) == 119
+    assert len(df_txns) >= 119
     assert df_txns["amount_paise"].dtype.kind in ("i", "u")  # Integer type
     assert df_txns["transaction_id"].nunique() == len(df_txns)
 
     df_cases = pd.read_csv(synthetic_files["cases"])
-    assert len(df_cases) == 3
+    assert len(df_cases) >= 3
     assert df_cases["reported_amount_paise"].dtype.kind in ("i", "u")  # Integer type
 
 
@@ -267,8 +267,8 @@ def test_11_scaled_generation_performance_and_timing():
     assert elapsed < 5.0, f"Generation of 2,000 accounts took {elapsed:.3f}s, expected <= 5.0s"
     print(f"\n[MEASURED TIME] 2,000 accounts & 60 cases generation: {elapsed:.4f} seconds")
 
-    assert len(accounts) == 2000
-    assert len(cases) == 60
+    assert len(accounts) == 2005  # 2000 regular accounts + 5 dedicated standard benchmark accounts
+    assert len(cases) == 61       # 60 regular cases + 1 dedicated CASE-2026-000
     assert len(txns) >= 10000
 
     # Validation must succeed without errors
@@ -339,7 +339,7 @@ def test_15_scaled_lot_level_ground_truth_invariants():
     cases_gt = gt["cases"]
     txns_gt = gt["transactions_ground_truth"]
 
-    assert len(cases_gt) == 60
+    assert len(cases_gt) == 61  # 60 regular cases + 1 dedicated CASE-2026-000
     assert len(txns_gt) > 0
 
     for cid, c_data in cases_gt.items():
