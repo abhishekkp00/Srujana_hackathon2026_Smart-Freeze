@@ -76,5 +76,6 @@
     "threshold_used": 0.95,
     "threshold_selection_reason": "Selected threshold 0.95 maximizes validation F1 score (0.5191) on the minority fraud class, optimizing the trade-off between precision and recall under severe class imbalance without referencing the test partition."
   },
-  "governance_notice": "The model output is an uncalibrated fraud-risk heuristic on European credit card PCA features. It does NOT establish legal guilt or liability, is NOT trained on Indian bank AML transactions, and does NOT alter proportional, FIFO, LIBR, or Consensus Lien tracing estimates."
+  "governance_notice": "The model output is an uncalibrated fraud-risk heuristic on European credit card PCA features. It does NOT establish legal guilt or liability, is NOT trained on Indian bank AML transactions, and does NOT alter proportional, FIFO, LIBR, or Consensus Lien tracing estimates.",
+  "artifact_sha256": "1021a083358d57312b6374fc108bfd6f03970ace90facb2245de1eb8b0f718f0"
 }
