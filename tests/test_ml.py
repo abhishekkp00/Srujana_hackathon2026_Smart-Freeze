@@ -263,3 +263,21 @@ def test_ml_predictions_do_not_change_tracing_results(client: TestClient):
     assert before_data["total_lower_bound_paise"] == after_data["total_lower_bound_paise"]
     assert before_data["total_upper_bound_paise"] == after_data["total_upper_bound_paise"]
     assert before_data["total_disagreement_paise"] == after_data["total_disagreement_paise"]
+
+
+def test_smart_freeze_model_dir_env_var(monkeypatch, tmp_path):
+    """Verify SMART_FREEZE_MODEL_DIR overrides default model directory."""
+    custom_dir = tmp_path / "custom_models"
+    custom_dir.mkdir()
+    monkeypatch.setenv("SMART_FREEZE_MODEL_DIR", str(custom_dir))
+
+    # Import/instantiate service with custom model dir
+    service = MLService(
+        artifact_path=custom_dir / "fraud_detector_v1.joblib",
+        metadata_path=custom_dir / "model_metadata.json",
+        demo_path=custom_dir / "demo_samples.json",
+    )
+    status = service.get_status()
+    assert status["status"] == "UNAVAILABLE"
+    assert not service.is_loaded
+
