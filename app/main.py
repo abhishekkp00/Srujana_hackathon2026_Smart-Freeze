@@ -1021,6 +1021,8 @@ def get_transaction_graph(
                 & (all_rows["_flow_ts"] > arrived_at)
             ]
             for _, tx in context_rows.iterrows():
+                if len(selected_by_id) >= max_edges:
+                    break
                 tx_id = str(tx["transaction_id"])
                 if tx_id == source_transaction_id or tx_id in selected_by_id:
                     continue
