@@ -224,7 +224,7 @@ export const MoneyFlow: React.FC = () => {
             'text-valign': 'center',
             'text-halign': 'center',
             'text-background-opacity': 0,
-            padding: 4,
+            padding: '4px',
           },
         },
         {
@@ -263,7 +263,7 @@ export const MoneyFlow: React.FC = () => {
             color: '#334155',
             'text-background-color': '#FFFFFF',
             'text-background-opacity': 0.96,
-            'text-background-padding': 2,
+            'text-background-padding': '2px',
             'text-rotation': 'autorotate',
             'line-cap': 'round',
           },
