@@ -2,13 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import cytoscape from 'cytoscape';
 import {
-  ArrowDownRight,
   ArrowRight,
   AlertTriangle,
   CheckCircle2,
   CircleDollarSign,
-  Clock3,
-  GitBranch,
   RefreshCw,
   ShieldAlert,
   Waypoints,
@@ -37,7 +34,9 @@ const basisLabel = (edge: GraphEdge) =>
       ? 'Linked to this case'
       : edge.linkage_basis === 'CHRONOLOGICALLY_REACHABLE'
         ? 'Chronologically reachable'
-        : 'Ledger transaction';
+        : edge.linkage_basis === 'ACCOUNT_CONTEXT'
+          ? 'Account context / commingling'
+          : 'Ledger transaction';
 
 const basisVariant = (edge: GraphEdge): 'danger' | 'warning' | 'neutral' =>
   edge.is_source_transaction || edge.linkage_basis === 'CASE_REFERENCE'
