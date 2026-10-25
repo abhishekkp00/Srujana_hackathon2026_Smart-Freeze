@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { BriefcaseBusiness, LoaderCircle, ShieldCheck } from 'lucide-react';
+import { LoaderCircle } from 'lucide-react';
 import { apiClient, DEMO_TOKEN_KEY } from './api/client';
 import { Sidebar } from './components/layout/Sidebar';
 import { Navbar } from './components/layout/Navbar';
