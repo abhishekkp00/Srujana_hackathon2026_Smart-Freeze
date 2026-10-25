@@ -517,7 +517,7 @@ export const TraceProof: React.FC = () => {
                     This transaction link is <strong>unresolved</strong>. The counterparty institution (Bank C) did not supply a signed evidence envelope or the query timed out.
                   </p>
                   <p className="text-[11px] text-amber-700">
-                    In compliance with FairHold financial integrity principles, this link remains visibly unverified. It cannot be used to justify lien holds on downstream merchant accounts.
+                    In compliance with Smart-Freeze financial integrity principles, this link remains visibly unverified. It cannot be used to justify lien holds on downstream merchant accounts.
                   </p>
                 </div>
               ) : (
