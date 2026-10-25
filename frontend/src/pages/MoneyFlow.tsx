@@ -250,7 +250,7 @@ export const MoneyFlow: React.FC = () => {
         group: 'nodes' as const,
         data: {
           id: node.id,
-          label: node.id,
+          label: node.flagged_by_case_evidence ? `${node.id}\nFLAGGED RECIPIENT` : node.id,
           isExternal: node.is_external,
           isOrigin: Boolean(node.is_origin_account),
           flaggedByEvidence: Boolean(node.flagged_by_case_evidence),
@@ -285,7 +285,7 @@ export const MoneyFlow: React.FC = () => {
             label: 'data(label)',
             shape: 'round-rectangle',
             width: '158px',
-            height: '48px',
+            height: '56px',
             'background-color': '#fafbf9',
             'border-width': 1.4,
             'border-color': '#ccd2ca',
@@ -556,7 +556,6 @@ export const MoneyFlow: React.FC = () => {
                           <div><div className="text-slate-500">Recorded at</div><div className="mt-1 text-slate-800">{dateTime(currentProposal.created_at)}</div></div>
                           <div><div className="text-slate-500">Status</div><div className="mt-1 text-slate-800">Pending review · simulation only</div></div>
                         </div>
-                        <button type="button" onClick={() => setActiveProposal(null)} className="border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50">Create another proposal</button>
                       </div>
                     ) : (
                       <button type="button" onClick={() => void runHoldSimulation()} disabled={!selectedCandidate || creatingHold} className="inline-flex w-full items-center justify-center gap-2 border border-slate-800 bg-slate-800 px-3 py-2.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50">
