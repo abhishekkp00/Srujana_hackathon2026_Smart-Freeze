@@ -1137,7 +1137,9 @@ def get_transaction_graph(
         involved_account_ids.add(from_id)
         involved_account_ids.add(to_id)
         if str(tx.get("evidence_status", "")).strip().lower() == "suspected_fraud":
-            flagged_account_ids.update((from_id, to_id))
+            # Flag the receiving node on a suspected transfer, not the sending victim/source.
+            if to_id not in source_accounts:
+                flagged_account_ids.add(to_id)
 
     account_map = {str(row["account_id"]): row for _, row in accounts_df.iterrows()}
     nodes: List[GraphNode] = []
