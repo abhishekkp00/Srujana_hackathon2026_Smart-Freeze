@@ -14,6 +14,7 @@ import {
   Activity,
   ChevronRight,
   Radio,
+  Waypoints,
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -67,6 +68,14 @@ export const Sidebar: React.FC = () => {
             <SlidersHorizontal size={16} strokeWidth={1.8} className="fh-sub-icon" />
             <span>Transaction Explorer</span>
           </NavLink>
+          <NavLink
+            to="/money-flow"
+            className={({ isActive }) => `fh-sub-link ${isActive ? 'is-active' : ''}`}
+          >
+            <Waypoints size={16} strokeWidth={1.8} className="fh-sub-icon" />
+            <span>Money Flow</span>
+          </NavLink>
+
 
           <NavLink
             to="/traceproof"
@@ -80,13 +89,7 @@ export const Sidebar: React.FC = () => {
             <ChevronRight size={14} className="text-slate-500 opacity-70 group-hover:opacity-100" />
           </NavLink>
 
-          <NavLink
-            to="/consensus-lien"
-            className={({ isActive }) => `fh-sub-link ${isActive ? 'is-active' : ''}`}
-          >
-            <GitFork size={16} strokeWidth={1.8} className="fh-sub-icon" />
-            <span>Tracing Analysis</span>
-          </NavLink>
+          
 
           <NavLink
             to="/consensus-lien"
@@ -96,13 +99,7 @@ export const Sidebar: React.FC = () => {
             <span>Consensus Lien</span>
           </NavLink>
 
-          <NavLink
-            to="/security"
-            className={({ isActive }) => `fh-sub-link ${isActive ? 'is-active' : ''}`}
-          >
-            <ShieldCheck size={16} strokeWidth={1.8} className="fh-sub-icon" />
-            <span>Evidence Vault</span>
-          </NavLink>
+          
         </div>
 
         {/* Section: ANALYTICS */}
@@ -136,13 +133,7 @@ export const Sidebar: React.FC = () => {
             <span>Security & Audit</span>
           </NavLink>
 
-          <NavLink
-            to="/data-quality"
-            className={({ isActive }) => `fh-sub-link ${isActive ? 'is-active' : ''}`}
-          >
-            <Activity size={16} strokeWidth={1.8} className="fh-sub-icon" />
-            <span>System Health</span>
-          </NavLink>
+          
         </div>
       </nav>
 
@@ -159,8 +150,8 @@ export const Sidebar: React.FC = () => {
         </div>
 
         <div className="fh-version-row">
-          <span className="fh-live-dot" />
-          <span className="font-mono text-xs">FairHold v1.0.0</span>
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          <span className="text-xs">Local demonstration build</span>
         </div>
       </div>
     </aside>
