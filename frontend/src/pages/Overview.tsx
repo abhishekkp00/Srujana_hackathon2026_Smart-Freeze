@@ -24,7 +24,7 @@ import { OverviewData, CaseSummary, TransactionItem } from '../types';
 import './Overview.css';
 
 const formatINR = (amount: number) =>
-  `₹${Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })};
+  `₹${Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
 const formatExactINR = (amount: number) =>
   `₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -52,11 +52,6 @@ const formatDateTime = (value: string) => {
     hour12: false,
     timeZone: 'UTC',
   }) + ' UTC';
-};
-
-const priorityLabel = (value: string) => {
-  if (value === 'UNSCORED') return 'Not scored';
-  return value.charAt(0) + value.slice(1).toLowerCase();
 };
 
 interface DashboardData {
@@ -198,7 +193,7 @@ export const Overview: React.FC = () => {
   }
 
   const { overview, cases, transactionTotal } = data;
-  const hasTransactionSample = transactionTotal > transactions.length;
+  const hasTransactionSample = transactionTotal > data.transactions.length;
 
   return (
     <div className="sf-dashboard">
@@ -234,7 +229,7 @@ export const Overview: React.FC = () => {
           <div className="sf-kpi-top"><span>Evidence flags</span><ShieldCheck size={16} /></div>
           <div className="sf-kpi-value">{flaggedTransactions.length.toLocaleString('en-IN')}</div>
           <div className="sf-kpi-foot">
-            {hasTransactionSample ? `In the latest ${transactions.length} rows returned` : 'Suspected-fraud flags in returned ledger rows'}
+            {hasTransactionSample ? `In the latest ${data.transactions.length} rows returned` : 'Suspected-fraud flags in returned ledger rows'}
           </div>
         </article>
       </section>
@@ -311,7 +306,7 @@ export const Overview: React.FC = () => {
             <div className="sf-chart-empty">No dated transaction rows are available.</div>
           )}
           <div className="sf-panel-footnote">
-            {hasTransactionSample ? `Chart is based on the first ${transactions.length} rows returned by the API.` : 'Each bar is derived from transaction timestamps in the ledger.'}
+            {hasTransactionSample ? `Chart is based on the first ${data.transactions.length} rows returned by the API.` : 'Each bar is derived from transaction timestamps in the ledger.'}
           </div>
         </article>
       </section>
