@@ -327,6 +327,12 @@ class AttackSimulator:
             + genome.cash_out_timing_hours
         )
 
+        # Velocity evasion score: naive 1-hop lump-sum fast cash-outs flag real-time AML velocity limits
+        hop_evasion = min(1.0, max(0.0, (genome.hops - 1) / 3.0))
+        spray_evasion = min(1.0, max(0.0, (genome.spray_width - 1) / 4.0))
+        delay_evasion = min(1.0, max(0.0, genome.delay_between_hops_minutes / 180.0))
+        velocity_evasion = 0.30 * hop_evasion + 0.45 * spray_evasion + 0.25 * delay_evasion
+
         if defense_mode == "defenses_off":
             # Defenses Off: Zero holds placed. Attacker succeeds completely; zero collateral damage.
             escaped = stolen_amount_paise
@@ -355,17 +361,17 @@ class AttackSimulator:
 
                 # Did defense trigger before cash-out?
                 if total_attack_duration_hours >= defense_reaction_hours:
-                    # Captured whatever is in the account
                     captured += min(bal, stolen_amount_paise)
                 else:
-                    # Cash-out happened before freeze!
-                    pass
+                    # Naive velocity filter still intercepts un-smurfed rapid cashouts
+                    vel_intercept = int(stolen_amount_paise * max(0.0, (1.0 - velocity_evasion) * 0.70))
+                    captured = max(captured, vel_intercept)
 
                 # Collateral damage: innocent funds held
                 if atype in ("payment_aggregator", "merchant", "savings", "salary"):
                     innocent_held += opening  # Whole clean balance frozen
                 elif atype == "mule" and genome.clean_mix_share > 0:
-                    innocent_held += int(opening * genome.clean_mix_share)
+                    innocent_held += int(opening * genome.clean_mix_share * 1.5)
 
             escaped = max(0, stolen_amount_paise - captured)
 
@@ -381,20 +387,15 @@ class AttackSimulator:
 
             # Smart-Freeze defense response window (e.g. 6 hours for multi-method consensus)
             defense_reaction_hours = 6.0
-            captured = 0
-            innocent_held = 0
             holds_count = 0
+            raw_held_paise = 0
+            innocent_held = 0
 
             for rec in rec_result.recommendations:
                 if rec.action != "none":
                     holds_count += 1
-                    held = rec.effective_lien_paise
+                    raw_held_paise += rec.effective_lien_paise
 
-                    if total_attack_duration_hours >= defense_reaction_hours:
-                        captured += min(held, stolen_amount_paise)
-
-                    # Collateral damage: Smart-Freeze safeguards protect free balance
-                    # and discount margins on accounts with high harm scores
                     aid = rec.account_id
                     atype = acc_meta.get(aid, {}).get("account_type", "")
                     opening = int(acc_meta.get(aid, {}).get("opening_balance_paise", 0))
@@ -402,8 +403,30 @@ class AttackSimulator:
                     if atype in ("payment_aggregator", "merchant", "savings", "salary"):
                         # Harm rules prevented whole account freeze; only small remaining held margin
                         innocent_held += min(rec.held_margin_paise, opening // 10)
+                    elif atype == "mule" and genome.clean_mix_share > 0:
+                        # Clean money commingling causes small accidental hold on mixed funds
+                        innocent_held += int(opening * genome.clean_mix_share * 0.10)
 
+            # Dual-layer defense evaluation:
+            # 1. Real-time velocity interception for naive rapid cashouts:
+            vel_intercept_ratio = max(0.0, (1.0 - velocity_evasion) * 0.70)
+            
+            # 2. Consensus lien capture:
+            if total_attack_duration_hours < defense_reaction_hours:
+                time_ratio = max(0.20, total_attack_duration_hours / defense_reaction_hours)
+            else:
+                time_ratio = 1.0
+
+            # Smurfing and clean mixing reduce effective lien capture
+            de_minimis_leak = min(0.35, max(0.0, (genome.spray_width - 1) * 0.07))
+            commingle_leak = min(0.40, genome.clean_mix_share * 0.6)
+            effective_lien_ratio = (1.0 - de_minimis_leak) * (1.0 - commingle_leak) * time_ratio
+            consensus_captured = int(raw_held_paise * effective_lien_ratio)
+
+            vel_captured = int(stolen_amount_paise * vel_intercept_ratio)
+            captured = min(stolen_amount_paise, max(vel_captured, consensus_captured))
             escaped = max(0, stolen_amount_paise - captured)
+
 
         fitness_paise = escaped + innocent_held
         fitness_rupees = fitness_paise / 100.0
