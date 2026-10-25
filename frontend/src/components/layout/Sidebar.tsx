@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Waypoints, Scale } from 'lucide-react';
+import { LayoutDashboard, Waypoints, Scale, ShieldCheck } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
@@ -27,6 +27,10 @@ export const Sidebar: React.FC = () => {
           <NavLink to={linkTo('/consensus-lien')} className={({ isActive }) => `fh-sub-link ${isActive ? 'is-active' : ''}`}>
             <Scale size={16} strokeWidth={1.8} className="fh-sub-icon" />
             <span>Consensus Lien</span>
+          </NavLink>
+          <NavLink to={linkTo('/recommendations')} className={({ isActive }) => `fh-sub-link ${isActive ? 'is-active' : ''}`}>
+            <ShieldCheck size={16} strokeWidth={1.8} className="fh-sub-icon" />
+            <span>Recommended actions</span>
           </NavLink>
         </div>
       </nav>

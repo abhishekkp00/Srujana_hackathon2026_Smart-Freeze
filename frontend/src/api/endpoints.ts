@@ -21,6 +21,8 @@ import {
   HoldPreview,
   DemoHoldProposal,
   DemoHoldProposalRequest,
+  CaseRecommendationsData,
+  AccountRecommendation,
 } from '../types';
 
 export const getOverview = async (): Promise<OverviewData> => {
@@ -161,6 +163,19 @@ export const verifyEvidenceEnvelope = async (
   const { data } = await apiClient.post<EnvelopeVerificationResult>('/api/traceproof/verify-envelope', {
     envelope,
   });
+  return data;
+};
+
+export const getCaseRecommendations = async (
+  caseId: string,
+  policy: string = 'balanced',
+  deMinimisPaise?: number
+): Promise<CaseRecommendationsData> => {
+  const params: Record<string, any> = { policy };
+  if (deMinimisPaise !== undefined) {
+    params.de_minimis_paise = deMinimisPaise;
+  }
+  const { data } = await apiClient.get<CaseRecommendationsData>(`/api/cases/${caseId}/recommendations`, { params });
   return data;
 };
 

@@ -444,3 +444,35 @@ export interface StartTraceRequest {
   max_hops?: number;
 }
 
+export interface AccountRecommendation {
+  account_id: string;
+  core: number;
+  margin: number;
+  free: number;
+  action: 'none' | 'lien_core' | 'lien_core_plus_margin' | 'outflow_cap' | 'account_level_hold';
+  reasons: string[];
+  policy_version: string;
+  requires_human_approval: boolean;
+  harm_score: number;
+  mule_score: number;
+  current_balance_paise: number;
+  held_core_paise: number;
+  held_margin_paise: number;
+  effective_lien_paise: number;
+  margin_hold_duration_hours?: number | null;
+}
+
+export interface CaseRecommendationsData {
+  case_id: string;
+  policy_name: string;
+  policy_version: string;
+  stolen_amount_paise: number;
+  joint_cap_paise: number;
+  recommendations: AccountRecommendation[];
+  total_core_paise: number;
+  total_margin_paise: number;
+  total_held_paise: number;
+  requires_human_approval_count: number;
+  governance_notice: string;
+}
+

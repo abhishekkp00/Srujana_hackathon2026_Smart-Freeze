@@ -1,0 +1,42 @@
+{
+  "version": "1.0.0",
+  "default_policy": "balanced",
+  "policies": {
+    "conservative": {
+      "name": "conservative",
+      "display_name": "Conservative (Pro-Account Holder)",
+      "description": "Protects legitimate commerce and personal livelihood with higher de-minimis threshold and strict harm mitigation.",
+      "de_minimis_total_paise": 500000,
+      "harm_reduction_factor": 1.0,
+      "mule_score_threshold": 75.0,
+      "large_margin_threshold_paise": 200000,
+      "margin_hold_duration_hours": 24,
+      "allow_automatic_margin_hold": false,
+      "outflow_cap_daily_paise": 1000000
+    },
+    "balanced": {
+      "name": "balanced",
+      "display_name": "Balanced (Prudent Standard)",
+      "description": "Balances fund recovery against operational disruption using calibrated harm discounting on margin holds.",
+      "de_minimis_total_paise": 200000,
+      "harm_reduction_factor": 0.6,
+      "mule_score_threshold": 60.0,
+      "large_margin_threshold_paise": 100000,
+      "margin_hold_duration_hours": 48,
+      "allow_automatic_margin_hold": true,
+      "outflow_cap_daily_paise": 500000
+    },
+    "aggressive": {
+      "name": "aggressive",
+      "display_name": "Aggressive (Maximum Recovery)",
+      "description": "Prioritizes immediate fund preservation with lower de-minimis limits and minimal harm-based margin discounting.",
+      "de_minimis_total_paise": 50000,
+      "harm_reduction_factor": 0.2,
+      "mule_score_threshold": 45.0,
+      "large_margin_threshold_paise": 50000,
+      "margin_hold_duration_hours": 72,
+      "allow_automatic_margin_hold": true,
+      "outflow_cap_daily_paise": 200000
+    }
+  }
+}

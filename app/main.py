@@ -21,6 +21,7 @@ import pandas as pd
 from engine.behavioural_features import CaseFeatures
 from engine.consensus_explanations import ConsensusExplanationBuilder
 from engine.consensus_lien import ConsensusLienEngine, ConsensusLienResult
+from engine.decision import DecisionEngine, DecisionAction, CaseRecommendationsResult
 from engine.fifo import FIFOTracer
 from engine.investigation_score import (
     GOVERNANCE_DISCLAIMER,
@@ -503,6 +504,38 @@ class DataQualityResponse(BaseModel):
     datasets: List[DataQualityDatasetItem]
     overall_status: str
     ledger_conservation_valid: bool
+
+
+class AccountRecommendationModel(BaseModel):
+    account_id: str
+    core: int
+    margin: int
+    free: int
+    action: str
+    reasons: List[str]
+    policy_version: str
+    requires_human_approval: bool
+    harm_score: float = 0.0
+    mule_score: float = 0.0
+    current_balance_paise: int = 0
+    held_core_paise: int = 0
+    held_margin_paise: int = 0
+    effective_lien_paise: int = 0
+    margin_hold_duration_hours: Optional[int] = None
+
+
+class CaseRecommendationsResponse(BaseModel):
+    case_id: str
+    policy_name: str
+    policy_version: str
+    stolen_amount_paise: int
+    joint_cap_paise: int
+    recommendations: List[AccountRecommendationModel]
+    total_core_paise: int
+    total_margin_paise: int
+    total_held_paise: int
+    requires_human_approval_count: int
+    governance_notice: str
 
 
 # ==============================================================================
@@ -1333,6 +1366,75 @@ def get_consensus_lien(
         explanation=explanation,
         governance_notice=GOVERNANCE_DISCLAIMER,
     )
+
+
+@app.get("/api/cases/{case_id}/recommendations", response_model=CaseRecommendationsResponse)
+@app.get("/api/recommendations/{case_id}", response_model=CaseRecommendationsResponse)
+def get_case_recommendations(
+    case_id: str,
+    request: Request,
+    auth: AuthContext = Depends(get_current_user),
+    policy: str = Query("balanced", description="Policy dial: conservative, balanced, or aggressive"),
+    de_minimis_paise: Optional[int] = Query(None, description="Optional override for de-minimis threshold in paise"),
+) -> CaseRecommendationsResponse:
+    """Computes explainable, safeguard-guaranteed action recommendations per account.
+
+    Core: Minimum across Proportional, FIFO, and LIBR.
+    Margin: Disagreement range within joint cap.
+    Safeguards:
+    - Harm signals and evidence only reduce the margin, never the core.
+    - Uploaded documents never release anything alone.
+    - Accounts below de-minimis total stolen amount get tracking, not a hold.
+    - If core is 0, margin is large, and mule score is high, recommend time-boxed margin hold needing approval.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    check_case_access(case_id, auth, endpoint=request.url.path, method="GET", client_ip=client_ip)
+
+    data = get_ledger_data()
+    cases_df = data["cases_df"]
+    txs_df = data["transactions_df"]
+    accs_df = data["accounts_df"]
+
+    matched = cases_df[cases_df["case_id"] == case_id]
+    if matched.empty:
+        raise HTTPException(status_code=404, detail=f"Case '{case_id}' not found.")
+
+    case_txs = txs_df[txs_df["case_id"] == case_id]
+    if case_txs.empty:
+        raise HTTPException(status_code=400, detail=f"No transactions linked to case '{case_id}'.")
+
+    origin_tx = select_case_source_transaction(case_txs)
+    if origin_tx is None:
+        raise HTTPException(status_code=400, detail=f"No source transaction is available for case '{case_id}'.")
+    origin_tx_id = str(origin_tx["transaction_id"])
+
+    # Compute mule scores from scoring engine or behavioral features if available
+    mule_scores: Dict[str, float] = {}
+    try:
+        scoring_res = InvestigationScoringEngine.score_case(
+            case_id=case_id,
+            transactions_df=txs_df,
+            accounts_df=accs_df,
+            cases_df=cases_df,
+        )
+        if scoring_res and scoring_res.component_b and scoring_res.component_b.subfactors:
+            for acc in accs_df["account_id"]:
+                mule_scores[str(acc)] = scoring_res.final_score or 50.0
+    except Exception:
+        pass
+
+    engine = DecisionEngine()
+    result = engine.evaluate_case(
+        case_id=case_id,
+        accounts=accs_df,
+        transactions=txs_df,
+        source_transaction_id=origin_tx_id,
+        policy_name=policy,
+        mule_scores=mule_scores,
+        override_de_minimis=de_minimis_paise,
+    )
+
+    return CaseRecommendationsResponse(**result.to_dict())
 
 
 def _build_hold_preview(case_id: str, request: Request, auth: AuthContext) -> HoldPreviewResponse:
