@@ -156,25 +156,6 @@ export const MoneyFlow: React.FC = () => {
     return () => { cancelled = true; };
   }, [caseId, cases, refreshKey]);
 
-  useEffect(() => {
-    if (!isPlaying) return;
-    const shouldAnimatePath = activePhase === 0 && edges.length > 1 && playingEdgeIndex < edges.length - 1;
-    const timer = window.setTimeout(() => {
-      if (shouldAnimatePath) {
-        setPlayingEdgeIndex((current) => Math.min(current + 1, edges.length - 1));
-        return;
-      }
-      setActivePhase((current) => {
-        if (current >= phases.length - 1) {
-          setIsPlaying(false);
-          return current;
-        }
-        setPlayingEdgeIndex(0);
-        return current + 1;
-      });
-    }, shouldAnimatePath ? 750 : 1800);
-    return () => window.clearTimeout(timer);
-  }, [isPlaying, activePhase, playingEdgeIndex, edges.length]);
 
   const selectedCase = cases.find((item) => item.case_id === caseId) ?? null;
   const edges = useMemo(
@@ -197,6 +178,25 @@ export const MoneyFlow: React.FC = () => {
     eligibleCandidates.find((candidate) => candidate.account_id === holdAccountId) ?? null;
   const hopCount = edges.reduce((max, edge) => Math.max(max, edge.flow_hop ?? 0), 0);
   const sourceEdge = edges.find((edge) => edge.is_source_transaction) ?? edges[0] ?? null;
+  useEffect(() => {
+    if (!isPlaying) return;
+    const shouldAnimatePath = activePhase === 0 && edges.length > 1 && playingEdgeIndex < edges.length - 1;
+    const timer = window.setTimeout(() => {
+      if (shouldAnimatePath) {
+        setPlayingEdgeIndex((current) => Math.min(current + 1, edges.length - 1));
+        return;
+      }
+      setActivePhase((current) => {
+        if (current >= phases.length - 1) {
+          setIsPlaying(false);
+          return current;
+        }
+        setPlayingEdgeIndex(0);
+        return current + 1;
+      });
+    }, shouldAnimatePath ? 750 : 1800);
+    return () => window.clearTimeout(timer);
+  }, [isPlaying, activePhase, playingEdgeIndex, edges.length]);
 
   const changeCase = (nextCaseId: string) => {
     setIsPlaying(false);
