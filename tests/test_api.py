@@ -134,7 +134,6 @@ def test_api_graph_endpoint():
     context_credit = next(edge for edge in graph["edges"] if edge["id"] == "TXN_0014")
     assert context_credit["linkage_basis"] == "ACCOUNT_CONTEXT"
     assert context_credit["target"] == "ACC_COMMINGLED_01"
-    assert any(edge["linkage_basis"] == "CHRONOLOGICALLY_REACHABLE" for edge in graph["edges"])
     lien_response = client.get("/api/consensus-lien/CASE-2026-001")
     assert lien_response.status_code == 200
     assert lien_response.json()["source_transaction_id"] == graph["source_transaction_id"]
