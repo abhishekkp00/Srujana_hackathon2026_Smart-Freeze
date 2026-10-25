@@ -7,6 +7,7 @@ import { Navbar } from './components/layout/Navbar';
 import { Overview } from './pages/Overview';
 import { MoneyFlow } from './pages/MoneyFlow';
 import { ConsensusLien } from './pages/ConsensusLien';
+import { LandingPage } from './pages/LandingPage';
 
 interface DemoPersona {
   persona_id: string;
@@ -164,48 +165,13 @@ const AuthGate: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f4ef] px-5 py-10 flex items-center justify-center">
-      <div className="w-full max-w-xl">
-        <div className="eyebrow">SMART-FREEZE / LOCAL DEMO</div>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#24332d]">Follow the money trail</h1>
-        <p className="mt-2 text-sm leading-6 text-[#7a837a]">A single local demo identity is used to inspect the synthetic case ledger. This is not a live bank connection.</p>
-        {error && <div className="fh-error mt-5">{error}</div>}
-
-        {authStatus?.demo_auth_enabled && demoPersona ? (
-          <div className="mt-6 surface p-5">
-            <div className="flex items-start gap-3">
-              <div className="rounded-md bg-[#e9f0eb] p-2 text-[#1f4a40]"><ShieldCheck size={18} /></div>
-              <div className="min-w-0 flex-1">
-                <div className="font-semibold text-[#2d3b32]">{demoPersona.display_name}</div>
-                <div className="mt-1 text-xs text-[#7d8580]">{demoPersona.assigned_case_count} cases available from the local ledger</div>
-              </div>
-            </div>
-            <button
-              type="button"
-              disabled={starting}
-              onClick={() => void startDemoSession()}
-              className="mt-5 w-full rounded-md bg-[#174b3b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0f3d2f] disabled:opacity-60"
-            >
-              {starting ? 'Starting demo…' : 'Enter Smart-Freeze'}
-            </button>
-          </div>
-        ) : (
-          <div className="mt-6 surface p-5">
-            <div className="flex items-start gap-3">
-              <BriefcaseBusiness size={20} className="mt-0.5 text-[#8b6b3f]" />
-              <div>
-                <h2 className="font-semibold text-[#2d3b32]">Local demo session is disabled</h2>
-                <p className="mt-1 text-sm leading-6 text-[#7a837a]">{authStatus?.message || 'Start FastAPI with SMART_FREEZE_ENV=development and ENABLE_DEMO_AUTH=true.'}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-5 border-t border-[#e2e4dc] pt-3 text-xs leading-5 text-[#92988e]">
-          Demo-only authentication · synthetic data · no production banking access
-        </div>
-      </div>
-    </div>
+    <LandingPage
+      demoEnabled={Boolean(authStatus?.demo_auth_enabled)}
+      demoPersona={demoPersona}
+      starting={starting}
+      error={error}
+      onEnterDemo={() => void startDemoSession()}
+    />
   );
 };
 
