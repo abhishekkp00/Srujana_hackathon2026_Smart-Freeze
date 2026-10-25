@@ -1,6 +1,6 @@
 """Deterministic Performance Benchmark & Competition Scenario Verification Script.
 
-Measures actual, reproducible operational performance of FairHold Smart-Freeze
+Measures actual, reproducible operational performance of Smart-Freeze Smart-Freeze
 under local hardware conditions without simulation extrapolation.
 """
 
