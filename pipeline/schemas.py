@@ -49,6 +49,11 @@ ALLOWED_ACCOUNT_TYPES = {
     "corporate",
     "merchant",
     "salary",
+    "salaried",
+    "gig",
+    "payment_aggregator",
+    "payment-aggregator",
+    "mule",
 }
 
 ALLOWED_TRANSACTION_TYPES = {

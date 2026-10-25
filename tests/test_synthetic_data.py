@@ -254,3 +254,154 @@ def test_10_pandas_loading_integrity(synthetic_files):
     df_cases = pd.read_csv(synthetic_files["cases"])
     assert len(df_cases) == 3
     assert df_cases["reported_amount_paise"].dtype.kind in ("i", "u")  # Integer type
+
+
+def test_11_scaled_generation_performance_and_timing():
+    """Test 11: 2,000 accounts and 60 cases generate in a reasonable time (<= 5 seconds)."""
+    import time
+    t0 = time.perf_counter()
+    accounts, txns, cases, gt = generate_all_data(seed=42, num_accounts=2000, num_cases=60)
+    elapsed = time.perf_counter() - t0
+
+    # Measured time assertion
+    assert elapsed < 5.0, f"Generation of 2,000 accounts took {elapsed:.3f}s, expected <= 5.0s"
+    print(f"\n[MEASURED TIME] 2,000 accounts & 60 cases generation: {elapsed:.4f} seconds")
+
+    assert len(accounts) == 2000
+    assert len(cases) == 60
+    assert len(txns) >= 10000
+
+    # Validation must succeed without errors
+    validate_dataset(accounts, txns, cases, gt)
+
+
+def test_12_scaled_dataset_account_types_and_traffic():
+    """Test 12: Account types include salaried, merchant, gig, payment-aggregator, and mule with 30-day traffic."""
+    accounts, txns, cases, gt = generate_all_data(seed=42, num_accounts=2000, num_cases=60)
+    acc_types = {a["account_type"] for a in accounts}
+    expected_types = {"salaried", "merchant", "gig", "payment_aggregator", "mule", "savings"}
+    assert expected_types.issubset(acc_types), f"Missing expected account types: {expected_types - acc_types}"
+
+    # 30 days of traffic verification
+    dates = {t["timestamp"][:10] for t in txns}
+    assert len(dates) >= 28, f"Traffic only spans {len(dates)} days, expected ~30 days"
+
+    # Transaction types in normal traffic
+    txn_types = {t["transaction_type"] for t in txns}
+    assert "salary_credit" in txn_types
+    assert "merchant_payment" in txn_types
+    assert "transfer" in txn_types
+
+
+def test_13_scaled_scam_families_and_structuring_threshold():
+    """Test 13: Covers 4 scam families: A layered chain, B tiny spray, C commingling, D structuring."""
+    accounts, txns, cases, gt = generate_all_data(seed=42, num_accounts=2000, num_cases=60)
+    scenarios = gt["scenarios"]
+    for fam in [
+        "family_a_layered_chain",
+        "family_b_tiny_amount_spray",
+        "family_c_heavy_commingling",
+        "family_d_structuring_below_threshold",
+    ]:
+        assert fam in scenarios and len(scenarios[fam]) > 0, f"Missing scam family {fam}"
+
+    # Verify Family D structuring threshold (< 5,000,000 paise / ₹50,000)
+    txn_map = {t["transaction_id"]: t for t in txns}
+    for tid in scenarios["family_d_structuring_below_threshold"]:
+        t = txn_map[tid]
+        assert t["amount_paise"] < 5_000_000, (
+            f"Family D structured transaction {tid} amount {t['amount_paise']} >= 5,000,000 paise threshold"
+        )
+
+
+def test_14_scaled_hard_cases():
+    """Test 14: Hard cases present: a mule with long history, and an innocent aggregator with fast pass-through."""
+    accounts, txns, cases, gt = generate_all_data(seed=42, num_accounts=2000, num_cases=60)
+
+    # Seasoned mule with long history (Mule 1 to 30)
+    seasoned_mule = "ACC_MULE_0001"
+    mule_txns = [t for t in txns if t["from_account"] == seasoned_mule or t["to_account"] == seasoned_mule]
+    assert len(mule_txns) > 2, f"Seasoned mule {seasoned_mule} lacks long transaction history"
+    legit_types = {t["transaction_type"] for t in mule_txns}
+    assert "salary_credit" in legit_types or "transfer" in legit_types, "Seasoned mule lacks legitimate history"
+
+    # Innocent payment aggregator with fast pass-through
+    agg_id = "ACC_AGG_0001"
+    agg_txns = [t for t in txns if t["from_account"] == agg_id or t["to_account"] == agg_id]
+    assert len(agg_txns) > 10, f"Innocent aggregator {agg_id} lacks high-volume pass-through traffic"
+    outflows = [t for t in agg_txns if t["from_account"] == agg_id]
+    assert len(outflows) > 0, f"Aggregator {agg_id} lacks pass-through outflow settlements"
+
+
+def test_15_scaled_lot_level_ground_truth_invariants():
+    """Test 15: Lot-level ground truth splits stolen amounts into discrete lots and obeys bounds."""
+    accounts, txns, cases, gt = generate_all_data(seed=42, num_accounts=2000, num_cases=60)
+    cases_gt = gt["cases"]
+    txns_gt = gt["transactions_ground_truth"]
+
+    assert len(cases_gt) == 60
+    assert len(txns_gt) > 0
+
+    for cid, c_data in cases_gt.items():
+        stolen = c_data["origin_transfer_paise"]
+        source_lots = c_data["source_lots"]
+        assert len(source_lots) >= 2, f"Case {cid} should have multiple discrete lots"
+        assert sum(l["original_amount_paise"] for l in source_lots) == stolen
+
+        retained = c_data["total_retained_paise"]
+        withdrawn = c_data["total_withdrawn_paise"]
+        assert retained + withdrawn <= stolen, (
+            f"Case {cid} lots ({retained + withdrawn}) exceed stolen amount ({stolen})"
+        )
+
+    # All transactions in txns_gt exist in txns
+    all_tids = {t["transaction_id"] for t in txns}
+    for tid, t_gt in txns_gt.items():
+        assert tid in all_tids, f"Ground truth references unknown txn {tid}"
+        assert t_gt["suspected_amount_paise"] > 0
+        assert sum(t_gt["transferred_lots"].values()) == t_gt["suspected_amount_paise"]
+
+
+def test_16_scaled_financial_invariants_conservation_and_no_negative_balances():
+    """Test 16: Money is strictly conserved and no account has a negative balance at any point."""
+    accounts, txns, cases, gt = generate_all_data(seed=42, num_accounts=2000, num_cases=60)
+
+    running_balances = {a["account_id"]: a["opening_balance_paise"] for a in accounts}
+    total_inflows = {a["account_id"]: 0 for a in accounts}
+    total_outflows = {a["account_id"]: 0 for a in accounts}
+
+    for t in txns:
+        from_acc = t["from_account"]
+        to_acc = t["to_account"]
+        amt = t["amount_paise"]
+        assert amt > 0
+
+        if not from_acc.startswith("EXT_"):
+            running_balances[from_acc] -= amt
+            total_outflows[from_acc] += amt
+            assert running_balances[from_acc] >= 0, (
+                f"Negative balance {running_balances[from_acc]} in account {from_acc} at txn {t['transaction_id']}"
+            )
+
+        if not to_acc.startswith("EXT_"):
+            running_balances[to_acc] += amt
+            total_inflows[to_acc] += amt
+
+    # Exact arithmetic conservation: opening + inflows - outflows == closing
+    for a in accounts:
+        aid = a["account_id"]
+        expected_closing = a["opening_balance_paise"] + total_inflows[aid] - total_outflows[aid]
+        assert running_balances[aid] == expected_closing
+        assert running_balances[aid] >= 0
+
+
+def test_17_scaled_deterministic_generation():
+    """Test 17: Generating scaled dataset with same seed produces identical results."""
+    acc1, txns1, cases1, gt1 = generate_all_data(seed=999, num_accounts=500, num_cases=20)
+    acc2, txns2, cases2, gt2 = generate_all_data(seed=999, num_accounts=500, num_cases=20)
+
+    assert acc1 == acc2
+    assert txns1 == txns2
+    assert cases1 == cases2
+    assert gt1 == gt2
+
