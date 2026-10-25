@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Waypoints, Scale, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Waypoints, Scale, ShieldCheck, Crosshair } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
@@ -31,6 +31,10 @@ export const Sidebar: React.FC = () => {
           <NavLink to={linkTo('/recommendations')} className={({ isActive }) => `fh-sub-link ${isActive ? 'is-active' : ''}`}>
             <ShieldCheck size={16} strokeWidth={1.8} className="fh-sub-icon" />
             <span>Recommended actions</span>
+          </NavLink>
+          <NavLink to={linkTo('/attack-lab')} className={({ isActive }) => `fh-sub-link ${isActive ? 'is-active' : ''}`}>
+            <Crosshair size={16} strokeWidth={1.8} className="fh-sub-icon" />
+            <span>Attack Lab</span>
           </NavLink>
         </div>
       </nav>

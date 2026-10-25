@@ -1990,6 +1990,36 @@ def predict_fraud(
 
 
 # ==============================================================================
+# Attack Lab Adversarial Simulation Endpoints
+# ==============================================================================
+
+_ATTACKLAB_CACHE: Dict[Tuple[int, int, int], Dict[str, Any]] = {}
+
+@app.get("/api/attacklab/run")
+def run_attacklab_experiment(
+    seed: int = Query(42, description="Deterministic random seed"),
+    population: int = Query(24, ge=5, le=50, description="Population size (20-40 recommended)"),
+    generations: int = Query(15, ge=2, le=40, description="Generations count (15-30 recommended)"),
+    auth: AuthContext = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Run seeded evolutionary attacker search and cross-family defense evaluation."""
+    cache_key = (seed, population, generations)
+    if cache_key in _ATTACKLAB_CACHE:
+        return _ATTACKLAB_CACHE[cache_key]
+
+    from attacklab.policy_tuning import AttackLabEngine
+    engine = AttackLabEngine()
+    report = engine.run_full_experiment(
+        seed=seed,
+        population_size=population,
+        generations=generations,
+    )
+    result = report.to_dict()
+    _ATTACKLAB_CACHE[cache_key] = result
+    return result
+
+
+# ==============================================================================
 # 10. TraceProof Multi-Rail Evidence Reconstruction Endpoints
 # ==============================================================================
 

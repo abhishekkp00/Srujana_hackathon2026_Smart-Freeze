@@ -476,3 +476,53 @@ export interface CaseRecommendationsData {
   governance_notice: string;
 }
 
+export interface AttackerGenomeData {
+  hops: number;
+  split_sizes: number[];
+  delay_between_hops_minutes: number;
+  clean_mix_share: number;
+  cash_out_timing_hours: number;
+  spray_width: number;
+  governance_notice?: string;
+}
+
+export interface GenerationRecordData {
+  generation: number;
+  best_fitness: number;
+  mean_fitness: number;
+  best_escaped_rupees: number;
+  best_innocent_held_rupees: number;
+  best_genome: AttackerGenomeData;
+}
+
+export interface PolicyEvaluationSummaryData {
+  defense_mode: 'defenses_off' | 'policy_v1' | 'policy_v2';
+  escaped_money_inr: number;
+  innocent_money_held_inr: number;
+  number_of_holds: number;
+  attacker_fitness_inr: number;
+  captured_money_inr: number;
+  recovery_rate_pct: number;
+  collateral_damage_rate_pct: number;
+}
+
+export interface AttackLabReportData {
+  seed: number;
+  training_timestamp: string;
+  evolved_genome: AttackerGenomeData;
+  evolution_history: GenerationRecordData[];
+  tuning_families: string[];
+  tuning_comparison: {
+    defenses_off: PolicyEvaluationSummaryData;
+    policy_v1: PolicyEvaluationSummaryData;
+    policy_v2: PolicyEvaluationSummaryData;
+  };
+  held_out_family: string;
+  held_out_comparison: {
+    defenses_off: PolicyEvaluationSummaryData;
+    policy_v1: PolicyEvaluationSummaryData;
+    policy_v2: PolicyEvaluationSummaryData;
+  };
+  governance_notice: string;
+}
+

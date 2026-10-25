@@ -23,6 +23,7 @@ import {
   DemoHoldProposalRequest,
   CaseRecommendationsData,
   AccountRecommendation,
+  AttackLabReportData,
 } from '../types';
 
 export const getOverview = async (): Promise<OverviewData> => {
@@ -176,6 +177,15 @@ export const getCaseRecommendations = async (
     params.de_minimis_paise = deMinimisPaise;
   }
   const { data } = await apiClient.get<CaseRecommendationsData>(`/api/cases/${caseId}/recommendations`, { params });
+  return data;
+};
+
+export const getAttackLabReport = async (params?: {
+  seed?: number;
+  population?: number;
+  generations?: number;
+}): Promise<AttackLabReportData> => {
+  const { data } = await apiClient.get<AttackLabReportData>('/api/attacklab/run', { params });
   return data;
 };
 

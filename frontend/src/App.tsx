@@ -8,6 +8,7 @@ import { Overview } from './pages/Overview';
 import { MoneyFlow } from './pages/MoneyFlow';
 import { ConsensusLien } from './pages/ConsensusLien';
 import { RecommendedActions } from './pages/RecommendedActions';
+import { AttackLab } from './pages/AttackLab';
 import { LandingPage } from './pages/LandingPage';
 
 interface DemoPersona {
@@ -42,6 +43,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string; section: stri
   '/money-flow': { title: 'Money flow', subtitle: 'See where transactions move and where commingling may occur.', section: 'Investigation' },
   '/consensus-lien': { title: 'Consensus Lien', subtitle: 'Compare three tracing methods for the same selected case.', section: 'Analysis' },
   '/recommendations': { title: 'Recommended actions', subtitle: 'Explainable, policy-dialed decision support with invariant-backed safeguards.', section: 'Decision support' },
+  '/attack-lab': { title: 'Attack Lab', subtitle: 'Simulated adversary; abstract parameters only — evolutionary stress-testing and policy tuning.', section: 'Stress testing' },
 };
 
 interface AppContentProps {
@@ -70,6 +72,7 @@ const AppContent: React.FC<AppContentProps> = ({ session, onSignOut }) => {
               <Route path="/money-flow" element={<MoneyFlow />} />
               <Route path="/consensus-lien" element={<ConsensusLien />} />
               <Route path="/recommendations" element={<RecommendedActions />} />
+              <Route path="/attack-lab" element={<AttackLab />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>
