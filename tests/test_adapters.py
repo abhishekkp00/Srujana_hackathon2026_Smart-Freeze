@@ -7,6 +7,7 @@ Tests:
 - AMLNetAdapter: separate Australian banking transaction handling, streaming and sample loading
 """
 
+import os
 from pathlib import Path
 import tempfile
 import networkx as nx
@@ -22,7 +23,7 @@ from pipeline.adapters.synthetic_adapter import (
 
 WORKSPACE_DIR = Path(__file__).resolve().parent.parent
 REAL_RAW_DIR = WORKSPACE_DIR / "data" / "raw"
-REAL_SYNTHETIC_DIR = WORKSPACE_DIR / "data" / "synthetic"
+REAL_SYNTHETIC_DIR = Path(os.environ.get("SMART_FREEZE_DATA_DIR", str(WORKSPACE_DIR / "data" / "fixtures" / "demo_3case")))
 
 
 # ==============================================================================

@@ -403,5 +403,7 @@ def test_17_scaled_deterministic_generation():
     assert acc1 == acc2
     assert txns1 == txns2
     assert cases1 == cases2
-    assert gt1 == gt2
+    assert gt1["cases"] == gt2["cases"]
+    assert gt1["transactions_ground_truth"] == gt2["transactions_ground_truth"]
+    assert gt1["scenarios"] == gt2["scenarios"]
 

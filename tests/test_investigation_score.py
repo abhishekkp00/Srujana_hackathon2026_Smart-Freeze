@@ -7,6 +7,7 @@ evidence-backed explanations, temporal cutoff isolation, and ground-truth isolat
 from __future__ import annotations
 
 import math
+import os
 from pathlib import Path
 import pytest
 import pandas as pd
@@ -296,9 +297,10 @@ def test_governance_disclaimer_present():
 
 def test_real_synthetic_dataset_scoring():
     """End-to-end integration test scoring the three real synthetic cases."""
-    cases_df = pd.read_csv("data/synthetic/cases.csv")
-    txs_df = pd.read_csv("data/synthetic/transactions.csv")
-    accs_df = pd.read_csv("data/synthetic/accounts.csv")
+    data_dir = Path(os.environ.get("SMART_FREEZE_DATA_DIR", "data/fixtures/demo_3case"))
+    cases_df = pd.read_csv(data_dir / "cases.csv")
+    txs_df = pd.read_csv(data_dir / "transactions.csv")
+    accs_df = pd.read_csv(data_dir / "accounts.csv")
 
     engine = InvestigationScoringEngine()
     scored_cases = engine.score_all_cases(

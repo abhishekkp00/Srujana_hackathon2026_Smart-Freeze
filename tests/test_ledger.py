@@ -12,6 +12,7 @@ Tests:
 """
 
 import json
+import os
 from pathlib import Path
 import tempfile
 import pandas as pd
@@ -25,7 +26,7 @@ from engine.balances import (
 from engine.ledger import LedgerReconstructionEngine
 
 WORKSPACE_DIR = Path(__file__).resolve().parent.parent
-REAL_SYNTHETIC_DIR = WORKSPACE_DIR / "data" / "synthetic"
+REAL_SYNTHETIC_DIR = Path(os.environ.get("SMART_FREEZE_DATA_DIR", str(WORKSPACE_DIR / "data" / "fixtures" / "demo_3case")))
 
 
 def test_deterministic_sorting_with_equal_timestamps():

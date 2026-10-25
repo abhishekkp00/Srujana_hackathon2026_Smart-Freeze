@@ -75,7 +75,7 @@ from security.middleware import SecurityHeadersMiddleware, RequestSizeLimitMiddl
 
 # Base paths
 ROOT_DIR = Path(__file__).resolve().parent.parent
-SYNTHETIC_DIR = ROOT_DIR / "data" / "synthetic"
+SYNTHETIC_DIR = Path(os.environ.get("SMART_FREEZE_DATA_DIR", str(ROOT_DIR / "data" / "synthetic")))
 PROCESSED_DIR = ROOT_DIR / "data" / "processed"
 RAW_DIR = ROOT_DIR / "data" / "raw"
 

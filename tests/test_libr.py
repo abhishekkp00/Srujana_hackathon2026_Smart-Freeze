@@ -18,6 +18,7 @@ Tests:
 """
 
 import inspect
+import os
 from pathlib import Path
 import pytest
 
@@ -26,7 +27,7 @@ from engine.tracing_models import make_suspected_category
 from pipeline.adapters.synthetic_adapter import SyntheticAdapter
 
 WORKSPACE_DIR = Path(__file__).resolve().parent.parent
-REAL_SYNTHETIC_DIR = WORKSPACE_DIR / "data" / "synthetic"
+REAL_SYNTHETIC_DIR = Path(os.environ.get("SMART_FREEZE_DATA_DIR", str(WORKSPACE_DIR / "data" / "fixtures" / "demo_3case")))
 
 
 # ==============================================================================
